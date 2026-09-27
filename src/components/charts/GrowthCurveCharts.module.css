@@ -1,0 +1,86 @@
+/* ===== 平板适配（700–1439px）：WHO 成长曲线两列 ===== */
+@media (min-width: 700px) and (max-width: 1439px) {
+  :global(.growth-curve-charts) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  :global(.growth-curve-charts .card + .card) {
+    margin-top: 0;
+  }
+}
+
+.growth-info-btn {
+  flex-shrink: 0;
+  min-height: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.3s var(--spring),
+    color 0.25s var(--ease-out),
+    border-color 0.25s var(--ease-out);
+}
+
+.growth-info-btn:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.who-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.who-intro {
+  margin-bottom: 12px;
+}
+
+.who-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.who-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.who-list b {
+  flex-shrink: 0;
+  min-width: 40px;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.who-range {
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.empty-inline {
+  text-align: center;
+  padding: 20px 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}

@@ -1,0 +1,132 @@
+.name-row {
+  display: flex;
+  gap: 8px;
+}
+
+.name-row :global(.form-input) {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.plan-tip {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.plan-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.plan-tab {
+  padding: 9px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.3s var(--spring);
+}
+
+.plan-tab.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.plan-list {
+  display: grid;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.plan-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--glass-border);
+  background: var(--surface-2);
+  text-align: left;
+  transition: all 0.3s var(--spring);
+}
+
+.plan-item:not(.disabled):active {
+  transform: scale(0.98);
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.plan-item.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.plan-item-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.plan-item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.plan-item-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.status-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 12px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--surface);
+  transition: all 0.3s var(--spring);
+}
+
+.status-btn.selected {
+  border-width: 1.5px;
+}
+
+.status-icon {
+  font-size: 20px;
+}
+
+.status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}

@@ -1,0 +1,53 @@
+.value-wrap {
+  position: relative;
+}
+
+.value-wrap :global(.form-input) {
+  padding-right: 34px;
+}
+
+.value-unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.method-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.method-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 10px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--surface);
+  transition: all 0.3s var(--spring);
+}
+
+.method-btn.selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.method-icon {
+  font-size: 18px;
+}
+
+.method-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}

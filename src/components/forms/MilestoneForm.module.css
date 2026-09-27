@@ -1,0 +1,127 @@
+.milestone-types {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.milestone-type {
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  transition:
+    background 0.3s var(--spring),
+    color 0.25s var(--ease-out),
+    box-shadow 0.3s var(--spring);
+}
+
+.milestone-type:active {
+  background: var(--surface-3);
+}
+
+.milestone-type.active {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  box-shadow: inset 0 0 0 1.5px var(--primary);
+}
+
+.milestone-type-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.milestone-type-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.guide-section {
+  margin-bottom: 4px;
+}
+
+.guide-toggle {
+  min-height: 44px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.guide-toggle:active {
+  opacity: 0.7;
+}
+
+.guide-toggle-icon {
+  font-size: 18px;
+}
+
+.guide-toggle-title {
+  flex: 1;
+  text-align: left;
+}
+
+.guide-toggle-arrow {
+  color: var(--text-muted);
+  font-size: 12px;
+  transition: transform 0.18s ease;
+}
+
+.guide-toggle-arrow.open {
+  transform: rotate(180deg);
+}
+
+.guide-list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guide-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.guide-item-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.guide-item-range {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--primary-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.guide-item-text {
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.guide-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 8px 4px 2px;
+  line-height: 1.6;
+}

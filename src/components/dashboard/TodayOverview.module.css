@@ -1,0 +1,343 @@
+/* ===== 概览网格 ===== */
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* ===== 卡片基础 — 液态玻璃 ===== */
+.ov-card {
+  display: flex;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  overflow: hidden;
+  position: relative;
+  transition:
+    box-shadow 0.3s var(--ease-out),
+    transform 0.3s var(--ease-out);
+}
+
+.ov-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .ov-card:hover {
+    box-shadow: var(--shadow-md), var(--shadow-glass);
+    transform: translateY(-1px);
+  }
+}
+
+/* 左侧彩色指示条 */
+.ov-card__accent {
+  width: 3.5px;
+  flex-shrink: 0;
+}
+
+.ov-card--milk .ov-card__accent {
+  background: linear-gradient(to bottom, #c4a8e0, #a78bdb);
+}
+.ov-card--sleep .ov-card__accent {
+  background: linear-gradient(to bottom, #8faed8, #6a96c7);
+}
+.ov-card--diaper .ov-card__accent {
+  background: linear-gradient(to bottom, #9a8fc8, #8476b5);
+}
+
+/* 内容区 */
+.ov-card__content {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 头部：图标 + 标签 + 右侧上次时间（空间不足时徽标换到第二行，而非挤压标签） */
+.ov-card__head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.ov-card__icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.ov-card__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+
+/* 标题行右侧：上次结束时间 */
+.ov-card__alert {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-soft);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 主数值行：左侧大数字 + 右侧参考（放不下时参考下移一行，大数字不折断） */
+.ov-card__hero-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+/* 主数值：大号粗体，视觉焦点 */
+.ov-card__hero {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.ov-card__unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+/* 参考量：主数值行右侧（换行后右对齐） */
+.ov-card__guide {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ov-card--milk .ov-card__hero {
+  color: #af52de;
+}
+.ov-card--sleep .ov-card__hero {
+  color: #0a84ff;
+}
+.ov-card--diaper .ov-card__hero {
+  color: #bf5af2;
+}
+
+/* 详情区 */
+.ov-card__details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* 底部分隔区（泵/库存等辅助数据） */
+.ov-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding-top: 5px;
+  border-top: 1px solid var(--glass-border);
+  margin-top: auto;
+  justify-content: flex-end;
+}
+
+/* ===== 数据行 ===== */
+.ov-dt {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.4;
+}
+
+/* 左右分散一行 */
+.ov-dt--spread {
+  justify-content: space-between;
+}
+
+.ov-dt__label {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.ov-dt__value {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 弱化文字 */
+.ov-dt--muted {
+  color: var(--text-muted) !important;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* ===== 响应式 ===== */
+/* 手机（≤699）：单列大卡 */
+@media (max-width: 699px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ov-card__hero {
+    font-size: 22px;
+  }
+}
+
+/* 平板竖屏（700–899）：两列，信息量最大的奶量卡独占整行 */
+@media (min-width: 700px) and (max-width: 899px) {
+  .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ov-card--milk {
+    grid-column: 1 / -1;
+  }
+}
+
+.feed-reminder-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--primary-soft), var(--accent-yellow-soft));
+  backdrop-filter: var(--glass-blur-light);
+  -webkit-backdrop-filter: var(--glass-blur-light);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-glass);
+}
+
+.feed-reminder-banner .fr-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.feed-reminder-banner .fr-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.feed-reminder-banner .fr-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-reminder-banner .fr-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.banner-close {
+  width: 44px;
+  height: 44px;
+  min-height: 0;
+  margin-left: auto;
+  margin-right: -10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.banner-close:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.banner-close:active {
+  transform: scale(0.9);
+}
+
+.vaccine-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent-blue-soft), var(--surface));
+  backdrop-filter: var(--glass-blur-light);
+  -webkit-backdrop-filter: var(--glass-blur-light);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  box-shadow: var(--shadow-glass);
+  transition:
+    transform 0.3s var(--spring),
+    box-shadow 0.3s var(--ease-out);
+}
+
+.vaccine-banner:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-md);
+}
+
+.vaccine-banner .vb-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.vaccine-banner .vb-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.vaccine-banner .vb-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.vaccine-banner .vb-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+}
+
+.vb-days {
+  color: var(--accent-blue);
+  font-weight: 700;
+  margin-left: 3px;
+}

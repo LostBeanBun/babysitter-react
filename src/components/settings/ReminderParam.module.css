@@ -1,0 +1,19 @@
+.reminder-param-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+:global(.form-input).reminder-param-input {
+  width: 88px;
+  min-height: 44px;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+}
+
+.reminder-param-hint {
+  width: 100%;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}

@@ -1,0 +1,9 @@
+/* 全局动画与 shell */
+.app-shell {
+  min-height: 100%;
+  position: relative;
+}
+
+.fade-page {
+  min-height: 100%;
+}

@@ -1,0 +1,68 @@
+.mask-in {
+  animation: modal-fade-in 0.2s ease;
+}
+
+.mask-out {
+  animation: modal-fade-out 0.2s ease forwards;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+:global(.modal-panel):focus-visible {
+  outline: none;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.modal-title {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.modal-close {
+  width: 44px;
+  height: 44px;
+  min-height: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  backdrop-filter: var(--glass-blur-light);
+  -webkit-backdrop-filter: var(--glass-blur-light);
+  font-size: 15px;
+  border: 1px solid var(--glass-border);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.35s var(--spring);
+}
+
+.modal-close:active {
+  background: var(--surface-3);
+  transform: scale(var(--tap-scale));
+}

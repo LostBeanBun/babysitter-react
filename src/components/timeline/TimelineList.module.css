@@ -1,0 +1,187 @@
+.tl-group {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.tl-day {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin: 0 4px 6px;
+  padding: 0 10px;
+  background: var(--surface-translucent);
+  backdrop-filter: var(--glass-blur-light);
+  -webkit-backdrop-filter: var(--glass-blur-light);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+}
+
+.tl-timeline-item {
+  position: relative;
+  gap: 12px;
+}
+
+/* 时间轴节点：同类型统一主色描边圆点 */
+.tl-timeline-item .tl-timeline-node {
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1.5px currentColor;
+  flex-shrink: 0;
+}
+
+.tl-timeline-item + .tl-timeline-item {
+  margin-top: 2px;
+}
+
+.tl-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    background 0.25s var(--ease-out),
+    transform 0.3s var(--spring);
+}
+
+@media (hover: hover) {
+  .tl-item:hover {
+    background: var(--fill-hover);
+    backdrop-filter: var(--glass-blur-light);
+    -webkit-backdrop-filter: var(--glass-blur-light);
+  }
+}
+
+.tl-item:active {
+  transform: scale(0.985);
+}
+
+.tl-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px var(--glass-inset);
+}
+
+.tl-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tl-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tl-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tl-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  background: var(--surface-2);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.tl-detail {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.tl-delete {
+  width: 44px;
+  height: 44px;
+  min-height: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  opacity: 0;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tl-item:hover .tl-delete {
+  opacity: 1;
+}
+
+.tl-delete:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.tl-delete:active,
+.tl-delete:focus-visible {
+  background: var(--danger-soft);
+  color: var(--danger);
+  opacity: 1;
+}
+
+/* 删除待确认态：高亮被选中的条目 */
+.tl-item.tl-deleting {
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+  animation: tl-deleting-pulse 1.4s ease-in-out infinite;
+}
+
+.tl-item.tl-deleting .tl-delete {
+  background: var(--danger);
+  color: var(--on-primary);
+  opacity: 1;
+  box-shadow: 0 2px 8px var(--danger-soft);
+}
+
+.tl-item.tl-deleting .tl-title {
+  color: var(--danger);
+}
+
+@keyframes tl-deleting-pulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1.5px var(--danger),
+      0 0 0 0 var(--danger-soft);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1.5px var(--danger),
+      0 0 0 4px var(--danger-soft);
+  }
+}
+
+@media (hover: none) {
+  .tl-delete {
+    opacity: 0.85;
+  }
+}

@@ -1,0 +1,14 @@
+/* 从 Vue 版 main.css 完整迁移（去掉 #app 选择器依赖） */
+@import './theme.css';
+@import './shell.css';
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+}
+
+#app {
+  height: 100%;
+  width: 100%;
+}
