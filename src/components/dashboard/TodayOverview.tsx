@@ -160,8 +160,10 @@ export default function TodayOverview({ now, onAdd }: TodayOverviewProps) {
   // —— 喂奶提醒 ——
   const lastFeeding = [...feedings].sort((a, b) => b.startTime - a.startTime)[0]
   const lastSleep = [...sleeps].sort((a, b) => (b.endTime ?? b.startTime) - (a.endTime ?? a.startTime))[0]
+  const lastDiaper = [...diapers].sort((a, b) => b.time - a.time)[0]
   const sinceMs = lastFeeding ? now - (lastFeeding.endTime ?? lastFeeding.startTime) : null
   const sinceSleepMs = lastSleep ? now - (lastSleep.endTime ?? lastSleep.startTime) : null
+  const sinceDiaperMs = lastDiaper ? now - lastDiaper.time : null
   const recommendedMs = recommendedIntervalMs(activeBaby)
   const overdue = sinceMs != null && sinceMs > recommendedMs
   /** 按月龄的每日参考数据（无出生日期时为 null） */
@@ -312,6 +314,14 @@ export default function TodayOverview({ now, onAdd }: TodayOverviewProps) {
             <div className={s['ov-card__head']}>
               <span className={s['ov-card__icon']}>🧷</span>
               <span className={s['ov-card__label']}>{t('dashboard.statDiaper')}</span>
+              {lastDiaper && (
+                <span className={s['ov-card__alert']}>
+                  {formatTime(lastDiaper.time)}
+                  {sinceDiaperMs != null && sinceDiaperMs >= 0
+                    ? ` · ${formatDuration(sinceDiaperMs)}${t('common.ago')}`
+                    : ''}
+                </span>
+              )}
             </div>
             <div className={s['ov-card__hero-row']}>
               <p className={s['ov-card__hero']}>
