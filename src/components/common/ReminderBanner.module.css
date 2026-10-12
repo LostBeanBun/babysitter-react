@@ -1,0 +1,112 @@
+.reminder-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: var(--glass-blur-light);
+  -webkit-backdrop-filter: var(--glass-blur-light);
+}
+
+.reminder-banner--feed {
+  background: linear-gradient(135deg, var(--primary-soft), var(--accent-yellow-soft));
+}
+
+.reminder-banner--vaccine {
+  background: linear-gradient(135deg, var(--accent-blue-soft), var(--surface));
+  cursor: pointer;
+  transition:
+    transform 0.3s var(--spring),
+    box-shadow 0.3s var(--ease-out);
+}
+
+.reminder-banner--vaccine:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-md);
+}
+
+.rb-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.rb-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.rb-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rb-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  align-items: baseline;
+}
+
+/* 内容芯片：显式 min-height:0 避开全局 button 44px 触控高度，保持单行紧凑 */
+.rb-chip {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+
+.rb-chip:hover {
+  color: var(--accent-blue);
+}
+
+.rb-chip:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.rb-badge {
+  color: var(--accent-blue);
+  font-weight: 700;
+  margin-left: 3px;
+}
+
+.rb-close {
+  width: 44px;
+  height: 44px;
+  min-height: 0;
+  margin-left: auto;
+  margin-right: -10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.rb-close:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.rb-close:active {
+  transform: scale(0.9);
+}

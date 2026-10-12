@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useDeleteUndo } from '@/hooks/useDeleteUndo'
+import { useDismissedReminders } from '@/hooks/useDismissedReminders'
+import ReminderBanner from '@/components/common/ReminderBanner'
 import { startOfDay, formatDuration, formatAmount, formatTime } from '@/utils/format'
 import { MS_PER_DAY } from '@/constants'
+import { upcomingVaccinations, vaccineDaysLeft } from '@/services/reminders'
 import { recommendedIntervalMs, recommendedIntervalLabel } from '@/utils/feedingGuide'
 import { dailyGuide } from '@/utils/dailyGuides'
 import type { Feeding, DiaperChange, Pumping, Sleep, Vaccination } from '@/types'
@@ -15,25 +17,16 @@ import s from './TodayOverview.module.css'
 
 export interface TodayOverviewProps {
   now: number
-  onAdd?: (kind: 'vaccination') => void
+  /** 点击疫苗提醒条/芯片：编辑对应计划记录 */
+  onEdit?: (v: Vaccination) => void
 }
 
 /** 今日概览：喂奶/疫苗提醒条 + 统计卡 + 每日小结（数据按 now 实时重算） */
-export default function TodayOverview({ now, onAdd }: TodayOverviewProps) {
+export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
   const { t } = useTranslation()
   const { activeBaby, activeBabyId } = useBabies()
   const { isPending } = useDeleteUndo()
-
-  /**
-   * 提醒条关闭状态（会话级，仅内存）：关闭后当前会话不再显示，刷新页面即重新提醒。
-   * 提醒基于实时数据（如喂奶间隔），跨天重新提醒没有意义，故不持久化。
-   */
-  const [dismissed, setDismissed] = useState<{ feed: boolean; vaccine: boolean }>({ feed: false, vaccine: false })
-
-  /** 关闭某提醒条（当前会话生效） */
-  function dismissReminder(kind: 'feed' | 'vaccine') {
-    setDismissed((prev) => ({ ...prev, [kind]: true }))
-  }
+  const { dismissed, dismiss } = useDismissedReminders()
 
   const feedings =
     useLiveQuery(
@@ -127,16 +120,24 @@ export default function TodayOverview({ now, onAdd }: TodayOverviewProps) {
     'sleep',
   )
 
-  const upcomingVaccinations = (() => {
-    const cutoff = todayStart - 14 * MS_PER_DAY
-    return vaccinations
-      .filter((v) => v.status === 'planned' && v.date >= cutoff)
-      .sort((a, b) => a.date - b.date)
-      .slice(0, 3)
-  })()
+  const upcomingVaccinationsList = upcomingVaccinations(vaccinations, todayStart)
 
-  function vaccineDaysLeft(date: number): number {
-    return Math.round((date - todayStart) / MS_PER_DAY)
+  /** 疫苗提醒条内容芯片：名称 · 剂次 + 距接种日文案 */
+  const vaccineChips = upcomingVaccinationsList.map((v) => {
+    const n = vaccineDaysLeft(v.date, todayStart)
+    const badge =
+      n === 0
+        ? t('dashboard.vaccineToday')
+        : n > 0
+          ? t('dashboard.vaccineDaysLeft', { n })
+          : t('dashboard.vaccineOverdue', { n: -n })
+    return { key: v.id!, label: v.dose ? `${v.name} · ${v.dose}` : v.name, badge }
+  })
+
+  /** 点击提醒条/单个芯片：编辑对应计划记录 */
+  function onSelectVaccination(key: number | string) {
+    const v = vaccinations.find((x) => x.id === key)
+    if (v) onEdit?.(v)
   }
 
   // 今日汇总
@@ -173,59 +174,28 @@ export default function TodayOverview({ now, onAdd }: TodayOverviewProps) {
     <div className="today-overview">
       {/* 喂奶提醒条 */}
       {overdue && !dismissed.feed && (
-        <div className={s['feed-reminder-banner']}>
-          <span className={s['fr-icon']}>🍼</span>
-          <div className={s['fr-text']}>
-            <p className={s['fr-title']}>{t('feed.sinceLast', { duration: formatDuration(sinceMs ?? 0) })}</p>
-            <p className={s['fr-sub']}>{t('feed.reminderSub', { label: recommendedIntervalLabel(activeBaby) })}</p>
-          </div>
-          <button
-            type="button"
-            className={s['banner-close']}
-            aria-label={t('common.close')}
-            title={t('common.close')}
-            onClick={() => dismissReminder('feed')}
-          >
-            ✕
-          </button>
-        </div>
+        <ReminderBanner
+          icon="🍼"
+          variant="feed"
+          title={t('feed.sinceLast', { duration: formatDuration(sinceMs ?? 0) })}
+          sub={t('feed.reminderSub', { label: recommendedIntervalLabel(activeBaby) })}
+          dismissLabel={t('common.close')}
+          onDismiss={() => dismiss('feed')}
+        />
       )}
 
-      {/* 疫苗提醒条 */}
-      {upcomingVaccinations.length > 0 && !dismissed.vaccine && (
-        <div className={s['vaccine-banner']} onClick={() => onAdd?.('vaccination')}>
-          <span className={s['vb-icon']}>💉</span>
-          <div className={s['vb-text']}>
-            <p className={s['vb-title']}>{t('dashboard.vaccineReminderTitle')}</p>
-            <p className={s['vb-sub']}>
-              {upcomingVaccinations.map((v) => (
-                <span key={v.id} className="vb-item">
-                  {v.name}
-                  {v.dose ? ` · ${v.dose}` : ''}{' '}
-                  <span className={s['vb-days']}>
-                    {vaccineDaysLeft(v.date) === 0
-                      ? t('dashboard.vaccineToday')
-                      : vaccineDaysLeft(v.date) > 0
-                        ? t('dashboard.vaccineDaysLeft', { n: vaccineDaysLeft(v.date) })
-                        : t('dashboard.vaccineOverdue', { n: -vaccineDaysLeft(v.date) })}
-                  </span>
-                </span>
-              ))}
-            </p>
-          </div>
-          <button
-            type="button"
-            className={s['banner-close']}
-            aria-label={t('common.close')}
-            title={t('common.close')}
-            onClick={(e) => {
-              e.stopPropagation()
-              dismissReminder('vaccine')
-            }}
-          >
-            ✕
-          </button>
-        </div>
+      {/* 疫苗提醒条：点击打开最近一条待种记录进行编辑，点具体芯片可直接编辑该条 */}
+      {upcomingVaccinationsList.length > 0 && !dismissed.vaccine && (
+        <ReminderBanner
+          icon="💉"
+          variant="vaccine"
+          title={t('dashboard.vaccineReminderTitle')}
+          chips={vaccineChips}
+          dismissLabel={t('common.close')}
+          onClick={() => onEdit?.(upcomingVaccinationsList[0])}
+          onSelect={onSelectVaccination}
+          onDismiss={() => dismiss('vaccine')}
+        />
       )}
 
       {/* 统计卡 */}

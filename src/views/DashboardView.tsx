@@ -25,7 +25,7 @@ import { FEED_TYPE_LABELS } from '@/constants'
 import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useSleepModal } from '@/hooks/useSleepModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
-import type { FeedType, SleepType } from '@/types'
+import type { FeedType, SleepType, Vaccination } from '@/types'
 import s from './DashboardView.module.css'
 
 type EntryKind =
@@ -134,6 +134,8 @@ export default function DashboardView() {
 
   // 记录弹窗状态
   const [modalKind, setModalKind] = useState<EntryKind | null>(null)
+  /** 疫苗提醒直接编辑：打开对应计划记录的编辑弹窗 */
+  const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
 
   // 表单弹窗打开时隐藏悬浮球
   useEffect(() => {
@@ -143,7 +145,14 @@ export default function DashboardView() {
   }, [modalKind])
 
   function openAdd(kind: EntryKind) {
+    setEditingVaccination(null)
     setModalKind(kind)
+  }
+
+  /** 点击疫苗提醒：打开对应计划记录编辑 */
+  function onEditVaccination(v: Vaccination) {
+    setEditingVaccination(v)
+    setModalKind('vaccination')
   }
 
   /** 开始记录：保存开始时间，关闭弹窗，悬浮球出现 */
@@ -155,14 +164,16 @@ export default function DashboardView() {
   /** 结束记录 / 编辑保存：关闭弹窗 */
   function onSaved() {
     setModalKind(null)
+    setEditingVaccination(null)
     toast(t('common.recordSaved'))
   }
 
   function onCancelled() {
     setModalKind(null)
+    setEditingVaccination(null)
   }
 
-  const modalTitle = t('log.addTitle')
+  const modalTitle = editingVaccination ? t('log.editTitle') : t('log.addTitle')
 
   return (
     <div className="page dashboard">
@@ -190,7 +201,7 @@ export default function DashboardView() {
       {hasBaby && (
         <>
           {/* 今日概览（提醒条 + 统计卡 + 小结按钮） */}
-          <TodayOverview now={now} onAdd={() => openAdd('vaccination')} />
+          <TodayOverview now={now} onEdit={onEditVaccination} />
 
           {/* 快捷记录 */}
           <p className="section-title">{t('dashboard.quickRecord')}</p>
@@ -244,7 +255,14 @@ export default function DashboardView() {
           </button>
 
           {/* 记录弹窗 */}
-          <BaseModal show={modalKind !== null} title={modalTitle} onClose={() => setModalKind(null)}>
+          <BaseModal
+            show={modalKind !== null}
+            title={modalTitle}
+            onClose={() => {
+              setModalKind(null)
+              setEditingVaccination(null)
+            }}
+          >
             {modalKind === 'feeding' && (
               <FeedingForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />
             )}
@@ -258,7 +276,13 @@ export default function DashboardView() {
             {modalKind === 'growth' && <GrowthForm onSaved={onSaved} onCancelled={onCancelled} />}
             {modalKind === 'solidFood' && <SolidFoodForm onSaved={onSaved} onCancelled={onCancelled} />}
             {modalKind === 'medication' && <MedicationForm onSaved={onSaved} onCancelled={onCancelled} />}
-            {modalKind === 'vaccination' && <VaccinationForm onSaved={onSaved} onCancelled={onCancelled} />}
+            {modalKind === 'vaccination' && (
+              <VaccinationForm
+                editing={editingVaccination?.id != null ? { ...editingVaccination, id: editingVaccination.id } : undefined}
+                onSaved={onSaved}
+                onCancelled={onCancelled}
+              />
+            )}
             {modalKind === 'temperature' && <TemperatureForm onSaved={onSaved} onCancelled={onCancelled} />}
             {modalKind === 'milestone' && <MilestoneForm onSaved={onSaved} onCancelled={onCancelled} />}
           </BaseModal>

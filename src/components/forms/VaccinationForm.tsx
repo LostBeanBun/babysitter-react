@@ -68,8 +68,9 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
   const planItems = planTab === 'free' ? VACCINE_PLAN : SELF_PAID_VACCINE_PLAN
 
   const existingKeys = useMemo(
-    () => new Set(vaccinations.map((v) => `${v.name}|${v.dose ?? ''}`)),
-    [vaccinations],
+    // 编辑中的记录自身不算占用，允许重选以刷新名称/日期
+    () => new Set(vaccinations.filter((v) => v.id !== editing?.id).map((v) => `${v.name}|${v.dose ?? ''}`)),
+    [vaccinations, editing?.id],
   )
 
   function pickFromPlan(item: VaccinePlanItem) {
@@ -217,18 +218,19 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
         </div>
         <div className={s['plan-list']}>
           {planItems.map((item, i) => {
-            const dup = existingKeys.has(`${item.name}|${item.dose}`)
+            const added = existingKeys.has(`${item.name}|${item.dose}`)
             return (
               <button
                 key={i}
                 type="button"
-                className={dup ? `${s['plan-item']} ${s.disabled}` : s['plan-item']}
-                disabled={dup}
+                className={added ? `${s['plan-item']} ${s.disabled}` : s['plan-item']}
+                disabled={added}
                 onClick={() => pickFromPlan(item)}
               >
                 <span className={s['plan-item-name']}>{item.name}</span>
                 <span className={s['plan-item-meta']}>
                   {item.dose} · {t('vaccination.planMonth', { n: item.months })}
+                  {added && <span className={s['plan-item-added']}>✓ {t('vaccination.planAdded')}</span>}
                   {item.note && <span className={s['plan-item-note']}>{item.note}</span>}
                 </span>
               </button>
