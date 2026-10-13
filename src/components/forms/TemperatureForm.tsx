@@ -10,6 +10,7 @@ import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import s from './TemperatureForm.module.css'
 
 export interface TemperatureFormProps {
@@ -65,8 +66,10 @@ export default function TemperatureForm({ editing, onSaved, onCancelled }: Tempe
     onSaved?.()
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="temperature-form">
+    <form ref={formRef} className="temperature-form" onSubmit={onSubmit}>
       <div className={`form-field${err.has('value') ? ' has-error' : ''}`}>
         <label className="form-label">{t('temperature.valueLabel')}</label>
         <div className={s['value-wrap']}>
@@ -127,7 +130,7 @@ export default function TemperatureForm({ editing, onSaved, onCancelled }: Tempe
         onChange={setNotes}
       />
 
-      <FormActions editing={editing != null} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={editing != null} onCancelled={onCancelled} />
+    </form>
   )
 }

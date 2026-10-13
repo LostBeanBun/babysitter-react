@@ -12,6 +12,7 @@ import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import s from './FeedingForm.module.css'
 
 export interface FeedingFormProps {
@@ -220,8 +221,10 @@ export default function FeedingForm({ editing, onSaved, onCancelled, onStartReco
     }
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="feeding-form">
+    <form ref={formRef} className="feeding-form" onSubmit={onSubmit}>
       <p className="form-label">{t('feed.typeLabel')}</p>
       <div className={s['type-grid']}>
         {FEED_TYPE_LIST.map((opt) => (
@@ -335,7 +338,7 @@ export default function FeedingForm({ editing, onSaved, onCancelled, onStartReco
 
       <FormNotes value={notes} label={t('feed.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={isEditing} submitLabel={submitLabel} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={isEditing} submitLabel={submitLabel} onCancelled={onCancelled} />
+    </form>
   )
 }

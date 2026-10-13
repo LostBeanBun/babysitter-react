@@ -11,6 +11,7 @@ import { MILESTONE_GUIDE, milestoneGuideRange } from '@/constants/milestoneGuide
 import type { MilestoneType } from '@/types'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import s from './MilestoneForm.module.css'
 
 export interface MilestoneFormProps {
@@ -59,8 +60,10 @@ export default function MilestoneForm({ editing, onSaved, onCancelled }: Milesto
     onSaved?.()
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="milestone-form">
+    <form ref={formRef} className="milestone-form" onSubmit={onSubmit}>
       <div className="form-field">
         <label className="form-label">{t('milestone.typeLabel')}</label>
         <div className={s['milestone-types']}>
@@ -116,7 +119,7 @@ export default function MilestoneForm({ editing, onSaved, onCancelled }: Milesto
 
       <FormNotes value={notes} label={t('milestone.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={editing != null} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={editing != null} onCancelled={onCancelled} />
+    </form>
   )
 }

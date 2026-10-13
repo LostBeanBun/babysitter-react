@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useRecordsLive } from '@/hooks/useRecordsLive'
 import type { VaccinationStatus, Vaccination } from '@/types'
 import { toDateTimeLocal, fromDateTimeLocal } from '@/utils/format'
 import { db } from '@/db'
@@ -18,6 +18,7 @@ import BaseModal from '@/components/common/BaseModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import s from './VaccinationForm.module.css'
 
 export interface VaccinationFormProps {
@@ -52,17 +53,7 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
   const [planOpen, setPlanOpen] = useState(false)
   const [planTab, setPlanTab] = useState<VaccinePlanCategory>('free')
 
-  const vaccinationsResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Vaccination[]
-      return db.vaccinations
-        .where('[babyId+date]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as Vaccination[],
-  )
+  const vaccinationsResult = useRecordsLive('vaccinations', activeBabyId)
   const vaccinations = useMemo(() => vaccinationsResult ?? [], [vaccinationsResult])
 
   const planItems = planTab === 'free' ? VACCINE_PLAN : SELF_PAID_VACCINE_PLAN
@@ -122,8 +113,10 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
     onSaved?.()
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="vaccination-form">
+    <form ref={formRef} className="vaccination-form" onSubmit={onSubmit}>
       <div className={`form-field${err.has('name') ? ' has-error' : ''}`}>
         <label className="form-label">{t('vaccination.nameLabel')}</label>
         <div className={s['name-row']}>
@@ -192,7 +185,7 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
 
       <FormNotes value={notes} label={t('vaccination.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={editing != null} onCancelled={onCancelled} onSave={submit} />
+      <FormActions editing={editing != null} onCancelled={onCancelled} />
 
       <BaseModal show={planOpen} title={t('vaccination.planTitle')} onClose={() => setPlanOpen(false)}>
         <p className={s['plan-tip']}>{t('vaccination.planTip', { name: activeBaby?.name ?? '' })}</p>
@@ -238,6 +231,6 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
           })}
         </div>
       </BaseModal>
-    </div>
+    </form>
   )
 }

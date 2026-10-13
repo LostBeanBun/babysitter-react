@@ -12,6 +12,7 @@ import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import s from './PumpingForm.module.css'
 
 export interface PumpingFormProps {
@@ -161,8 +162,10 @@ export default function PumpingForm({ editing, onSaved, onCancelled, onStartReco
     }
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="pump-form">
+    <form ref={formRef} className="pump-form" onSubmit={onSubmit}>
       <p className="form-label">{t('pump.sideLabel')}</p>
       <div className={s['type-grid']}>
         {PUMP_SIDE_LIST.map((sd) => (
@@ -235,7 +238,7 @@ export default function PumpingForm({ editing, onSaved, onCancelled, onStartReco
 
       <FormNotes value={notes} label={t('pump.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={isEditing} submitLabel={submitLabel} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={isEditing} submitLabel={submitLabel} onCancelled={onCancelled} />
+    </form>
   )
 }

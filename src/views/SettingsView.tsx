@@ -11,6 +11,7 @@ import { BABY_AVATARS } from '@/constants'
 import { loadReminders, saveReminders, type ReminderConfig, type ReminderType } from '@/utils/reminderScheduler'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import type { Baby, BabyGender } from '@/types'
 import s from './SettingsView.module.css'
 
@@ -199,6 +200,8 @@ export default function SettingsView() {
     }
     setBabyModal(null)
   }
+
+  const { formRef, onSubmit: onBabySubmit } = useFormSubmit(saveBaby)
 
   async function confirmDeleteBaby() {
     const id = deleteBabyConfirm?.id
@@ -522,6 +525,7 @@ export default function SettingsView() {
         title={babyModal?.mode === 'edit' ? t('settings.editBaby') : t('settings.addBaby')}
         onClose={() => setBabyModal(null)}
       >
+        <form ref={formRef} onSubmit={onBabySubmit}>
         <div className={`form-field${err.has('name') ? ' has-error' : ''}`}>
           <label className="form-label">{t('settings.babyName')} *</label>
           <input
@@ -600,13 +604,14 @@ export default function SettingsView() {
           </div>
         </div>
         <div className="form-actions">
-          <button className="btn btn-outline" onClick={() => setBabyModal(null)}>
+          <button type="button" className="btn btn-outline" onClick={() => setBabyModal(null)}>
             {t('common.cancel')}
           </button>
-          <button className="btn btn-primary" onClick={saveBaby}>
+          <button type="submit" className="btn btn-primary">
             {t('settings.saveBaby')}
           </button>
         </div>
+        </form>
       </BaseModal>
 
       {/* 删除宝宝确认 */}

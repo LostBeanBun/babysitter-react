@@ -8,6 +8,7 @@ import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 
 export interface MedicationFormProps {
   editing?: { id: number; time: number; name: string; dose?: string; notes?: string }
@@ -61,8 +62,10 @@ export default function MedicationForm({ editing, onSaved, onCancelled }: Medica
     onSaved?.()
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="medication-form">
+    <form ref={formRef} className="medication-form" onSubmit={onSubmit}>
       <div className={`form-field${err.has('name') ? ' has-error' : ''}`}>
         <label className="form-label">{t('medication.nameLabel')}</label>
         <input
@@ -107,7 +110,7 @@ export default function MedicationForm({ editing, onSaved, onCancelled }: Medica
 
       <FormNotes value={notes} label={t('medication.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={editing != null} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={editing != null} onCancelled={onCancelled} />
+    </form>
   )
 }

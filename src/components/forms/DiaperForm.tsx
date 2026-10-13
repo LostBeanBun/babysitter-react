@@ -10,6 +10,7 @@ import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import s from './DiaperForm.module.css'
 
 export interface DiaperFormProps {
@@ -73,8 +74,10 @@ export default function DiaperForm({ editing, onSaved, onCancelled }: DiaperForm
     onSaved?.()
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="diaper-form">
+    <form ref={formRef} className="diaper-form" onSubmit={onSubmit}>
       <p className="form-label">{t('diaper.typeLabel')}</p>
       <div className={s['type-grid']}>
         {DIAPER_TYPE_LIST.map((opt) => (
@@ -144,7 +147,7 @@ export default function DiaperForm({ editing, onSaved, onCancelled }: DiaperForm
 
       <FormNotes value={notes} label={t('diaper.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={editing != null} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={editing != null} onCancelled={onCancelled} />
+    </form>
   )
 }

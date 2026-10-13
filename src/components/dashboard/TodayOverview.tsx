@@ -2,8 +2,7 @@
 
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db'
+import { useRecordsLive } from '@/hooks/useRecordsLive'
 import { useBabies } from '@/stores/baby'
 import { useDeleteUndo } from '@/hooks/useDeleteUndo'
 import { useDismissedReminders } from '@/hooks/useDismissedReminders'
@@ -29,68 +28,20 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
   const { isPending } = useDeleteUndo()
   const { dismissed, dismiss } = useDismissedReminders()
 
-  const feedings = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Feeding[]
-      return db.feedings
-        .where('[babyId+startTime]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-        .then((a) => a.filter(Boolean))
-    },
-    [activeBabyId],
-    [] as Feeding[],
-  )
+  const feedingsResult = useRecordsLive('feedings', activeBabyId)
+  const feedings = useMemo(() => feedingsResult ?? [], [feedingsResult])
 
-  const diapers = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as DiaperChange[]
-      return db.diapers
-        .where('[babyId+time]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as DiaperChange[],
-  )
+  const diapersResult = useRecordsLive('diapers', activeBabyId)
+  const diapers = useMemo(() => diapersResult ?? [], [diapersResult])
 
-  const pumpings = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Pumping[]
-      return db.pumpings
-        .where('[babyId+startTime]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-        .then((a) => a.filter(Boolean))
-    },
-    [activeBabyId],
-    [] as Pumping[],
-  )
+  const pumpingsResult = useRecordsLive('pumpings', activeBabyId)
+  const pumpings = useMemo(() => pumpingsResult ?? [], [pumpingsResult])
 
-  const sleeps = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Sleep[]
-      return db.sleeps
-        .where('[babyId+startTime]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-        .then((a) => a.filter(Boolean))
-    },
-    [activeBabyId],
-    [] as Sleep[],
-  )
+  const sleepsResult = useRecordsLive('sleeps', activeBabyId)
+  const sleeps = useMemo(() => sleepsResult ?? [], [sleepsResult])
 
-  const vaccinations = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Vaccination[]
-      return db.vaccinations
-        .where('[babyId+date]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as Vaccination[],
-  )
+  const vaccinationsResult = useRecordsLive('vaccinations', activeBabyId)
+  const vaccinations = useMemo(() => vaccinationsResult ?? [], [vaccinationsResult])
 
   const todayStart = startOfDay(now)
   const todayEnd = todayStart + MS_PER_DAY - 1

@@ -8,6 +8,7 @@ import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 
 export interface GrowthFormProps {
   editing?: {
@@ -89,8 +90,10 @@ export default function GrowthForm({ editing, onSaved, onCancelled }: GrowthForm
     onSaved?.()
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="growth-form">
+    <form ref={formRef} className="growth-form" onSubmit={onSubmit}>
       <div className={`form-field${err.has('date') ? ' has-error' : ''}`}>
         <label className="form-label">{t('growth.dateLabel')}</label>
         <input
@@ -164,7 +167,7 @@ export default function GrowthForm({ editing, onSaved, onCancelled }: GrowthForm
 
       <FormNotes value={notes} label={t('growth.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={editing != null} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={editing != null} onCancelled={onCancelled} />
+    </form>
   )
 }

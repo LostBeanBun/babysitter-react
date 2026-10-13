@@ -12,6 +12,7 @@ import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import s from './SleepForm.module.css'
 
 export interface SleepFormProps {
@@ -147,8 +148,10 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
 
   const typeEntries = Object.entries(SLEEP_TYPE_LABELS) as [SleepType, string][]
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="sleep-form">
+    <form ref={formRef} className="sleep-form" onSubmit={onSubmit}>
       <p className="form-label">{t('sleep.typeLabel')}</p>
       <div className={s['type-row']}>
         {typeEntries.map(([key, label]) => (
@@ -203,7 +206,7 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
 
       <FormNotes value={notes} label={t('sleep.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={isEditing} submitLabel={submitLabel} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={isEditing} submitLabel={submitLabel} onCancelled={onCancelled} />
+    </form>
   )
 }

@@ -25,6 +25,7 @@ import { FEED_TYPE_LABELS } from '@/constants'
 import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useSleepModal } from '@/hooks/useSleepModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import type { FeedType, SleepType, Vaccination } from '@/types'
 import s from './DashboardView.module.css'
 
@@ -131,6 +132,8 @@ export default function DashboardView() {
     setSfSleepEnd(toDateTimeLocal(Date.now() + 2 * 3600_000))
     setSfNotes('')
   }
+
+  const { formRef, onSubmit: onSleepFeedSubmit } = useFormSubmit(saveSleepFeed)
 
   // 记录弹窗状态
   const [modalKind, setModalKind] = useState<EntryKind | null>(null)
@@ -298,6 +301,7 @@ export default function DashboardView() {
           setSleepFeedOpen(false)
         }}
       >
+        <form ref={formRef} onSubmit={onSleepFeedSubmit}>
         <div className="form-field">
           <label className="form-label">{t('feed.typeLabel')}</label>
           <select value={sfType} className="form-input" onChange={(e) => setSfType(e.target.value as FeedType)}>
@@ -382,6 +386,7 @@ export default function DashboardView() {
         </div>
         <div className={s['form-actions']}>
           <button
+            type="button"
             className="btn btn-outline"
             onClick={() => {
               activeTimer.reset()
@@ -390,10 +395,11 @@ export default function DashboardView() {
           >
             {t('common.cancel')}
           </button>
-          <button className="btn btn-primary" onClick={saveSleepFeed}>
+          <button type="submit" className="btn btn-primary">
             {t('dashboard.oneTapRecord')}
           </button>
         </div>
+        </form>
       </BaseModal>
 
       {/* 首次引导添加宝宝弹窗 */}

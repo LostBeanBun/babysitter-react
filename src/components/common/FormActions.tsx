@@ -10,10 +10,9 @@ export interface FormActionsProps {
   editing?: boolean
   submitLabel?: string
   onCancelled?: () => void
-  onSave?: () => void
 }
 
-export default function FormActions({ editing, submitLabel, onCancelled, onSave }: FormActionsProps) {
+export default function FormActions({ editing, submitLabel, onCancelled }: FormActionsProps) {
   const { t } = useTranslation()
 
   return (
@@ -21,7 +20,7 @@ export default function FormActions({ editing, submitLabel, onCancelled, onSave 
       <button type="button" className="btn btn-outline" onClick={onCancelled}>
         {t('common.cancel')}
       </button>
-      <button type="button" className="btn btn-primary" onClick={onSave}>
+      <button type="submit" className="btn btn-primary">
         {submitLabel ?? (editing ? t('common.saveEdit') : t('common.save'))}
       </button>
     </div>

@@ -3,11 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EChartsOption } from 'echarts'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useRecordsLive } from '@/hooks/useRecordsLive'
 import PageHeader from '@/components/common/PageHeader'
 import ChartCard from '@/components/charts/ChartCard'
 import GrowthCurveCharts from '@/components/charts/GrowthCurveCharts'
-import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import {
   buildDailySeries,
@@ -54,109 +53,29 @@ export default function StatsView() {
   // 概览 tab：对比 / 汇总
   const [activeView, setActiveView] = useState<'summary' | 'trend' | 'compare'>('summary')
 
-  // —— 数据查询（按当前宝宝）——
-  const feedingsResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Feeding[]
-      return db.feedings
-        .where('[babyId+startTime]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as Feeding[],
-  )
+  // —— 数据查询（按当前宝宝，全局表缓存跨视图共享）——
+  const feedingsResult = useRecordsLive('feedings', activeBabyId)
   const feedings = useMemo(() => feedingsResult ?? [], [feedingsResult])
 
-  const diapersResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as DiaperChange[]
-      return db.diapers
-        .where('[babyId+time]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as DiaperChange[],
-  )
+  const diapersResult = useRecordsLive('diapers', activeBabyId)
   const diapers = useMemo(() => diapersResult ?? [], [diapersResult])
 
-  const pumpingsResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Pumping[]
-      return db.pumpings
-        .where('[babyId+startTime]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as Pumping[],
-  )
+  const pumpingsResult = useRecordsLive('pumpings', activeBabyId)
   const pumpings = useMemo(() => pumpingsResult ?? [], [pumpingsResult])
 
-  const sleepsResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Sleep[]
-      return db.sleeps
-        .where('[babyId+startTime]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as Sleep[],
-  )
+  const sleepsResult = useRecordsLive('sleeps', activeBabyId)
   const sleeps = useMemo(() => sleepsResult ?? [], [sleepsResult])
 
-  const growthsResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as GrowthRecord[]
-      return db.growths
-        .where('[babyId+date]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as GrowthRecord[],
-  )
+  const growthsResult = useRecordsLive('growths', activeBabyId)
   const growths = useMemo(() => growthsResult ?? [], [growthsResult])
 
-  const solidFoodsResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as SolidFood[]
-      return db.solidFoods
-        .where('[babyId+time]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as SolidFood[],
-  )
+  const solidFoodsResult = useRecordsLive('solidFoods', activeBabyId)
   const solidFoods = useMemo(() => solidFoodsResult ?? [], [solidFoodsResult])
 
-  const medicationsResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Medication[]
-      return db.medications
-        .where('[babyId+time]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as Medication[],
-  )
+  const medicationsResult = useRecordsLive('medications', activeBabyId)
   const medications = useMemo(() => medicationsResult ?? [], [medicationsResult])
 
-  const temperaturesResult = useLiveQuery(
-    async () => {
-      if (activeBabyId == null) return [] as Temperature[]
-      return db.temperatures
-        .where('[babyId+time]')
-        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-        .toArray()
-    },
-    [activeBabyId],
-    [] as Temperature[],
-  )
+  const temperaturesResult = useRecordsLive('temperatures', activeBabyId)
   const temperatures = useMemo(() => temperaturesResult ?? [], [temperaturesResult])
 
   // “全部”按实际最早记录收窄，避免从 1970 起逐日建桶导致日均失真

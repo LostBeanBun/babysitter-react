@@ -8,6 +8,7 @@ import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 
 export interface SolidFoodFormProps {
   editing?: { id: number; time: number; food: string; amount?: string; notes?: string }
@@ -61,8 +62,10 @@ export default function SolidFoodForm({ editing, onSaved, onCancelled }: SolidFo
     onSaved?.()
   }
 
+  const { formRef, onSubmit } = useFormSubmit(submit)
+
   return (
-    <div className="solid-food-form">
+    <form ref={formRef} className="solid-food-form" onSubmit={onSubmit}>
       <div className={`form-field${err.has('food') ? ' has-error' : ''}`}>
         <label className="form-label">{t('solidFood.foodLabel')}</label>
         <input
@@ -107,7 +110,7 @@ export default function SolidFoodForm({ editing, onSaved, onCancelled }: SolidFo
 
       <FormNotes value={notes} label={t('solidFood.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 
-      <FormActions editing={editing != null} onCancelled={onCancelled} onSave={submit} />
-    </div>
+      <FormActions editing={editing != null} onCancelled={onCancelled} />
+    </form>
   )
 }

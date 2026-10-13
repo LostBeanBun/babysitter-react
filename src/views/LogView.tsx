@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useRecordsLive } from '@/hooks/useRecordsLive'
 import { toast } from '@/stores/toast'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
@@ -168,69 +168,57 @@ export default function LogView() {
     milestones: Milestone[]
   }
 
-  const logData = useLiveQuery(
-    async (): Promise<LogData | null> => {
-      if (activeBabyId == null) return null
-      const [
-        feedings,
-        diapers,
-        pumpings,
-        sleeps,
-        growths,
-        solidFoods,
-        medications,
-        vaccinations,
-        temperatures,
-        milestones,
-      ] = await Promise.all([
-        db.feedings
-          .where('[babyId+startTime]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-          .then((a) => a.filter(Boolean)),
-        db.diapers
-          .where('[babyId+time]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray(),
-        db.pumpings
-          .where('[babyId+startTime]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-          .then((a) => a.filter(Boolean)),
-        db.sleeps
-          .where('[babyId+startTime]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-          .then((a) => a.filter(Boolean)),
-        db.growths
-          .where('[babyId+date]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray(),
-        db.solidFoods
-          .where('[babyId+time]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray(),
-        db.medications
-          .where('[babyId+time]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray(),
-        db.vaccinations
-          .where('[babyId+date]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray(),
-        db.temperatures
-          .where('[babyId+time]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray(),
-        db.milestones
-          .where('[babyId+time]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray(),
-      ])
-      return { feedings, diapers, pumpings, sleeps, growths, solidFoods, medications, vaccinations, temperatures, milestones }
-    },
-    [activeBabyId],
-  )
+  const feedingsLive = useRecordsLive('feedings', activeBabyId)
+  const diapersLive = useRecordsLive('diapers', activeBabyId)
+  const pumpingsLive = useRecordsLive('pumpings', activeBabyId)
+  const sleepsLive = useRecordsLive('sleeps', activeBabyId)
+  const growthsLive = useRecordsLive('growths', activeBabyId)
+  const solidFoodsLive = useRecordsLive('solidFoods', activeBabyId)
+  const medicationsLive = useRecordsLive('medications', activeBabyId)
+  const vaccinationsLive = useRecordsLive('vaccinations', activeBabyId)
+  const temperaturesLive = useRecordsLive('temperatures', activeBabyId)
+  const milestonesLive = useRecordsLive('milestones', activeBabyId)
+
+  const logData = useMemo<LogData | null | undefined>(() => {
+    if (activeBabyId == null) return null
+    const rows = [
+      feedingsLive,
+      diapersLive,
+      pumpingsLive,
+      sleepsLive,
+      growthsLive,
+      solidFoodsLive,
+      medicationsLive,
+      vaccinationsLive,
+      temperaturesLive,
+      milestonesLive,
+    ]
+    if (rows.some((r) => r === undefined)) return undefined
+    return {
+      feedings: feedingsLive!,
+      diapers: diapersLive!,
+      pumpings: pumpingsLive!,
+      sleeps: sleepsLive!,
+      growths: growthsLive!,
+      solidFoods: solidFoodsLive!,
+      medications: medicationsLive!,
+      vaccinations: vaccinationsLive!,
+      temperatures: temperaturesLive!,
+      milestones: milestonesLive!,
+    }
+  }, [
+    activeBabyId,
+    feedingsLive,
+    diapersLive,
+    pumpingsLive,
+    sleepsLive,
+    growthsLive,
+    solidFoodsLive,
+    medicationsLive,
+    vaccinationsLive,
+    temperaturesLive,
+    milestonesLive,
+  ])
 
   /** 查询首结果未返回（undefined）→ 加载中；null 表示当前无宝宝（合法空态） */
   const logsLoading = logData === undefined

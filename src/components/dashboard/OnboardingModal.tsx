@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import BaseModal from '@/components/common/BaseModal'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useFormSubmit } from '@/hooks/useFormSubmit'
 import { BABY_AVATARS } from '@/constants'
 import type { BabyGender } from '@/types'
 import s from './OnboardingModal.module.css'
@@ -48,8 +49,11 @@ export default function OnboardingModal({ show, onClose }: OnboardingModalProps)
     onClose?.()
   }
 
+  const { formRef, onSubmit } = useFormSubmit(onOnboarded)
+
   return (
     <BaseModal show={show} title={t('settings.addBaby')} onClose={onClose}>
+      <form ref={formRef} onSubmit={onSubmit}>
       <div className={`form-field${err.has('name') ? ' has-error' : ''}`}>
         <label className="form-label">{t('settings.babyName')} *</label>
         <input
@@ -125,9 +129,10 @@ export default function OnboardingModal({ show, onClose }: OnboardingModalProps)
           ))}
         </div>
       </div>
-      <button className="btn btn-primary btn-block btn-lg" onClick={onOnboarded}>
+      <button type="submit" className="btn btn-primary btn-block btn-lg">
         {t('common.start')}
       </button>
+      </form>
     </BaseModal>
   )
 }

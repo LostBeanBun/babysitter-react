@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useBabiesLive } from '@/hooks/useRecordsLive'
 import { db } from '@/db'
 import i18n from '@/i18n'
 import { AVATAR_COLORS } from '@/constants'
@@ -38,7 +38,7 @@ export function hydrateActiveBaby(): void {
 
 /** 订阅 babies 表，返回列表与当前激活宝宝 */
 export function useBabies() {
-  const babies = useLiveQuery(() => db.babies.orderBy('createdAt').toArray(), []) ?? []
+  const babies = useBabiesLive() ?? []
   const activeBabyId = useBabyStore((s) => s.activeBabyId)
   const setActiveBabyId = useBabyStore((s) => s.setActiveBabyId)
 
