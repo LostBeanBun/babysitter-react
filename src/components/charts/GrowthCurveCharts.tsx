@@ -221,7 +221,7 @@ export default function GrowthCurveCharts({ babyName, gender, birthDate, records
       series: growthSeries('weight', weightPoints, CHART_COLORS.feedAmount, t('stats.babyWeight')),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [axisColor, axisLineColor, splitLineColor, growthXMin, growthXMaxTs, weightPoints, t, WHO_LINE_COLORS],
+    [axisColor, axisLineColor, splitLineColor, growthXMin, growthXMaxTs, growthXMax, weightPoints, t, WHO_LINE_COLORS, whoPoints, birthTs, birthDate],
   )
 
   const heightOption = useMemo<EChartsOption>(
@@ -252,7 +252,7 @@ export default function GrowthCurveCharts({ babyName, gender, birthDate, records
       series: growthSeries('length', heightPoints, CHART_COLORS.sleep, t('stats.babyHeight')),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [axisColor, axisLineColor, splitLineColor, growthXMin, growthXMaxTs, heightPoints, t, WHO_LINE_COLORS],
+    [axisColor, axisLineColor, splitLineColor, growthXMin, growthXMaxTs, growthXMax, heightPoints, t, WHO_LINE_COLORS, whoPoints, birthTs, birthDate],
   )
 
   const hcOption = useMemo<EChartsOption>(
@@ -283,7 +283,7 @@ export default function GrowthCurveCharts({ babyName, gender, birthDate, records
       series: growthSeries('hc', hcPoints, '#6AB0D8', t('stats.babyHead')),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [axisColor, axisLineColor, splitLineColor, growthXMin, growthXMaxTs, hcPoints, t, WHO_LINE_COLORS],
+    [axisColor, axisLineColor, splitLineColor, growthXMin, growthXMaxTs, growthXMax, hcPoints, t, WHO_LINE_COLORS, whoPoints, birthTs, birthDate],
   )
 
   const weightSubtitle = growthSubtitle('weight', weightPoints)

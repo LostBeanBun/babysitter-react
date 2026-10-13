@@ -79,10 +79,16 @@ export default function ChartCard({ title, subtitle, option, height, empty, titl
     if (!el) return
     const chart = init(el)
     chartRef.current = chart
-    const ro = new ResizeObserver(() => chart.resize())
+    // resize 节流：连续拖动/分屏变化时按尾沿 100ms 合并，避免每帧重绘
+    let resizeTimer: number | undefined
+    const ro = new ResizeObserver(() => {
+      window.clearTimeout(resizeTimer)
+      resizeTimer = window.setTimeout(() => chart.resize(), 100)
+    })
     ro.observe(el)
     return () => {
       window.clearTimeout(hideTimerRef.current)
+      window.clearTimeout(resizeTimer)
       ro.disconnect()
       chart.dispose()
       chartRef.current = null

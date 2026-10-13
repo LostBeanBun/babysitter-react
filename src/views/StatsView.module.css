@@ -63,7 +63,8 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
-  transition: all 0.3s var(--spring);
+  transition: background-color 0.3s var(--spring), border-color 0.3s var(--spring), color 0.3s var(--spring),
+    box-shadow 0.3s var(--spring), transform 0.3s var(--spring), opacity 0.3s var(--spring);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -157,18 +158,20 @@
 
 .compare-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* minmax(0,1fr) 防止长文案（如睡眠时长）把所在列撑宽导致三列不齐 */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
 @media (max-width: 400px) {
   .compare-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 }
 
 .compare-item {
+  min-width: 0;
   background: var(--surface-translucent);
   backdrop-filter: var(--glass-blur-light);
   -webkit-backdrop-filter: var(--glass-blur-light);
@@ -208,6 +211,7 @@
   align-items: center;
   gap: 1px;
   margin-top: 4px;
+  min-width: 0;
 }
 
 .compare-change {
@@ -231,10 +235,9 @@
   font-size: 10px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
+  /* 长文本（睡眠时长 前 → 后）自然换行，避免撑破网格列宽 */
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 400px) {

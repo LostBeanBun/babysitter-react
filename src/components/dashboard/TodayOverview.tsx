@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db'
@@ -28,73 +29,68 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
   const { isPending } = useDeleteUndo()
   const { dismissed, dismiss } = useDismissedReminders()
 
-  const feedings =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Feeding[]
-        return db.feedings
-          .where('[babyId+startTime]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-          .then((a) => a.filter(Boolean))
-      },
-      [activeBabyId],
-      [] as Feeding[],
-    ) ?? []
+  const feedings = useLiveQuery(
+    async () => {
+      if (activeBabyId == null) return [] as Feeding[]
+      return db.feedings
+        .where('[babyId+startTime]')
+        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
+        .toArray()
+        .then((a) => a.filter(Boolean))
+    },
+    [activeBabyId],
+    [] as Feeding[],
+  )
 
-  const diapers =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as DiaperChange[]
-        return db.diapers
-          .where('[babyId+time]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as DiaperChange[],
-    ) ?? []
+  const diapers = useLiveQuery(
+    async () => {
+      if (activeBabyId == null) return [] as DiaperChange[]
+      return db.diapers
+        .where('[babyId+time]')
+        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
+        .toArray()
+    },
+    [activeBabyId],
+    [] as DiaperChange[],
+  )
 
-  const pumpings =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Pumping[]
-        return db.pumpings
-          .where('[babyId+startTime]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-          .then((a) => a.filter(Boolean))
-      },
-      [activeBabyId],
-      [] as Pumping[],
-    ) ?? []
+  const pumpings = useLiveQuery(
+    async () => {
+      if (activeBabyId == null) return [] as Pumping[]
+      return db.pumpings
+        .where('[babyId+startTime]')
+        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
+        .toArray()
+        .then((a) => a.filter(Boolean))
+    },
+    [activeBabyId],
+    [] as Pumping[],
+  )
 
-  const sleeps =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Sleep[]
-        return db.sleeps
-          .where('[babyId+startTime]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-          .then((a) => a.filter(Boolean))
-      },
-      [activeBabyId],
-      [] as Sleep[],
-    ) ?? []
+  const sleeps = useLiveQuery(
+    async () => {
+      if (activeBabyId == null) return [] as Sleep[]
+      return db.sleeps
+        .where('[babyId+startTime]')
+        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
+        .toArray()
+        .then((a) => a.filter(Boolean))
+    },
+    [activeBabyId],
+    [] as Sleep[],
+  )
 
-  const vaccinations =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Vaccination[]
-        return db.vaccinations
-          .where('[babyId+date]')
-          .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as Vaccination[],
-    ) ?? []
+  const vaccinations = useLiveQuery(
+    async () => {
+      if (activeBabyId == null) return [] as Vaccination[]
+      return db.vaccinations
+        .where('[babyId+date]')
+        .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
+        .toArray()
+    },
+    [activeBabyId],
+    [] as Vaccination[],
+  )
 
   const todayStart = startOfDay(now)
   const todayEnd = todayStart + MS_PER_DAY - 1
@@ -103,36 +99,47 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
     return items.filter((x) => !isPending({ kind, id: x.id! }))
   }
 
-  const todayFeedings = keep(
-    feedings.filter((f) => f.startTime >= todayStart && f.startTime <= todayEnd),
-    'feeding',
+  const todayFeedings = useMemo(
+    () => keep(feedings.filter((f) => f.startTime >= todayStart && f.startTime <= todayEnd), 'feeding'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [feedings, todayStart, todayEnd, isPending],
   )
-  const todayDiapers = keep(
-    diapers.filter((d) => d.time >= todayStart && d.time <= todayEnd),
-    'diaper',
+  const todayDiapers = useMemo(
+    () => keep(diapers.filter((d) => d.time >= todayStart && d.time <= todayEnd), 'diaper'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [diapers, todayStart, todayEnd, isPending],
   )
-  const todayPumpings = keep(
-    pumpings.filter((p) => p.startTime >= todayStart && p.startTime <= todayEnd),
-    'pumping',
+  const todayPumpings = useMemo(
+    () => keep(pumpings.filter((p) => p.startTime >= todayStart && p.startTime <= todayEnd), 'pumping'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pumpings, todayStart, todayEnd, isPending],
   )
-  const todaySleeps = keep(
-    sleeps.filter((sl) => (sl.endTime ?? sl.startTime) >= todayStart && sl.startTime <= todayEnd),
-    'sleep',
+  const todaySleeps = useMemo(
+    () => keep(sleeps.filter((sl) => (sl.endTime ?? sl.startTime) >= todayStart && sl.startTime <= todayEnd), 'sleep'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sleeps, todayStart, todayEnd, isPending],
   )
 
-  const upcomingVaccinationsList = upcomingVaccinations(vaccinations, todayStart)
+  const upcomingVaccinationsList = useMemo(() => upcomingVaccinations(vaccinations, todayStart), [
+    vaccinations,
+    todayStart,
+  ])
 
   /** 疫苗提醒条内容芯片：名称 · 剂次 + 距接种日文案 */
-  const vaccineChips = upcomingVaccinationsList.map((v) => {
-    const n = vaccineDaysLeft(v.date, todayStart)
-    const badge =
-      n === 0
-        ? t('dashboard.vaccineToday')
-        : n > 0
-          ? t('dashboard.vaccineDaysLeft', { n })
-          : t('dashboard.vaccineOverdue', { n: -n })
-    return { key: v.id!, label: v.dose ? `${v.name} · ${v.dose}` : v.name, badge }
-  })
+  const vaccineChips = useMemo(
+    () =>
+      upcomingVaccinationsList.map((v) => {
+        const n = vaccineDaysLeft(v.date, todayStart)
+        const badge =
+          n === 0
+            ? t('dashboard.vaccineToday')
+            : n > 0
+              ? t('dashboard.vaccineDaysLeft', { n })
+              : t('dashboard.vaccineOverdue', { n: -n })
+        return { key: v.id!, label: v.dose ? `${v.name} · ${v.dose}` : v.name, badge }
+      }),
+    [upcomingVaccinationsList, todayStart, t],
+  )
 
   /** 点击提醒条/单个芯片：编辑对应计划记录 */
   function onSelectVaccination(key: number | string) {
@@ -141,34 +148,43 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
   }
 
   // 今日汇总
-  const totalMilk = todayFeedings.reduce((sum, f) => sum + (f.amount ?? 0), 0)
-  const feedCount = todayFeedings.length
-  /** 今日泵出总量（吸奶产出） */
-  const pumpTotal = todayPumpings.reduce((sum, p) => sum + (p.amount ?? 0), 0)
-  /** 今日瓶喂母乳消耗量 */
-  const bottleBreastmilkTotal = todayFeedings
-    .filter((f) => f.type === 'bottle_breastmilk')
-    .reduce((sum, f) => sum + (f.amount ?? 0), 0)
-  /** 母乳库存 = 泵出 − 瓶喂母乳消耗（可为负：消耗多于泵出） */
-  const breastStock = pumpTotal - bottleBreastmilkTotal
+  const summary = useMemo(() => {
+    const totalMilk = todayFeedings.reduce((sum, f) => sum + (f.amount ?? 0), 0)
+    const feedCount = todayFeedings.length
+    /** 今日泵出总量（吸奶产出） */
+    const pumpTotal = todayPumpings.reduce((sum, p) => sum + (p.amount ?? 0), 0)
+    /** 今日瓶喂母乳消耗量 */
+    const bottleBreastmilkTotal = todayFeedings
+      .filter((f) => f.type === 'bottle_breastmilk')
+      .reduce((sum, f) => sum + (f.amount ?? 0), 0)
+    /** 母乳库存 = 泵出 − 瓶喂母乳消耗（可为负：消耗多于泵出） */
+    const breastStock = pumpTotal - bottleBreastmilkTotal
 
-  const sleepTotal = todaySleeps.reduce((sum, sl) => {
-    const s0 = Math.max(sl.startTime, todayStart)
-    const e0 = Math.min(sl.endTime ?? sl.startTime, todayEnd)
-    return sum + Math.max(0, e0 - s0)
-  }, 0)
+    const sleepTotal = todaySleeps.reduce((sum, sl) => {
+      const s0 = Math.max(sl.startTime, todayStart)
+      const e0 = Math.min(sl.endTime ?? sl.startTime, todayEnd)
+      return sum + Math.max(0, e0 - s0)
+    }, 0)
+
+    return { totalMilk, feedCount, pumpTotal, bottleBreastmilkTotal, breastStock, sleepTotal }
+  }, [todayFeedings, todayPumpings, todaySleeps, todayStart, todayEnd])
+  const { totalMilk, feedCount, breastStock, sleepTotal } = summary
 
   // —— 喂奶提醒 ——
-  const lastFeeding = [...feedings].sort((a, b) => b.startTime - a.startTime)[0]
-  const lastSleep = [...sleeps].sort((a, b) => (b.endTime ?? b.startTime) - (a.endTime ?? a.startTime))[0]
-  const lastDiaper = [...diapers].sort((a, b) => b.time - a.time)[0]
+  const lastFeeding = useMemo(() => [...feedings].sort((a, b) => b.startTime - a.startTime)[0], [feedings])
+  const lastSleep = useMemo(() => [...sleeps].sort((a, b) => (b.endTime ?? b.startTime) - (a.endTime ?? a.startTime))[0], [sleeps])
+  const lastDiaper = useMemo(() => [...diapers].sort((a, b) => b.time - a.time)[0], [diapers])
   const sinceMs = lastFeeding ? now - (lastFeeding.endTime ?? lastFeeding.startTime) : null
   const sinceSleepMs = lastSleep ? now - (lastSleep.endTime ?? lastSleep.startTime) : null
   const sinceDiaperMs = lastDiaper ? now - lastDiaper.time : null
-  const recommendedMs = recommendedIntervalMs(activeBaby)
+  const recommended = useMemo(
+    () => ({ ms: recommendedIntervalMs(activeBaby), guide: dailyGuide(activeBaby) }),
+    [activeBaby],
+  )
+  const recommendedMs = recommended.ms
   const overdue = sinceMs != null && sinceMs > recommendedMs
   /** 按月龄的每日参考数据（无出生日期时为 null） */
-  const guide = dailyGuide(activeBaby)
+  const guide = recommended.guide
 
   return (
     <div className="today-overview">

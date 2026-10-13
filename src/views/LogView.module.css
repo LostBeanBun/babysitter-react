@@ -144,6 +144,52 @@
   margin-top: 6px;
 }
 
+/* 查询加载骨架：避免首帧"暂无记录"闪烁 */
+.log-skeleton {
+  padding: 4px;
+}
+
+.sk-group,
+.sk-row {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--fill-hover) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.2s ease-in-out infinite;
+}
+
+.sk-group {
+  width: 96px;
+  height: 24px;
+  border-radius: 999px;
+  margin: 0 4px 8px;
+}
+
+.sk-row {
+  height: 56px;
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+}
+
+@keyframes sk-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk-group,
+  .sk-row {
+    animation: none;
+  }
+}
+
 .confirm-text {
   font-size: 14px;
   color: var(--text);

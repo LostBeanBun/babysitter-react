@@ -1,8 +1,8 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
 import { useActiveTimer } from '@/hooks/useActiveTimer'
+import { useReminderLoop } from '@/hooks/useReminderLoop'
 import { APP_TABS } from '@/tabs'
 import { useBabies } from '@/stores/baby'
 import TabBar from '@/components/common/TabBar'
@@ -13,13 +13,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const activeTimer = useActiveTimer()
+  useReminderLoop()
   const { babies } = useBabies()
   const hasBabies = babies.length > 0
-
-  // 标题
-  useEffect(() => {
-    // 由页面组件通过 document.title 更新；默认保持 layout title
-  }, [pathname])
 
   function openTimerForm(timerId: string) {
     const entry = activeTimer.getById(timerId)

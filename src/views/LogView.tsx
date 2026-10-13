@@ -154,139 +154,97 @@ export default function LogView() {
     setCustomDate('')
   }
 
-  // —— 数据查询（按当前宝宝）——
-  const feedings =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Feeding[]
-        return db.feedings
+  // —— 数据查询（按当前宝宝，单查询一次读齐 10 张表；首结果返回前为 undefined，展示骨架避免空态闪烁）——
+  interface LogData {
+    feedings: Feeding[]
+    diapers: DiaperChange[]
+    pumpings: Pumping[]
+    sleeps: Sleep[]
+    growths: GrowthRecord[]
+    solidFoods: SolidFood[]
+    medications: Medication[]
+    vaccinations: Vaccination[]
+    temperatures: Temperature[]
+    milestones: Milestone[]
+  }
+
+  const logData = useLiveQuery(
+    async (): Promise<LogData | null> => {
+      if (activeBabyId == null) return null
+      const [
+        feedings,
+        diapers,
+        pumpings,
+        sleeps,
+        growths,
+        solidFoods,
+        medications,
+        vaccinations,
+        temperatures,
+        milestones,
+      ] = await Promise.all([
+        db.feedings
           .where('[babyId+startTime]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
           .toArray()
-          .then((a) => a.filter(Boolean))
-      },
-      [activeBabyId],
-      [] as Feeding[],
-    ) ?? []
-
-  const diapers =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as DiaperChange[]
-        return db.diapers
+          .then((a) => a.filter(Boolean)),
+        db.diapers
           .where('[babyId+time]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as DiaperChange[],
-    ) ?? []
-
-  const pumpings =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Pumping[]
-        return db.pumpings
+          .toArray(),
+        db.pumpings
           .where('[babyId+startTime]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
           .toArray()
-          .then((a) => a.filter(Boolean))
-      },
-      [activeBabyId],
-      [] as Pumping[],
-    ) ?? []
-
-  const sleeps =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Sleep[]
-        return db.sleeps
+          .then((a) => a.filter(Boolean)),
+        db.sleeps
           .where('[babyId+startTime]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
           .toArray()
-          .then((a) => a.filter(Boolean))
-      },
-      [activeBabyId],
-      [] as Sleep[],
-    ) ?? []
-
-  const growths =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as GrowthRecord[]
-        return db.growths
+          .then((a) => a.filter(Boolean)),
+        db.growths
           .where('[babyId+date]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as GrowthRecord[],
-    ) ?? []
-
-  const solidFoods =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as SolidFood[]
-        return db.solidFoods
+          .toArray(),
+        db.solidFoods
           .where('[babyId+time]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as SolidFood[],
-    ) ?? []
-
-  const medications =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Medication[]
-        return db.medications
+          .toArray(),
+        db.medications
           .where('[babyId+time]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as Medication[],
-    ) ?? []
-
-  const vaccinations =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Vaccination[]
-        return db.vaccinations
+          .toArray(),
+        db.vaccinations
           .where('[babyId+date]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as Vaccination[],
-    ) ?? []
-
-  const temperatures =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Temperature[]
-        return db.temperatures
+          .toArray(),
+        db.temperatures
           .where('[babyId+time]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as Temperature[],
-    ) ?? []
-
-  const milestones =
-    useLiveQuery(
-      async () => {
-        if (activeBabyId == null) return [] as Milestone[]
-        return db.milestones
+          .toArray(),
+        db.milestones
           .where('[babyId+time]')
           .between([activeBabyId, 0], [activeBabyId, Number.MAX_SAFE_INTEGER])
-          .toArray()
-      },
-      [activeBabyId],
-      [] as Milestone[],
-    ) ?? []
+          .toArray(),
+      ])
+      return { feedings, diapers, pumpings, sleeps, growths, solidFoods, medications, vaccinations, temperatures, milestones }
+    },
+    [activeBabyId],
+  )
+
+  /** 查询首结果未返回（undefined）→ 加载中；null 表示当前无宝宝（合法空态） */
+  const logsLoading = logData === undefined
+
+  const feedings = useMemo(() => logData?.feedings ?? [], [logData])
+  const diapers = useMemo(() => logData?.diapers ?? [], [logData])
+  const pumpings = useMemo(() => logData?.pumpings ?? [], [logData])
+  const sleeps = useMemo(() => logData?.sleeps ?? [], [logData])
+  const growths = useMemo(() => logData?.growths ?? [], [logData])
+  const solidFoods = useMemo(() => logData?.solidFoods ?? [], [logData])
+  const medications = useMemo(() => logData?.medications ?? [], [logData])
+  const vaccinations = useMemo(() => logData?.vaccinations ?? [], [logData])
+  const temperatures = useMemo(() => logData?.temperatures ?? [], [logData])
+  const milestones = useMemo(() => logData?.milestones ?? [], [logData])
 
   function keep<T extends { id?: number }>(items: T[], kind: string): T[] {
     return items.filter((x) => !isPending({ kind, id: x.id! }))
@@ -574,7 +532,14 @@ export default function LogView() {
       </div>
 
       <div className="card">
-        {hasAny ? (
+        {logsLoading ? (
+          <div className={s['log-skeleton']} aria-hidden="true">
+            <div className={s['sk-group']} />
+            <div className={s['sk-row']} />
+            <div className={s['sk-row']} />
+            <div className={s['sk-row']} />
+          </div>
+        ) : hasAny ? (
           <TimelineList
             feedings={filteredFeedings}
             diapers={filteredDiapers}

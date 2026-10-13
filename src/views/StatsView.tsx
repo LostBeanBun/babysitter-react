@@ -48,7 +48,7 @@ export default function StatsView() {
   }, [])
 
   // 时间范围选择
-  const [rangeKey, setRangeKey] = useState('7d')
+  const [rangeKey, setRangeKey] = useState('today')
   const range = RANGE_PRESETS.find((p) => p.key === rangeKey) ?? RANGE_PRESETS[1]!
 
   // 概览 tab：对比 / 汇总
@@ -471,6 +471,11 @@ export default function StatsView() {
     return t('common.times', { n: Math.round(value) })
   }
 
+  /** 对比行文案：上一周期 → 当前周期（睡眠时长等长文本换行展示，title 挂完整文案） */
+  function compareChangeText(c: ComparisonResult): string {
+    return `${formatComparisonValue(c, c.previous)} → ${formatComparisonValue(c, c.current)}`
+  }
+
   const rangeLabel = t(range.label)
 
   // —— 区间汇总（周报/月报）——
@@ -655,8 +660,8 @@ export default function StatsView() {
                   >
                     {c.change === null ? '—' : formatPercentChange(c.change)}
                   </span>
-                  <span className={s['compare-prev']}>
-                    {formatComparisonValue(c, c.previous)} → {formatComparisonValue(c, c.current)}
+                  <span className={s['compare-prev']} title={compareChangeText(c)}>
+                    {compareChangeText(c)}
                   </span>
                 </div>
               </div>

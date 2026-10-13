@@ -206,12 +206,7 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(1200px 500px at 85% -10%, rgba(255, 107, 53, 0.07), transparent 60%),
-    radial-gradient(900px 450px at -10% 0%, rgba(10, 132, 255, 0.05), transparent 55%),
-    radial-gradient(800px 400px at 50% 110%, rgba(175, 82, 222, 0.04), transparent 50%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--text);
   overflow-x: hidden;
   overscroll-behavior-y: none;
@@ -219,12 +214,24 @@ body {
   transition: background-color 0.3s ease;
 }
 
-[data-theme='dark'] body {
+/* 背景渐变挂到固定定位伪元素：视觉等效 background-attachment: fixed，
+   同时避免移动端滚动时 body 背景整页重绘 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(255, 107, 53, 0.07), transparent 60%),
+    radial-gradient(900px 450px at -10% 0%, rgba(10, 132, 255, 0.05), transparent 55%),
+    radial-gradient(800px 400px at 50% 110%, rgba(175, 82, 222, 0.04), transparent 50%);
+  pointer-events: none;
+}
+
+[data-theme='dark'] body::before {
   background:
     radial-gradient(1200px 500px at 85% -10%, rgba(255, 122, 69, 0.05), transparent 60%),
-    radial-gradient(900px 450px at -10% 0%, rgba(10, 132, 255, 0.04), transparent 55%),
-    var(--bg);
-  background-attachment: fixed;
+    radial-gradient(900px 450px at -10% 0%, rgba(10, 132, 255, 0.04), transparent 55%);
 }
 
 button {
@@ -250,6 +257,22 @@ textarea {
   font-family: inherit;
   font-size: 16px;
   color: inherit;
+}
+
+/* 表单自动填充：覆盖浏览器默认黄底黑字，跟随主题变量 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  transition: background-color 999999s ease-out;
 }
 
 /* ===== 液态玻璃工具类 ===== */
@@ -319,8 +342,6 @@ textarea {
 /* 卡片 — 液态玻璃 */
 .card {
   background: var(--surface);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-glass);
@@ -689,6 +710,20 @@ select.form-input:focus {
   opacity: 0;
 }
 
+/* 路由切换过渡：out-in 模式下离开+进入串联，缩短总时长让切 tab 更跟手 */
+.fade-fast-enter-active {
+  transition: opacity 0.12s ease;
+}
+
+.fade-fast-leave-active {
+  transition: opacity 0.08s ease;
+}
+
+.fade-fast-enter-from,
+.fade-fast-leave-to {
+  opacity: 0;
+}
+
 /* 弹性缩放动画 */
 @keyframes springIn {
   0% { transform: scale(0.9); opacity: 0; }
@@ -712,4 +747,16 @@ select.form-input:focus {
 
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* 尊重系统「减少动态效果」偏好：关闭非必要动画/过渡与平滑滚动 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

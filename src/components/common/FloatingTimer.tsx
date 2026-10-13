@@ -117,6 +117,9 @@ export default function FloatingTimer({ active, onOpen }: FloatingTimerProps) {
   }, [records])
 
   // —— 统一拖拽逻辑（Pointer Events 覆盖鼠标 + 触摸） ——
+  const moveRafRef = useRef<number | undefined>(undefined)
+  const pendingRef = useRef<{ x: number; y: number } | null>(null)
+
   function dragStart(id: string, clientX: number, clientY: number) {
     draggingIdRef.current = id
     const state = getBallState(id)
@@ -127,7 +130,7 @@ export default function FloatingTimer({ active, onOpen }: FloatingTimerProps) {
     state.startDragY = state.posY
   }
 
-  function dragMove(clientX: number, clientY: number) {
+  function applyDragMove(clientX: number, clientY: number) {
     const id = draggingIdRef.current
     if (!id) return
     const state = getBallState(id)
@@ -142,13 +145,42 @@ export default function FloatingTimer({ active, onOpen }: FloatingTimerProps) {
     }
   }
 
+  /** 拖拽移动按帧合并：一次 rAF 至多一次重渲染，避免 pointermove 高频触发 */
+  function dragMove(clientX: number, clientY: number) {
+    if (!draggingIdRef.current) return
+    pendingRef.current = { x: clientX, y: clientY }
+    if (moveRafRef.current != null) return
+    moveRafRef.current = requestAnimationFrame(() => {
+      moveRafRef.current = undefined
+      const p = pendingRef.current
+      if (p) applyDragMove(p.x, p.y)
+    })
+  }
+
+  function flushDragMove() {
+    if (moveRafRef.current == null) return
+    cancelAnimationFrame(moveRafRef.current)
+    moveRafRef.current = undefined
+    const p = pendingRef.current
+    if (p) applyDragMove(p.x, p.y)
+  }
+
   function dragEnd() {
     const id = draggingIdRef.current
     if (id) {
+      flushDragMove()
       saveBallPos(id, getBallState(id))
       draggingIdRef.current = null
     }
   }
+
+  // 卸载时取消未执行的拖拽帧
+  useEffect(
+    () => () => {
+      if (moveRafRef.current != null) cancelAnimationFrame(moveRafRef.current)
+    },
+    [],
+  )
 
   function onPointerDown(id: string, e: React.PointerEvent<HTMLDivElement>) {
     e.currentTarget.setPointerCapture?.(e.pointerId)
@@ -183,7 +215,7 @@ export default function FloatingTimer({ active, onOpen }: FloatingTimerProps) {
         return (
           <div
             key={rec.id}
-            className={s['floating-ball']}
+            className={draggingIdRef.current === rec.id ? `${s['floating-ball']} ${s.dragging}` : s['floating-ball']}
             style={
               {
                 top: state.posY + 'px',

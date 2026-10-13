@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type {
   Feeding,
@@ -98,6 +98,12 @@ export interface TimelineListProps {
   onEdit?: (entry: TimelineEntry) => void
   onDelete?: (entry: TimelineEntry) => void
 }
+
+// —— 渐进挂载：首屏只渲染前 N 天分组，其余在滚动接近时再渲染（挂载后不卸载）。 ——
+// 长列表（一年可达数千条）一次性渲染 DOM/协调开销大，按天分组天然适合增量渲染：
+// 新分组只会在视口下方出现，挂载时机在视口外，不会引起视口内容位移。
+const INITIAL_GROUPS = 10
+const GROUP_MOUNT_MARGIN = '200px 0px'
 
 export default function TimelineList(props: TimelineListProps) {
   const { t, i18n } = useTranslation()
@@ -314,6 +320,38 @@ export default function TimelineList(props: TimelineListProps) {
     return Array.from(groups.entries())
   }, [grouped, entries, locale])
 
+  /** 滚动接近时追加挂载的天分组（首屏前 N 天由渲染时序号直接判定，无需进 state） */
+  const [mountedGroups, setMountedGroups] = useState<Set<string>>(() => new Set())
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  function isGroupMounted(day: string, idx: number): boolean {
+    return idx < INITIAL_GROUPS || mountedGroups.has(day)
+  }
+
+  useEffect(() => {
+    if (!groupedEntries || !rootRef.current) return
+    const io = new IntersectionObserver(
+      (observerEntries) => {
+        for (const entry of observerEntries) {
+          if (!entry.isIntersecting) continue
+          const day = (entry.target as HTMLElement).dataset.day
+          if (day) {
+            setMountedGroups((prev) => {
+              if (prev.has(day)) return prev
+              const next = new Set(prev)
+              next.add(day)
+              return next
+            })
+          }
+          io.unobserve(entry.target)
+        }
+      },
+      { rootMargin: GROUP_MOUNT_MARGIN },
+    )
+    for (const el of rootRef.current.querySelectorAll<HTMLElement>('[data-tl-group]')) io.observe(el)
+    return () => io.disconnect()
+  }, [groupedEntries])
+
   function entryKey(e: TimelineEntry): string {
     return e.kind + '-' + e.id
   }
@@ -360,15 +398,15 @@ export default function TimelineList(props: TimelineListProps) {
   }
 
   return (
-    <div className="timeline">
+    <div className="timeline" ref={rootRef}>
       {!grouped ? (
         entries.map((e) => renderEntry(e))
       ) : (
         <>
-          {groupedEntries!.map(([day, items]) => (
-            <div key={day} className={s['tl-group']}>
+          {groupedEntries!.map(([day, items], idx) => (
+            <div key={day} className={s['tl-group']} data-tl-group="1" data-day={day}>
               <p className={s['tl-day']}>{day}</p>
-              {items.map((e) => renderEntry(e, true))}
+              {isGroupMounted(day, idx) && items.map((e) => renderEntry(e, true))}
             </div>
           ))}
         </>

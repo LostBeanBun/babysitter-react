@@ -50,6 +50,18 @@
   font-size: 12px;
   font-weight: 700;
   transition: background 0.15s ease;
+  position: relative;
+}
+
+/* 视觉保持小胶囊，触摸热区扩展到 44px（撤销按钮 3 秒窗口内要点得中） */
+.toast-action::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
 }
 
 .toast-action:active {
