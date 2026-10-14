@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { EChartsOption } from 'echarts'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
 import PageHeader from '@/components/common/PageHeader'
+import CountUp from '@/components/common/CountUp'
 import ChartCard from '@/components/charts/ChartCard'
 import GrowthCurveCharts from '@/components/charts/GrowthCurveCharts'
 import { useBabies } from '@/stores/baby'
@@ -407,52 +408,62 @@ export default function StatsView() {
     return [
       {
         label: t('stats.summary.feedCount'),
-        value: t('common.times', { n: agg.feedCount }),
+        num: agg.feedCount,
+        format: (n: number) => t('common.times', { n: Math.round(n) }),
         sub: t('common.daily', { value: t('common.times', { n: (agg.feedCount / daysCount).toFixed(1) }) }),
       },
       {
         label: t('stats.summary.totalMilk'),
-        value: formatAmount(agg.totalMilkAmount),
+        num: agg.totalMilkAmount,
+        format: (n: number) => formatAmount(n),
         sub: t('common.daily', { value: formatAmount(agg.totalMilkAmount / daysCount) }),
       },
       {
         label: t('stats.summary.breastCount'),
-        value: t('common.times', { n: agg.breastCount }),
+        num: agg.breastCount,
+        format: (n: number) => t('common.times', { n: Math.round(n) }),
         sub: t('common.daily', { value: t('common.times', { n: (agg.breastCount / daysCount).toFixed(1) }) }),
       },
       {
         label: t('stats.summary.sleepMs'),
-        value: formatDuration(agg.sleepMs),
+        num: agg.sleepMs,
+        format: (n: number) => formatDuration(n),
         sub: t('common.daily', { value: formatDuration(agg.sleepMs / daysCount) }),
       },
       {
         label: t('stats.summary.diaper'),
-        value: t('common.times', { n: agg.diaperCount }),
+        num: agg.diaperCount,
+        format: (n: number) => t('common.times', { n: Math.round(n) }),
         sub: t('common.daily', { value: t('common.times', { n: (agg.diaperCount / daysCount).toFixed(1) }) }),
       },
       {
         label: t('stats.summary.pumpAmount'),
-        value: formatAmount(agg.pumpAmount),
+        num: agg.pumpAmount,
+        format: (n: number) => formatAmount(n),
         sub: t('common.daily', { value: formatAmount(agg.pumpAmount / daysCount) }),
       },
       {
         label: t('stats.summary.growthRecords'),
-        value: t('common.records', { n: rangeGrowthCount }),
+        num: rangeGrowthCount,
+        format: (n: number) => t('common.records', { n: Math.round(n) }),
         sub: rangeLabel,
       },
       {
         label: t('stats.summary.solidFood'),
-        value: t('common.times', { n: agg.solidFoodCount }),
+        num: agg.solidFoodCount,
+        format: (n: number) => t('common.times', { n: Math.round(n) }),
         sub: t('common.daily', { value: t('common.times', { n: (agg.solidFoodCount / daysCount).toFixed(1) }) }),
       },
       {
         label: t('stats.summary.medication'),
-        value: t('common.times', { n: agg.medicationCount }),
+        num: agg.medicationCount,
+        format: (n: number) => t('common.times', { n: Math.round(n) }),
         sub: t('common.daily', { value: t('common.times', { n: (agg.medicationCount / daysCount).toFixed(1) }) }),
       },
       {
         label: t('stats.summary.temperature'),
-        value: t('common.times', { n: agg.temperatureCount }),
+        num: agg.temperatureCount,
+        format: (n: number) => t('common.times', { n: Math.round(n) }),
         sub: t('common.daily', { value: t('common.times', { n: (agg.temperatureCount / daysCount).toFixed(1) }) }),
       },
     ]
@@ -518,7 +529,9 @@ export default function StatsView() {
             {summaryItems.map((item) => (
               <div key={item.label} className={s['summary-item']}>
                 <p className={s['summary-label']}>{item.label}</p>
-                <p className={s['summary-value']}>{item.value}</p>
+                <p className={s['summary-value']}>
+                  <CountUp value={item.num} format={item.format} />
+                </p>
                 <p className={s['summary-sub']}>{item.sub}</p>
               </div>
             ))}
@@ -570,7 +583,9 @@ export default function StatsView() {
             {comparisons.map((c) => (
               <div key={c.key} className={s['compare-item']}>
                 <p className={s['compare-label']}>{t(c.label)}</p>
-                <p className={s['compare-value']}>{formatComparisonValue(c, c.current)}</p>
+                <p className={s['compare-value']}>
+                  <CountUp value={c.current} format={(n) => formatComparisonValue(c, n)} />
+                </p>
                 <div className={s['compare-change-row']}>
                   <span
                     className={`${s['compare-change']} ${

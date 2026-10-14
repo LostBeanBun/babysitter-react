@@ -352,6 +352,19 @@ export default function TimelineList(props: TimelineListProps) {
     return () => io.disconnect()
   }, [groupedEntries])
 
+  // 刚保存：createdAt 在 3s 内的最新一条（保存后回列表轻闪提示；同一时刻批量导入只闪最新一条）
+  // 依赖当前时刻判断新旧，entries 变化时重算即可（窗口过期后类残留无视觉影响，下次数据变更自动清除）
+  const savedKey = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- 时间窗判断依赖当前时刻，仅在 entries 变化时重算
+    const cutoff = Date.now() - 3000
+    let best: TimelineEntry | null = null
+    for (const e of entries) {
+      const at = e.raw.createdAt
+      if (at >= cutoff && (best === null || at > best.raw.createdAt)) best = e
+    }
+    return best ? best.kind + '-' + best.id : null
+  }, [entries])
+
   function entryKey(e: TimelineEntry): string {
     return e.kind + '-' + e.id
   }
@@ -361,6 +374,7 @@ export default function TimelineList(props: TimelineListProps) {
     const classes = [s['tl-item']]
     if (isTimelineItem) classes.push(s['tl-timeline-item'])
     if (deleting) classes.push(s['tl-deleting'])
+    if (savedKey === entryKey(e)) classes.push(s['tl-saved'])
 
     return (
       <div key={entryKey(e)} className={classes.join(' ')} onClick={() => onEdit?.(e)}>

@@ -28,7 +28,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell" data-path={pathname}>
-      <div className="fade-page">{children}</div>
+      <div className="fade-page" key={pathname}>
+        {children}
+      </div>
       {hasBabies && <TabBar tabs={APP_TABS} pathname={pathname} />}
       <ToastContainer />
       <FloatingTimer active={isActive} onOpen={openTimerForm} />

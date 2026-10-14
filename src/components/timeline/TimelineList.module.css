@@ -148,6 +148,20 @@
   opacity: 1;
 }
 
+/* 刚保存的新条目：轻闪提示后淡出 */
+@keyframes tl-saved-flash {
+  from {
+    background-color: var(--primary-glow);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.tl-item.tl-saved {
+  animation: tl-saved-flash 1.8s var(--ease-out);
+}
+
 /* 删除待确认态：高亮被选中的条目 */
 .tl-item.tl-deleting {
   background: var(--danger-soft);

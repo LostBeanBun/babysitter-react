@@ -39,6 +39,15 @@ interface BallState {
   moved: boolean
 }
 
+/** 离场幽灵：消失球的最后一帧快照，用于播放缩小淡出 */
+interface GhostBall {
+  id: string
+  kind: string
+  startTime: number
+  posX: number
+  posY: number
+}
+
 function getBallWidth(): number {
   if (typeof window === 'undefined') return 130
   return window.innerWidth <= 375 ? 105 : 130
@@ -115,6 +124,45 @@ export default function FloatingTimer({ active, onOpen }: FloatingTimerProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [records])
+
+  const visible = mounted && active && !sleepModalOpen
+
+  // —— 离场幽灵：仅睡眠弹窗打开（记录仍在、v-if 翻转）时保留最后一帧播放缩小淡出；
+  //    记录结束/记录清空导致的球消失与 Vue 一致直接移除（Vue <template v-for> 项删除时不播离场） ——
+  const [ghosts, setGhosts] = useState<GhostBall[]>([])
+  const prevRef = useRef({ visible, records })
+  useEffect(() => {
+    const prev = prevRef.current
+    prevRef.current = { visible, records }
+
+    let added: GhostBall[] = []
+    if (!visible && prev.visible && sleepModalOpen && records.length > 0) {
+      const saved = loadPositions()
+      const bw = getBallWidth()
+      added = records.map((rec, idx) => {
+        const st = statesRef.current.get(rec.id)
+        return {
+          id: rec.id,
+          kind: rec.kind,
+          startTime: rec.startTime,
+          posX: st?.posX ?? saved[rec.id]?.x ?? window.innerWidth - bw - 12,
+          posY: st?.posY ?? saved[rec.id]?.y ?? HEADER_BOTTOM + idx * (56 + BALL_GAP),
+        }
+      })
+    } else if (!prev.visible && visible) {
+      // 重新显示：清掉残留幽灵，交给入场动画
+      setGhosts([])
+    }
+
+    if (added.length > 0) {
+      const ids = new Set(added.map((g) => g.id))
+      setGhosts((cur) => [...cur.filter((g) => !ids.has(g.id)), ...added])
+      // 计时不随依赖变化取消：让每批幽灵都走完离场（卸载后 setState 为空操作）
+      setTimeout(() => {
+        setGhosts((cur) => cur.filter((g) => !ids.has(g.id)))
+      }, 220)
+    }
+  }, [visible, records, sleepModalOpen])
 
   // —— 统一拖拽逻辑（Pointer Events 覆盖鼠标 + 触摸） ——
   const moveRafRef = useRef<number | undefined>(undefined)
@@ -204,12 +252,12 @@ export default function FloatingTimer({ active, onOpen }: FloatingTimerProps) {
     if (!getBallState(id).moved) onOpen(id)
   }
 
-  if (!mounted || !active || sleepModalOpen) return null
+  if (!mounted) return null
 
   return (
     <>
       {/* eslint-disable-next-line react-hooks/refs -- 拖拽位置存在 ref 中，渲染时需读取 */}
-      {records.map((rec) => {
+      {visible && records.map((rec) => {
         const state = getBallState(rec.id)
         const config = CONFIG[rec.kind]
         return (
@@ -239,6 +287,34 @@ export default function FloatingTimer({ active, onOpen }: FloatingTimerProps) {
           </div>
         )
       })}
+
+      {/* 离场幽灵：保留消失球的最后一帧位置播放缩小淡出 */}
+      {ghosts
+        .filter((g) => !visible || !records.some((r) => r.id === g.id))
+        .map((g) => {
+          const config = CONFIG[g.kind]
+          return (
+            <div
+              key={`ghost-${g.id}`}
+              className={`${s['floating-ball']} ${s.leaving}`}
+              style={
+                {
+                  top: g.posY + 'px',
+                  left: g.posX + 'px',
+                  '--ball-color': config?.color ?? '#e8906c',
+                  '--ball-bg': config?.bg ?? 'rgba(232,144,108,0.12)',
+                } as React.CSSProperties
+              }
+            >
+              <span className={s['fb-icon']}>{config?.icon ?? '⏱️'}</span>
+              <div className={s['fb-body']}>
+                <span className={s['fb-label']}>{config ? t(config.labelKey) : g.kind}</span>
+                <span className={s['fb-time']}>{formatTime(g.startTime)}</span>
+              </div>
+              <div className={s['fb-pulse']} />
+            </div>
+          )
+        })}
     </>
   )
 }

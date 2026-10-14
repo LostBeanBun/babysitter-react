@@ -4,6 +4,17 @@
   position: relative;
 }
 
+/* 路由切换过渡：对齐 Vue fade-fast（进 0.12s；元素随 pathname 变化重挂载触发） */
 .fade-page {
   min-height: 100%;
+  animation: fade-fast-in 0.12s ease;
+}
+
+@keyframes fade-fast-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
