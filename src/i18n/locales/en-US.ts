@@ -350,6 +350,7 @@ babyName: 'Baby name',
     aboutText2: 'Feeding (breast/bottle/formula), diaper, pumping and sleep records',
     aboutText3: 'Trend charts, period comparison, data export & import',
     aboutMuted: 'v1.0.0 · Pure frontend · Local data storage',
+    github: 'View source on GitHub',
   },
   reminders: {
     hour: 'hr',

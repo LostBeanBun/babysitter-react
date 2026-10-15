@@ -350,6 +350,7 @@ weight: '体重 {value} kg',
     aboutText2: '支持喂养（亲喂/瓶喂/配方奶）、纸尿裤、吸奶、睡眠记录',
     aboutText3: '支持趋势统计与周期对比、数据导出导入',
     aboutMuted: 'v1.0.0 · 纯前端 · 数据本地存储',
+    github: '在 GitHub 上查看源码',
   },
   reminders: {
     hour: '小时',

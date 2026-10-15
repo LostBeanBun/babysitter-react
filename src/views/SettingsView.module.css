@@ -256,6 +256,27 @@
   font-size: 12px;
 }
 
+.about-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition:
+    color 0.2s var(--ease-out),
+    transform 0.3s var(--spring);
+}
+
+.about-github:hover {
+  color: var(--primary);
+}
+
+.about-github:active {
+  transform: scale(0.96);
+}
+
 .confirm-text {
   font-size: 14px;
   color: var(--text);
