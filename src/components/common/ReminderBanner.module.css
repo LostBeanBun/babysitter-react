@@ -83,6 +83,13 @@
   margin-left: 3px;
 }
 
+/* 「全部 N 条」入口：与芯片同款，但加粗并高亮，区别于具体疫苗项 */
+.rb-chip-all {
+  font-weight: 600;
+  color: var(--accent-blue);
+  white-space: nowrap;
+}
+
 .rb-close {
   width: 44px;
   height: 44px;

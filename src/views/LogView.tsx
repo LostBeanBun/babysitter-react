@@ -282,9 +282,10 @@ export default function LogView() {
 
   const filteredVaccinations = useMemo(() => {
     if (filter !== 'all' && filter !== 'vaccination') return []
-    // 记录页只展示实际接种记录（done），planned 待接种计划/提醒不混入时间线
+    // 「全部」只展示实际接种记录（done）；疫苗筛选中额外列出「待接种」计划，可逐条修改
+    const list = filter === 'vaccination' ? vaccinations : vaccinations.filter((v) => v.status === 'done')
     return keep(
-      vaccinations.filter((v) => v.status === 'done' && matchDate(v.date)),
+      list.filter((v) => matchDate(v.date)),
       'vaccination',
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -336,6 +337,17 @@ export default function LogView() {
     if (timerParam && timerParam !== lastTimerKindRef.current) {
       lastTimerKindRef.current = timerParam
       setModalState({ kind: timerParam as EntryKind })
+      router.replace('/log')
+    }
+  }, [router])
+
+  // 从疫苗提醒条「全部」入口进入时预设筛选（=疫苗列表，可逐条修改计划）
+  const lastFilterParamRef = useRef('')
+  useEffect(() => {
+    const filterParam = new URLSearchParams(window.location.search).get('filter')
+    if (filterParam && filterParam !== lastFilterParamRef.current && filters.some((f) => f.key === filterParam)) {
+      lastFilterParamRef.current = filterParam
+      setFilter(filterParam as FilterKey)
       router.replace('/log')
     }
   }, [router])

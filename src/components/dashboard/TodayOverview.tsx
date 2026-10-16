@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
 import { useBabies } from '@/stores/baby'
@@ -24,6 +25,7 @@ export interface TodayOverviewProps {
 /** 今日概览：喂奶/疫苗提醒条 + 统计卡 + 每日小结（数据按 now 实时重算） */
 export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
   const { t } = useTranslation()
+  const router = useRouter()
   const { activeBaby, activeBabyId } = useBabies()
   const { isPending } = useDeleteUndo()
   const { dismissed, dismiss } = useDismissedReminders()
@@ -98,6 +100,14 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
     if (v) onEdit?.(v)
   }
 
+  /** 全部待种计划数（提醒条只展示最近 3 条，其余仅在记录页疫苗筛选中可见/可改） */
+  const plannedVaccineCount = useMemo(() => vaccinations.filter((v) => v.status === 'planned').length, [vaccinations])
+
+  /** 「全部 N 条」→ 记录页疫苗筛选（可逐条选择修改保存） */
+  function openAllVaccinations() {
+    router.push('/log/?filter=vaccination')
+  }
+
   // 今日汇总
   const summary = useMemo(() => {
     const totalMilk = todayFeedings.reduce((sum, f) => sum + (f.amount ?? 0), 0)
@@ -151,16 +161,18 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
         />
       )}
 
-      {/* 疫苗提醒条：点击打开最近一条待种记录进行编辑，点具体芯片可直接编辑该条 */}
+      {/* 疫苗提醒条：点击打开最近一条待种记录进行编辑，点具体芯片可直接编辑该条，「全部」进记录页 */}
       {upcomingVaccinationsList.length > 0 && !dismissed.vaccine && (
         <ReminderBanner
           icon="💉"
           variant="vaccine"
           title={t('dashboard.vaccineReminderTitle')}
           chips={vaccineChips}
+          allLabel={plannedVaccineCount > 1 ? t('dashboard.vaccineAll', { n: plannedVaccineCount }) : undefined}
           dismissLabel={t('common.close')}
           onClick={() => onEdit?.(upcomingVaccinationsList[0])}
           onSelect={onSelectVaccination}
+          onAll={openAllVaccinations}
           onDismiss={() => dismiss('vaccine')}
         />
       )}

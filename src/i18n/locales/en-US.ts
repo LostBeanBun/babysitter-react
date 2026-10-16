@@ -275,6 +275,7 @@ weight: 'Weight {value} kg',
     vaccineDaysLeft: '{n} days left',
     vaccineOverdue: '{n} days overdue',
     vaccineToday: 'Due today',
+    vaccineAll: 'All {n}',
   },
   log: {
     filters: {

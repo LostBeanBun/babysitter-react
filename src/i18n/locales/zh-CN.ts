@@ -275,6 +275,7 @@ weight: '体重 {value} kg',
     vaccineDaysLeft: '还有 {n} 天',
     vaccineOverdue: '已逾期 {n} 天',
     vaccineToday: '今天接种',
+    vaccineAll: '全部 {n} 条',
   },
   log: {
     filters: {

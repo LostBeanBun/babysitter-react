@@ -16,12 +16,15 @@ export interface ReminderBannerProps {
   sub?: string
   /** 内容芯片列表（如待种疫苗项），点击芯片触发 onSelect */
   chips?: ReminderChip[]
+  /** 「全部 N 条」入口文案（疫苗计划数多于提醒条可容纳时展示），点击触发 onAll */
+  allLabel?: string
   variant?: 'feed' | 'vaccine'
   dismissLabel: string
   /** 整条点击（仅 vaccine 变体响应，如打开编辑） */
   onClick?: () => void
   onDismiss?: () => void
   onSelect?: (key: number | string) => void
+  onAll?: () => void
 }
 
 /**
@@ -33,11 +36,13 @@ export default function ReminderBanner({
   title,
   sub,
   chips,
+  allLabel,
   variant = 'feed',
   dismissLabel,
   onClick,
   onDismiss,
   onSelect,
+  onAll,
 }: ReminderBannerProps) {
   return (
     <div
@@ -64,6 +69,18 @@ export default function ReminderBanner({
                 {c.badge && <span className={s['rb-badge']}> {c.badge}</span>}
               </button>
             ))}
+            {allLabel && (
+              <button
+                type="button"
+                className={`${s['rb-chip']} ${s['rb-chip-all']}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAll?.()
+                }}
+              >
+                {allLabel} ›
+              </button>
+            )}
           </p>
         )}
       </div>
