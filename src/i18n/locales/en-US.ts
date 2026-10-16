@@ -350,7 +350,7 @@ babyName: 'Baby name',
     aboutText1: 'A warm and simple baby feeding tracker',
     aboutText2: 'Feeding (breast/bottle/formula), diaper, pumping and sleep records',
     aboutText3: 'Trend charts, period comparison, data export & import',
-    aboutMuted: 'v1.0.0 · Pure frontend · Local data storage',
+    aboutMuted: 'v{version} · Pure frontend · Local data storage',
     github: 'View source on GitHub',
   },
   reminders: {

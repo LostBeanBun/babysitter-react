@@ -8,6 +8,7 @@ import ReminderParam from '@/components/settings/ReminderParam'
 import { countAllRecords, clearAllData, clearBabyData, db } from '@/db'
 import { exportBabyCsvs, exportAllBabiesCsv, importAllCsv } from '@/services/export'
 import { BABY_AVATARS } from '@/constants'
+import { APP_VERSION } from '@/constants/version'
 import { loadReminders, saveReminders, type ReminderConfig, type ReminderType } from '@/utils/reminderScheduler'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
@@ -516,7 +517,7 @@ export default function SettingsView() {
         <p className={s['about-text']}>{t('settings.aboutText1')}</p>
         <p className={s['about-text']}>{t('settings.aboutText2')}</p>
         <p className={s['about-text']}>{t('settings.aboutText3')}</p>
-        <p className={`${s['about-text']} ${s.muted}`}>{t('settings.aboutMuted')}</p>
+        <p className={`${s['about-text']} ${s.muted}`}>{t('settings.aboutMuted', { version: APP_VERSION })}</p>
         <a
           className={s['about-github']}
           href="https://github.com/LostBeanBun/babysitter-react"

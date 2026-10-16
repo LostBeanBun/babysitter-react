@@ -82,6 +82,17 @@ src/
 └── views/            # 页面视图（Dashboard / Log / Stats / Settings）
 ```
 
+## 🏷 版本号
+
+- 版本号唯一来源为 `package.json` 的 `version`（Vue / React 两端保持同值），构建时注入，展示位置：**设置 → 关于**
+- 语义化版本：`major` 不兼容变更（IndexedDB 结构、导入导出格式、需用户手动迁移）· `minor` 新增功能与界面改版 · `patch` 修复、文案、样式、重构、性能、依赖升级
+- **每次改动都必须升版，并在 `CHANGELOG.md` 顶部登记该版本**：
+
+```bash
+npm run version:bump patch   # 或 minor / major：改 package.json + 生成 CHANGELOG 骨架
+npm run version:check        # 校验版本号（已挂在 npm run lint 末尾，未升版会失败）
+```
+
 ## 🧹 工程规范
 
 - ESLint + Prettier 统一代码风格（`npm run lint` / `npm run format`）
