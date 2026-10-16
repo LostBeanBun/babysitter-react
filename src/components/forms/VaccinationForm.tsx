@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
 import type { VaccinationStatus, Vaccination } from '@/types'
-import { toDateTimeLocal, fromDateTimeLocal } from '@/utils/format'
+import { toDateTimeLocal, fromDateTimeLocal, formatDate, startOfDay } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import {
@@ -19,6 +19,7 @@ import { useFormErrors } from '@/hooks/useFormErrors'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
+import { buildIcs, deliverIcs, googleCalendarUrl, type CalendarEvent } from '@/services/calendar'
 import s from './VaccinationForm.module.css'
 
 export interface VaccinationFormProps {
@@ -52,6 +53,17 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
 
   const [planOpen, setPlanOpen] = useState(false)
   const [planTab, setPlanTab] = useState<VaccinePlanCategory>('free')
+
+  // 计划接种（新增或编辑）保存后保留弹窗，提供「添加到系统日历」
+  const [savedPlan, setSavedPlan] = useState<{
+    id: number
+    name: string
+    dose?: string
+    date: number
+    editing: boolean
+  } | null>(null)
+  const [calBusy, setCalBusy] = useState(false)
+  const [calFeedback, setCalFeedback] = useState<string | null>(null)
 
   const vaccinationsResult = useRecordsLive('vaccinations', activeBabyId)
   const vaccinations = useMemo(() => vaccinationsResult ?? [], [vaccinationsResult])
@@ -95,28 +107,131 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
         notes: notes || undefined,
         updatedAt: Date.now(),
       })
-    } else {
-      if (activeBabyId == null) throw new Error(t('errors.noBaby'))
-      const now = Date.now()
-      const id = await db.vaccinations.add({
-        babyId: activeBabyId,
-        date: d,
-        name: name.trim(),
-        dose: dose || undefined,
-        status,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
-      if (id == null) throw new Error(t('errors.addRecordFail'))
+      // 计划接种（编辑）同样保留弹窗提供添加到日历；已接种直接关闭
+      if (status === 'planned') {
+        setSavedPlan({ id: editing.id, name: name.trim(), dose: dose || undefined, date: d, editing: true })
+        return
+      }
+      onSaved?.()
+      return
+    }
+    if (activeBabyId == null) throw new Error(t('errors.noBaby'))
+    const now = Date.now()
+    const id = await db.vaccinations.add({
+      babyId: activeBabyId,
+      date: d,
+      name: name.trim(),
+      dose: dose || undefined,
+      status,
+      notes: notes || undefined,
+      createdAt: now,
+      updatedAt: now,
+    })
+    if (id == null) throw new Error(t('errors.addRecordFail'))
+    if (status === 'planned') {
+      setSavedPlan({ id, name: name.trim(), dose: dose || undefined, date: d, editing: false })
+      return
     }
     onSaved?.()
   }
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 
+  /** 记录 → 日历事件（同一条记录 UID 稳定：再次添加视为更新同一条事件） */
+  function calEventOf(record: { id?: number; name: string; dose?: string; date: number }): CalendarEvent {
+    const label = record.dose ? `${record.name} · ${record.dose}` : record.name
+    return {
+      uid: `vaccination-${record.id}@babysitter`,
+      title: t('vaccination.calEventTitle', { label }),
+      date: record.date,
+      description: t('vaccination.calEventDesc', { app: t('app.name') }),
+    }
+  }
+
+  /** 同一天的其它计划接种（批量为这一天的全部记录各建一条独立事件，可单独修改） */
+  const sameDateOthers = useMemo(() => {
+    if (!savedPlan) return []
+    const day = startOfDay(savedPlan.date)
+    return vaccinations.filter((v) => v.status === 'planned' && v.id !== savedPlan.id && startOfDay(v.date) === day)
+  }, [vaccinations, savedPlan])
+
+  /** Google 日历网页链接（单条，无需下载文件） */
+  const googleUrl = savedPlan ? googleCalendarUrl(calEventOf(savedPlan)) : ''
+
+  /** 交付 .ics 并给出结果反馈 */
+  async function deliver(events: CalendarEvent[], filename: string, title: string) {
+    setCalFeedback(null)
+    const result = await deliverIcs(buildIcs(events), filename, title)
+    setCalFeedback(
+      result === 'shared'
+        ? t('vaccination.calShared')
+        : result === 'downloaded'
+          ? t('vaccination.calDownloaded')
+          : result === 'failed'
+            ? t('vaccination.calFailed')
+            : null,
+    )
+  }
+
+  /** 添加本条到系统日历（含「提前 1 天」与「当天」两条提醒） */
+  async function addToCalendar() {
+    if (!savedPlan || calBusy) return
+    setCalBusy(true)
+    const event = calEventOf(savedPlan)
+    await deliver([event], `vaccine-${savedPlan.id}.ics`, event.title)
+    setCalBusy(false)
+  }
+
+  /** 一次添加这一天的全部计划接种（含本条），逐条独立事件 */
+  async function addSameDateToCalendar() {
+    if (!savedPlan || calBusy) return
+    setCalBusy(true)
+    const day = formatDate(savedPlan.date)
+    await deliver([savedPlan, ...sameDateOthers].map(calEventOf), `vaccines-${day}.ics`, day)
+    setCalBusy(false)
+  }
+
+  /** 完成：关闭弹窗（由父级收尾） */
+  function finishSavedPlan() {
+    setSavedPlan(null)
+    onSaved?.()
+  }
+
   return (
     <form ref={formRef} className="vaccination-form" onSubmit={onSubmit}>
+      {/* 计划接种保存后：保持弹窗，提供「添加到系统日历」 */}
+      {savedPlan ? (
+        <div className={s['cal-saved']}>
+          <p className={s['cal-saved-title']}>
+            ✅ {t(savedPlan.editing ? 'vaccination.calUpdatedTitle' : 'vaccination.calSavedTitle')}
+          </p>
+          <p className={s['cal-saved-meta']}>
+            {savedPlan.dose ? `${savedPlan.name} · ${savedPlan.dose}` : savedPlan.name} · {formatDate(savedPlan.date)}
+          </p>
+          <p className={s['cal-hint']}>{t(savedPlan.editing ? 'vaccination.calUpdateHint' : 'vaccination.calHint')}</p>
+          <button type="button" className="btn btn-primary btn-block" disabled={calBusy} onClick={addToCalendar}>
+            📅 {t('vaccination.calAdd')}
+          </button>
+          {sameDateOthers.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-outline btn-block"
+              disabled={calBusy}
+              onClick={addSameDateToCalendar}
+            >
+              💉 {t('vaccination.calBatchAdd', { n: sameDateOthers.length + 1 })}
+            </button>
+          )}
+          <a className={s['cal-google']} href={googleUrl} target="_blank" rel="noopener noreferrer">
+            🔗 {t('vaccination.calGoogle')}
+          </a>
+          {calFeedback && <p className={s['cal-feedback']}>{calFeedback}</p>}
+          <button type="button" className="btn btn-outline btn-block" onClick={finishSavedPlan}>
+            {t('vaccination.calDone')}
+          </button>
+        </div>
+      ) : (
+        <>
       <div className={`form-field${err.has('name') ? ' has-error' : ''}`}>
         <label className="form-label">{t('vaccination.nameLabel')}</label>
         <div className={s['name-row']}>
@@ -231,6 +346,8 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
           })}
         </div>
       </BaseModal>
+        </>
+      )}
     </form>
   )
 }
