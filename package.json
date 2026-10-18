@@ -1,6 +1,6 @@
 {
   "name": "babysitter",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "宝宝喂养记录与统计 - 温馨简约的本地优先 PWA 应用",
   "private": true,
   "type": "module",
@@ -13,6 +13,7 @@
     "lint": "eslint . --fix && npm run version:check",
     "version:check": "node scripts/version.mjs check",
     "version:bump": "node scripts/version.mjs bump",
+    "version:tag": "node scripts/version.mjs tag",
     "format": "prettier --write src/"
   },
   "dependencies": {
