@@ -109,6 +109,49 @@
   }
 }
 
+/* 纯透明度版本：无位移无缩放，供「减少动态效果」环境使用 */
+@keyframes pulse-ring-soft {
+  0% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes float-in-soft {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes float-out-soft {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 系统开了「减少动态效果」（如 Windows 关闭动画效果）时，全局兜底会把动画压成
+   0.01ms，波纹会直接不可见、球出现也是瞬移。这里为悬浮球保留纯透明度的淡入淡出
+   与呼吸波纹：不含位移/缩放，契合减少动态偏好，同时继续提示「计时进行中」。 */
+@media (prefers-reduced-motion: reduce) {
+  .floating-ball {
+    animation: float-in-soft 0.28s linear !important;
+  }
+  .floating-ball.leaving {
+    animation: float-out-soft 0.2s linear forwards !important;
+  }
+  .fb-pulse {
+    animation: pulse-ring-soft 2.4s ease-out infinite !important;
+  }
+}
+
 @media (max-width: 375px) {
   .floating-ball {
     padding: 6px 10px;
