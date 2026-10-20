@@ -55,8 +55,13 @@
   }
 }
 
+/* 按压高亮：触屏没有 hover（@media (hover: hover) 在 iOS 不生效），
+   系统 tap 高亮又已全局关闭，这里用 :active 补回底色反馈 */
 .tl-item:active {
+  background: var(--fill-hover);
+  box-shadow: inset 0 0 0 1px var(--glass-inset);
   transform: scale(0.985);
+  transition-duration: 0.06s;
 }
 
 .tl-icon {
