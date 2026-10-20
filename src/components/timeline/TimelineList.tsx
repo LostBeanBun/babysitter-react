@@ -94,6 +94,8 @@ export interface TimelineListProps {
   grouped?: boolean
   /** 正在等待删除确认的条目 key（`kind-id`，与列表 key 一致，用于高亮选中的删除目标） */
   deletingKey?: string | null
+  /** 当前选中/交互中的条目 key（`kind-id`，点击后持续高亮，直到选中另一条） */
+  selectedKey?: string | null
   onEdit?: (entry: TimelineEntry) => void
   onDelete?: (entry: TimelineEntry) => void
 }
@@ -120,6 +122,7 @@ export default function TimelineList(props: TimelineListProps) {
     milestones,
     grouped,
     deletingKey,
+    selectedKey,
     onEdit,
     onDelete,
   } = props
@@ -379,14 +382,22 @@ export default function TimelineList(props: TimelineListProps) {
   }
 
   function renderEntry(e: TimelineEntry, isTimelineItem = false) {
-    const deleting = deletingKey != null && deletingKey === entryKey(e)
+    const key = entryKey(e)
+    const deleting = deletingKey != null && deletingKey === key
+    const selected = selectedKey != null && selectedKey === key
     const classes = [s['tl-item']]
     if (isTimelineItem) classes.push(s['tl-timeline-item'])
     if (deleting) classes.push(s['tl-deleting'])
-    if (savedKey === entryKey(e)) classes.push(s['tl-saved'])
+    if (savedKey === key) classes.push(s['tl-saved'])
+    if (selected) classes.push(s['tl-selected'])
 
     return (
-      <div key={entryKey(e)} className={classes.join(' ')} onClick={() => onEdit?.(e)}>
+      <div
+        key={key}
+        className={classes.join(' ')}
+        aria-current={selected ? 'true' : undefined}
+        onClick={() => onEdit?.(e)}
+      >
         {isTimelineItem ? (
           <div
             className={`${s['tl-icon']} ${s['tl-timeline-node']}`}

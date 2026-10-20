@@ -320,6 +320,8 @@ export default function LogView() {
 
   // 弹窗
   const [modalState, setModalState] = useState<{ kind: EntryKind; editing?: TimelineEntry } | null>(null)
+  /** 当前选中/交互中的记录（点击后持续高亮，直到点另一条） */
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<TimelineEntry | null>(null)
 
   // 表单弹窗打开时隐藏悬浮球
@@ -352,6 +354,7 @@ export default function LogView() {
   }, [router])
 
   function onEdit(entry: TimelineEntry) {
+    setSelectedKey(entry.kind + '-' + entry.id)
     setModalState({ kind: entry.kind, editing: entry })
   }
 
@@ -551,6 +554,7 @@ export default function LogView() {
             temperatures={filteredTemperatures}
             milestones={filteredMilestones}
             deletingKey={confirmDelete ? confirmDelete.kind + '-' + confirmDelete.id : null}
+            selectedKey={selectedKey}
             grouped
             onEdit={onEdit}
             onDelete={onDelete}

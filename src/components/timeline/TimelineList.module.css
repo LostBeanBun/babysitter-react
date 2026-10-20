@@ -64,6 +64,12 @@
   transition-duration: 0.06s;
 }
 
+/* 选中态：点击后在列表中持续标识当前记录（类似 focus 环），直到选中另一条 */
+.tl-item.tl-selected {
+  background: var(--primary-soft);
+  box-shadow: inset 0 0 0 1.5px var(--primary);
+}
+
 .tl-icon {
   width: 44px;
   height: 44px;
