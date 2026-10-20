@@ -1,11 +1,26 @@
 /* App Store / iOS Liquid Glass — 悬浮胶囊底栏 */
+
+/* 底部滚动边缘效果：内容滚到胶囊栏附近时逐渐模糊淡出，避免在胶囊两侧露出内容轮廓 */
+.tabbar-scrim {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--tabbar-height) + var(--tabbar-bottom) + 26px);
+  z-index: 49;
+  pointer-events: none;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  mask-image: linear-gradient(to top, #000 0%, #000 58%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 58%, transparent 100%);
+}
+
 .tabbar {
   position: fixed;
-  bottom: calc(var(--safe-bottom) + var(--tabbar-float-gap, 14px));
+  bottom: var(--tabbar-bottom);
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 24px);
-  max-width: 420px;
+  width: min(calc(100% - var(--tabbar-gutter) * 2), var(--tabbar-max-width));
   z-index: 50;
   pointer-events: none;
 }
@@ -89,8 +104,8 @@
 }
 
 .tabbar-icon {
-  width: 23px;
-  height: 23px;
+  width: 24px;
+  height: 24px;
   transition: transform 0.35s var(--spring);
 }
 
@@ -112,10 +127,4 @@
 
 .tabbar-item.active .tabbar-label {
   font-weight: 600;
-}
-
-@media (min-width: 700px) {
-  .tabbar {
-    max-width: 480px;
-  }
 }
