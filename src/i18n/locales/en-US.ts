@@ -122,11 +122,6 @@ export default {
     invalidOrder: 'End time must be later than start time',
   },
   sleep: {
-    typeLabel: 'Sleep type',
-    types: {
-      nap: 'Nap',
-      night: 'Night sleep',
-    },
     startLabel: 'Start time',
     endLabel: 'End time',
     startRecord: '▶ Start record',
@@ -235,6 +230,7 @@ planPicker: 'Library',
   },
   timeline: {
     deleted: 'Delete',
+    sleepTitle: 'Sleep',
     pumpTitle: 'Pump · {side}',
 weight: 'Weight {value} kg',
       height: 'Height {value} cm',

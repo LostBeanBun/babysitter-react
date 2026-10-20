@@ -20,7 +20,6 @@ import {
   DIAPER_COLOR_LABELS,
   DIAPER_AMOUNT_LABELS,
   PUMP_SIDE_LABELS,
-  SLEEP_TYPE_LABELS,
   TEMP_METHOD_LABELS,
   MILESTONE_TYPE_LABELS,
   MILESTONE_TYPE_LIST,
@@ -188,15 +187,14 @@ export default function TimelineList(props: TimelineListProps) {
 
     for (const sl of sleeps) {
       const dur = (sl.endTime ?? sl.startTime) - sl.startTime
-      const sleepTitle = SLEEP_TYPE_LABELS[sl.type] ? t(SLEEP_TYPE_LABELS[sl.type]) : sl.type
       list.push({
         id: sl.id!,
         kind: 'sleep',
         time: sl.startTime,
-        icon: sl.type === 'night' ? '🌙' : '😴',
+        icon: '😴',
         color: '#8FAED8',
         kindColor: KIND_COLORS.sleep,
-        title: sleepTitle,
+        title: t('timeline.sleepTitle'),
         detail: `${formatTime(sl.startTime)} - ${formatTime(sl.endTime ?? sl.startTime)}${dur > 0 ? ` · ${formatDuration(dur)}` : ''}`,
         duration: dur,
         raw: sl,

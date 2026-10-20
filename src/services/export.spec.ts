@@ -447,6 +447,23 @@ describe('importAllCsv', () => {
     expect(added.endTime - added.startTime).toBe(2 * 3600_000)
   })
 
+  it('旧文件里的「夜间睡眠」/night 导入后统一为小睡', async () => {
+    const headers =
+      'exportCsv.recordType,exportCsv.date,exportCsv.time,exportCsv.endDate,exportCsv.endTime,exportCsv.item,exportCsv.value,exportCsv.duration,exportCsv.status,exportCsv.notes'
+    const csv = [
+      headers,
+      ['sleep', '2026-01-01', '20:00', '2026-01-01', '22:00', '夜间睡眠', '', '120', '', ''].join(','),
+      ['sleep', '2026-01-01', '23:00', '2026-01-02', '01:00', 'night', '', '120', '', ''].join(','),
+    ].join('\r\n')
+    const result = await importAllCsv(new File([csv], 'sleep-night.csv', { type: 'text/csv' }))
+    expect(result.sleeps).toBe(2)
+    const calls = (mockDb.sleeps.bulkAdd as ReturnType<typeof vi.fn>).mock.calls as Array<
+      [Array<{ type: string }>]
+    >
+    const rows = calls.flatMap(([r]) => r)
+    expect(rows.map((r) => r.type)).toEqual(['nap', 'nap'])
+  })
+
   it('时间列带秒（HH:mm:ss）时保留到秒', async () => {
     const csv =
       'exportCsv.recordType,exportCsv.date,exportCsv.time,exportCsv.endDate,exportCsv.endTime,exportCsv.item,exportCsv.value,exportCsv.duration,exportCsv.status,exportCsv.notes\n' +

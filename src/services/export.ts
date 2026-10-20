@@ -273,7 +273,7 @@ export function buildBabyCsvRows(data: BabyCsvData, babyName?: string): Row[] {
       formatTime(s.startTime),
       formatDate(s.endTime ?? s.startTime),
       formatTime(s.endTime ?? s.startTime),
-      bl(s.type),
+      bl('nap'),
       '',
       s.duration ?? Math.round(((s.endTime ?? s.startTime) - s.startTime) / 60000),
       '',
@@ -638,7 +638,8 @@ function mapCsvRowToRecord(
         kind,
         data: {
           ...base,
-          type: toInternal(item),
+          // 睡眠类型已统一为「小睡」：旧文件里的「夜间睡眠」也按小睡导入
+          type: 'nap',
           startTime,
           endTime: endTime || startTime + 60 * 60000,
           notes: notes || undefined,

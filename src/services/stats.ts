@@ -20,10 +20,6 @@ export interface DayAggregate {
   feedCount: number
   /** 睡眠时长 ms */
   sleepMs: number
-  /** 小睡次数 */
-  napCount: number
-  /** 夜间睡眠次数 */
-  nightCount: number
   /** 尿布更换总数 */
   diaperCount: number
   wetCount: number
@@ -57,8 +53,6 @@ export function emptyDay(dayStart: number): DayAggregate {
     bottleCount: 0,
     feedCount: 0,
     sleepMs: 0,
-    napCount: 0,
-    nightCount: 0,
     diaperCount: 0,
     wetCount: 0,
     dirtyCount: 0,
@@ -82,8 +76,6 @@ export interface RangeAggregate {
   breastCount: number
   bottleCount: number
   sleepMs: number
-  napCount: number
-  nightCount: number
   diaperCount: number
   wetCount: number
   dirtyCount: number
@@ -125,8 +117,6 @@ export function buildDailySeries(
     if (!d) continue
     const span = s.endTime != null ? s.endTime - s.startTime : (s.duration ?? 0)
     d.sleepMs += Math.max(0, span)
-    if (s.type === 'nap') d.napCount++
-    else d.nightCount++
   }
 
   for (const f of feedings) {
@@ -213,8 +203,6 @@ export function aggregateRange(
     breastCount: 0,
     bottleCount: 0,
     sleepMs: 0,
-    napCount: 0,
-    nightCount: 0,
     diaperCount: 0,
     wetCount: 0,
     dirtyCount: 0,
@@ -233,8 +221,6 @@ export function aggregateRange(
     agg.breastCount += d.breastCount
     agg.bottleCount += d.bottleCount
     agg.sleepMs += d.sleepMs
-    agg.napCount += d.napCount
-    agg.nightCount += d.nightCount
     agg.diaperCount += d.diaperCount
     agg.wetCount += d.wetCount
     agg.dirtyCount += d.dirtyCount

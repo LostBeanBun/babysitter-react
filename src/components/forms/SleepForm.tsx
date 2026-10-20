@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { SleepType } from '@/types'
-import { SLEEP_TYPE_LABELS } from '@/constants'
 import { toDateTimeLocal, fromDateTimeLocal, formatDuration } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
@@ -16,7 +14,7 @@ import { useFormSubmit } from '@/hooks/useFormSubmit'
 import s from './SleepForm.module.css'
 
 export interface SleepFormProps {
-  editing?: { id: number; type: SleepType; startTime: number; endTime: number; notes?: string }
+  editing?: { id: number; startTime: number; endTime: number; notes?: string }
   onSaved?: () => void
   onCancelled?: () => void
   onStartRecord?: () => void
@@ -28,7 +26,6 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
   const { getByKind, start: startTimer, reset: resetTimer } = useActiveTimer()
   const err = useFormErrors()
 
-  const [type, setType] = useState<SleepType>(editing?.type ?? 'nap')
   const [notes, setNotes] = useState(editing?.notes ?? '')
   const [startTime, setStartTime] = useState(() => toDateTimeLocal(editing?.startTime ?? Date.now()))
   const [endTime, setEndTime] = useState(editing?.endTime ? toDateTimeLocal(editing.endTime) : '')
@@ -49,7 +46,6 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
     let stale = false
     void db.sleeps.get(entry.recordId).then((record) => {
       if (!record || stale) return
-      setType(record.type)
       setNotes(record.notes ?? '')
       setStartTime(toDateTimeLocal(record.startTime))
       setEndTime('')
@@ -96,7 +92,7 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
           return
         }
         await db.sleeps.update(editing.id, {
-          type,
+          type: 'nap',
           startTime: start,
           endTime: end,
           notes: notes || undefined,
@@ -116,7 +112,7 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
         }
         const savedId = await db.sleeps.add({
           babyId: activeBabyId,
-          type,
+          type: 'nap',
           startTime: start,
           endTime: end,
           duration: end - start,
@@ -130,7 +126,7 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
       }
       const id = await db.sleeps.add({
         babyId: activeBabyId,
-        type,
+        type: 'nap',
         startTime: start,
         endTime: undefined,
         duration: undefined,
@@ -146,28 +142,10 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
     }
   }
 
-  const typeEntries = Object.entries(SLEEP_TYPE_LABELS) as [SleepType, string][]
-
   const { formRef, onSubmit } = useFormSubmit(submit)
 
   return (
     <form ref={formRef} className="sleep-form" onSubmit={onSubmit}>
-      <p className="form-label">{t('sleep.typeLabel')}</p>
-      <div className={s['type-row']}>
-        {typeEntries.map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            className={type === key ? `${s['type-btn']} ${s.selected}` : s['type-btn']}
-            disabled={isRecording}
-            onClick={() => setType(key)}
-          >
-            <span className={s['type-icon']}>{key === 'night' ? '🌙' : '😴'}</span>
-            <span className={s['type-label']}>{t(label)}</span>
-          </button>
-        ))}
-      </div>
-
       <div className={s['time-row']}>
         <div className={`form-field${err.has('startTime') ? ' has-error' : ''}`}>
           <label className="form-label">{t('sleep.startLabel')}</label>

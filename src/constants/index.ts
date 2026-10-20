@@ -5,7 +5,6 @@ import type {
   DiaperColor,
   DiaperAmount,
   PumpSide,
-  SleepType,
   TemperatureMethod,
   MilestoneType,
 } from '@/types'
@@ -86,12 +85,6 @@ export const PUMP_SIDE_LIST: { value: PumpSide; label: string; icon: string }[] 
   { value: 'right', label: 'pump.sides.right', icon: '➡️' },
   { value: 'both', label: 'pump.sides.both', icon: '↔️' },
 ]
-
-/** 睡眠类型 */
-export const SLEEP_TYPE_LABELS: Record<SleepType, string> = {
-  nap: 'sleep.types.nap',
-  night: 'sleep.types.night',
-}
 
 /** 体温测量方式 */
 export const TEMP_METHOD_LABELS: Record<TemperatureMethod, string> = {

@@ -88,7 +88,10 @@ export interface Pumping {
   updatedAt: number
 }
 
-/** 睡眠类型 */
+/**
+ * @deprecated 睡眠不再区分类型：新记录统一写 'nap'，旧数据/旧导出文件里的 'night' 仍可读取，
+ * 展示与统计上两者完全等价。
+ */
 export type SleepType = 'nap' | 'night'
 
 /** 睡眠记录 */

@@ -26,7 +26,7 @@ import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useSleepModal } from '@/hooks/useSleepModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
-import type { FeedType, SleepType, Vaccination } from '@/types'
+import type { FeedType, Vaccination } from '@/types'
 import s from './DashboardView.module.css'
 
 type EntryKind =
@@ -72,7 +72,6 @@ export default function DashboardView() {
   const [sfType, setSfType] = useState<FeedType>('breast')
   const [sfAmount, setSfAmount] = useState('')
   const [sfStart, setSfStart] = useState(() => toDateTimeLocal(Date.now()))
-  const [sfSleepType, setSfSleepType] = useState<SleepType>('nap')
   const [sfSleepEnd, setSfSleepEnd] = useState(() => toDateTimeLocal(Date.now() + 2 * 3600_000))
   const [sfNotes, setSfNotes] = useState('')
   const sfErr = useFormErrors()
@@ -115,7 +114,7 @@ export default function DashboardView() {
     })
     await db.sleeps.add({
       babyId: activeBabyId,
-      type: sfSleepType,
+      type: 'nap',
       startTime: start,
       endTime: end,
       duration: end - start,
@@ -128,7 +127,6 @@ export default function DashboardView() {
     setSfType('breast')
     setSfAmount('')
     setSfStart(toDateTimeLocal(Date.now()))
-    setSfSleepType('nap')
     setSfSleepEnd(toDateTimeLocal(Date.now() + 2 * 3600_000))
     setSfNotes('')
   }
@@ -345,17 +343,6 @@ export default function DashboardView() {
             }}
           />
           {sfErr.get('start') && <p className="field-error">{sfErr.get('start')}</p>}
-        </div>
-        <div className="form-field">
-          <label className="form-label">{t('sleep.typeLabel')}</label>
-          <select
-            value={sfSleepType}
-            className="form-input"
-            onChange={(e) => setSfSleepType(e.target.value as SleepType)}
-          >
-            <option value="nap">{t('sleep.types.nap')}</option>
-            <option value="night">{t('sleep.types.night')}</option>
-          </select>
         </div>
         <div className={`form-field${sfErr.has('sleepEnd') ? ' has-error' : ''}`}>
           <label className="form-label">{t('sleep.endLabel')}</label>

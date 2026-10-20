@@ -113,7 +113,6 @@ describe('stats aggregation', () => {
       day1 + DAY,
     )
     expect(days[0].sleepMs).toBe(6 * 3600_000)
-    expect(days[0].napCount).toBe(1)
     expect(days[1].sleepMs).toBe(0)
   })
 

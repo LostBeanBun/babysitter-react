@@ -122,11 +122,6 @@ export default {
     invalidOrder: '结束时间需晚于开始时间',
   },
   sleep: {
-    typeLabel: '睡眠类型',
-    types: {
-      nap: '小睡',
-      night: '夜间睡眠',
-    },
     startLabel: '开始时间',
     endLabel: '结束时间',
     startRecord: '▶ 开始记录',
@@ -235,6 +230,7 @@ planPicker: '计划库',
   },
   timeline: {
     deleted: '删除',
+    sleepTitle: '睡眠',
     pumpTitle: '吸奶·{side}',
 weight: '体重 {value} kg',
       height: '身高 {value} cm',
