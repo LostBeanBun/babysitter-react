@@ -351,16 +351,27 @@ export default function TimelineList(props: TimelineListProps) {
   }, [groupedEntries])
 
   // 刚保存：createdAt 在 3s 内的最新一条（保存后回列表轻闪提示；同一时刻批量导入只闪最新一条）
-  // 依赖当前时刻判断新旧，entries 变化时重算即可（窗口过期后类残留无视觉影响，下次数据变更自动清除）
-  const savedKey = useMemo(() => {
-    // eslint-disable-next-line react-hooks/purity -- 时间窗判断依赖当前时刻，仅在 entries 变化时重算
+  // 高亮只保持 1.8s：reduce 下用的是静态底色，必须靠计时移除，否则会一直亮着
+  const [savedKey, setSavedKey] = useState<string | null>(null)
+  const savedKeyRef = useRef<string | null>(null)
+  useEffect(() => {
     const cutoff = Date.now() - 3000
     let best: TimelineEntry | null = null
     for (const e of entries) {
       const at = e.raw.createdAt
       if (at >= cutoff && (best === null || at > best.raw.createdAt)) best = e
     }
-    return best ? best.kind + '-' + best.id : null
+    if (!best) return
+    const key = best.kind + '-' + best.id
+    if (savedKeyRef.current !== key) {
+      savedKeyRef.current = key
+      setSavedKey(key)
+    }
+    const timer = setTimeout(() => {
+      savedKeyRef.current = null
+      setSavedKey(null)
+    }, 1800)
+    return () => clearTimeout(timer)
   }, [entries])
 
   function entryKey(e: TimelineEntry): string {
