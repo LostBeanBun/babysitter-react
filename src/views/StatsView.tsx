@@ -211,8 +211,8 @@ export default function StatsView() {
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: 'rgba(232,144,108,0.25)' },
-                { offset: 1, color: 'rgba(232,144,108,0.02)' },
+                { offset: 0, color: 'rgba(255,107,53,0.25)' },
+                { offset: 1, color: 'rgba(255,107,53,0.02)' },
               ],
             },
           },

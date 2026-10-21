@@ -1,10 +1,10 @@
 .floating-ball {
   position: fixed;
-  z-index: 100;
+  z-index: var(--z-float);
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-xl);
   background: var(--surface);
   backdrop-filter: var(--glass-blur);
@@ -18,19 +18,19 @@
   -webkit-user-select: none;
   touch-action: none;
   transition:
-    transform 0.3s var(--spring),
-    box-shadow 0.3s var(--ease-out);
-  animation: float-in 0.35s var(--spring);
+    transform var(--dur-slow) var(--spring),
+    box-shadow var(--dur-slow) var(--ease-out);
+  animation: float-in var(--dur-enter) var(--spring);
 }
 
 .floating-ball:active {
-  transform: scale(0.94);
+  transform: scale(var(--tap-scale));
 }
 
 /* 离场：覆盖入场动画，缩小淡出（对齐 Vue .float-leave-to） */
 .floating-ball.leaving {
   pointer-events: none;
-  animation: float-out 0.2s var(--ease-out) forwards;
+  animation: float-out var(--dur-base) var(--ease-out) forwards;
 }
 
 /* 拖拽中关闭毛玻璃：移动的 backdrop-filter 每帧都要重算模糊，代价高且视觉上被位移掩盖 */
@@ -40,7 +40,7 @@
 }
 
 .fb-icon {
-  font-size: 22px;
+  font-size: var(--fs-xl);
   flex-shrink: 0;
   line-height: 1;
 }
@@ -52,14 +52,14 @@
 }
 
 .fb-label {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--text-muted);
   line-height: 1;
 }
 
 .fb-time {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 700;
   color: var(--ball-color);
   font-variant-numeric: tabular-nums;
@@ -142,10 +142,10 @@
    与呼吸波纹：不含位移/缩放，契合减少动态偏好，同时继续提示「计时进行中」。 */
 @media (prefers-reduced-motion: reduce) {
   .floating-ball {
-    animation: float-in-soft 0.28s linear !important;
+    animation: float-in-soft var(--dur-slow) linear !important;
   }
   .floating-ball.leaving {
-    animation: float-out-soft 0.2s linear forwards !important;
+    animation: float-out-soft var(--dur-base) linear forwards !important;
   }
   .fb-pulse {
     animation: pulse-ring-soft 2.4s ease-out infinite !important;
@@ -158,12 +158,12 @@
     gap: 6px;
   }
   .fb-icon {
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
   .fb-time {
-    font-size: 14px;
+    font-size: var(--fs-14);
   }
   .fb-label {
-    font-size: 9px;
+    font-size: var(--fs-2xs);
   }
 }

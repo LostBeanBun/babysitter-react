@@ -3,15 +3,28 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
-## [1.2.6] - 2026-10-21
+## [1.3.0] - 2026-10-21
 
 ### 新增
 
-- 
+- `docs/UI-STYLE.md`：全项目 UI 风格规范（设计基调、token 体系、行为模式、组件规范、暗色 / i18n / 响应式），作为后续样式改动的唯一规范来源
+- 设计 token 补全：字号阶梯（`--fs-13/-14/-16/-18/-24/-display`）、间距阶梯（`--space-1~6`）、页面 gutter `--page-gutter`、圆角 `--radius-2xs`、按压三档（`--tap-scale` / `-item` / `-strong`）、动效时长五档（`--dur-press/fast/base/slow/enter`）、z-index 阶梯（`--z-base` ~ `--z-toast`）
 
-### 修复
+### 统一
 
-- 
+- z-index 全部改走 token 阶梯；Toast 从 100 提升到 300（`--z-toast`），修复弹窗内保存 / 校验提示被弹窗遮挡不可见的既有缺陷
+- 全项目 `font-size` 裸像素值 token 化（Vue 128 处 / React 138 处），字号统一收敛到 HIG 阶梯
+- 按压缩放统一到三档 token（Vue 14 处 / React 14 处），消除 7 种并存的 `scale` 值
+- 表单选项块选中态统一为「1.5px 主题主色边框 + `--primary-soft` 底 + `--primary-dark` 文字」：消除 FeedingForm 侧边按钮硬编码旧橙底 `rgba(232,144,108,.08)`、MilestoneForm 内描边、TemperatureForm 缺文字色、VaccinationForm 文字色用 primary 等 5 种变体，两端一致
+- 焦点样式统一为两套机制：按钮 / 可选项走全局 `:focus-visible`（2.5px 主题主色 outline），表单输入走 `.form-input:focus` 的 `box-shadow: var(--focus-ring)`；接线此前零引用的死 token `--focus-ring`，并删除 ReminderBanner `.rb-chip:focus-visible` 自定义的 `--accent-blue` 2px 偏离（回归全局统一焦点）
+- 动效时长归档到五档 token（Vue 105 行 / React 116 行）：`0.06/0.08→--dur-press`、`0.12/0.15→--dur-fast`、`0.18/0.2/0.25→--dur-base`、`0.28/0.3→--dur-slow`、`0.35/0.4→--dur-enter`；`999999s`（禁用态保持 hack）与关键帧特效时长（`tl-saved-flash 1.8s`、`tl-deleting-pulse 1.4s`、`sk-shimmer 1.2s`、`pulse-ring-soft 2.4s` 等循环 / 入场动画）按规范保留原值
+- 页头与内容水平对齐：新增 `--page-gutter` token（`:root` 16px，`≤400px→10px`、`≥700px→32px` 在 `:root` 上重定义），`.page` 与 `PageHeader` 统一引用，消除此前页头 20px / 内容 16px（基线差 4px）、页头 20px / 内容 10px（小屏差 10px）的错位；实测 393 / 500 / 800px 三档页头标题与内容卡片左缘差值均为 0
+- 规范核实并记录：暗色模式经今日 / 统计 / 设置三页核验无硬编码缺陷，指标语义色（奶量紫、睡眠蓝、尿布靛等固定色身份）在 `UI-STYLE.md` 登记为「受控例外」（集中常量表 + 两主题可读性已核验 + 不得用于随主题变化的 UI 层）；空态按「页级 / 卡内」两档分别统一，不再跨档强行一致
+- 图表主色收敛（规范 4.6）：`CHART_COLORS.feedAmount` `#E8906C` → `#ff6b35`（`--primary` 主色浅态），删除零引用死字段 `primary`；奶量趋势图面积渐变同步 `rgba(255, 107, 53, ·)`，两端一致
+- 图表色唯一来源落定：系列色 = `CHART_COLORS` 常量，轴线 / 网格 / tooltip / who 色 = `useChartTheme`（两端逐行同源）；CSS 侧 9 个零消费 `--chart-*` token 删除，规范 4.6 同步改写
+- 死 token 清理（规范 2.1「要么接入要么删除」）：精确扫描（整词匹配排除前缀误判）确认两端各 22 个零消费 token 并删除——`--bg-soft`、`--fill-press`、`--shadow-sm`、`--safe-left/-right`、`--fs-2xl/-3xl`、`--ease-in-out`、`--accent-purple` / `--accent-pink` / `--accent-green-soft` 及其 `-soft` 变体、`--chart-*`×9；`--z-raised: 10` 无使用者，按实际需求改为 `--z-base: 1` 并接入时间轴日期标签的局部堆叠
+- 裸值接线：`--radius-pill`（两端各 13 处 `999px`）、`--radius-2xs`（两端各 3 处 `4px`）、`--space-1~6`（Vue 68 行 / React 74 行间距裸值 token 化）与 `.page` calc 内留白；不在 8pt 阶梯上的既有微调值（2/3/5/6/9/10/11/13/14/18px）与负值 margin 在规范 2.1 登记为受控例外原值保留，新增间距一律取阶梯值
+- 规范回写三处镜像：2.2 字号表删除无使用者的 Title 1 / Large Title 行；2.6 z 阶梯改 `--z-base`；3.7 选项选中态措辞与两端实际内联覆盖机制（选项色 + `22` 软底）对齐；两端 `UI-STYLE.md` 逐字节同源
 
 ## [1.2.6] - 2026-10-21
 

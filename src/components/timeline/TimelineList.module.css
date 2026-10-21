@@ -1,22 +1,22 @@
 .tl-group {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .tl-day {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-base);
   display: inline-block;
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 700;
   color: var(--text-secondary);
-  margin: 0 4px 6px;
+  margin: 0 var(--space-1) 6px;
   padding: 0 10px;
   background: var(--surface-translucent);
   backdrop-filter: var(--glass-blur-light);
   -webkit-backdrop-filter: var(--glass-blur-light);
   border: 1px solid var(--glass-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .tl-timeline-item {
@@ -39,12 +39,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: var(--space-2) 10px;
   border-radius: var(--radius);
   cursor: pointer;
   transition:
-    background 0.25s var(--ease-out),
-    transform 0.3s var(--spring);
+    background var(--dur-base) var(--ease-out),
+    transform var(--dur-slow) var(--spring);
 }
 
 @media (hover: hover) {
@@ -60,8 +60,8 @@
 .tl-item:active {
   background: var(--fill-hover);
   box-shadow: inset 0 0 0 1px var(--glass-inset);
-  transform: scale(0.985);
-  transition-duration: 0.06s;
+  transform: scale(var(--tap-scale-item));
+  transition-duration: var(--dur-press);
 }
 
 /* 选中态：点击后在列表中持续标识当前记录（类似 focus 环），直到选中另一条 */
@@ -77,7 +77,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: var(--fs-18);
   flex-shrink: 0;
   box-shadow: inset 0 0 0 1px var(--glass-inset);
 }
@@ -95,7 +95,7 @@
 }
 
 .tl-title {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -105,17 +105,17 @@
 }
 
 .tl-time {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
   background: var(--surface-2);
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
 }
 
 .tl-detail {
-  font-size: 13px;
+  font-size: var(--fs-13);
   color: var(--text-secondary);
   margin-top: 3px;
   overflow-wrap: anywhere;
@@ -132,12 +132,12 @@
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--fs-13);
   opacity: 0;
   transition:
-    opacity 0.12s ease,
-    background 0.12s ease,
-    color 0.12s ease;
+    opacity var(--dur-fast) ease,
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease;
   flex-shrink: 0;
   user-select: none;
   -webkit-tap-highlight-color: transparent;

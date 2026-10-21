@@ -129,7 +129,8 @@ export const MILESTONE_TYPE_LIST: { value: MilestoneType; label: string; icon: s
 
 /** 主题色（统计图表统一使用） */
 export const CHART_COLORS = {
-  feedAmount: '#E8906C',
+  /** 奶量趋势线（图表主色，值源自品牌 primary #ff6b35，见 UI-STYLE 4.6） */
+  feedAmount: '#ff6b35',
   breast: '#F2A28C',
   bottle: '#8FB9D8',
   formula: '#C4A8E0',
@@ -137,7 +138,6 @@ export const CHART_COLORS = {
   diaper: '#9A8FC8',
   pump: '#D8A8C8',
   temperature: '#E8A45A',
-  primary: '#E8906C',
 }
 
 /** 常用单位换算 */

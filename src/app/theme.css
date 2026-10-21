@@ -3,7 +3,6 @@
 
   /* ===== iOS Liquid Glass 液态玻璃主题 ===== */
   --bg: #f2f0ed;
-  --bg-soft: #e8e5e1;
   --surface: rgba(255, 255, 255, 0.72);
   --surface-2: rgba(255, 255, 255, 0.55);
   --surface-3: rgba(255, 255, 255, 0.4);
@@ -25,15 +24,10 @@
   --on-primary: #ffffff;
   --primary-glow: rgba(255, 107, 53, 0.3);
   --accent-green: #34c759;
-  --accent-green-soft: rgba(52, 199, 89, 0.12);
   --accent-blue: #007aff;
   --accent-blue-soft: rgba(0, 122, 255, 0.1);
   --accent-yellow: #ff9500;
   --accent-yellow-soft: rgba(255, 149, 0, 0.12);
-  --accent-purple: #af52de;
-  --accent-purple-soft: rgba(175, 82, 222, 0.1);
-  --accent-pink: #ff2d55;
-  --accent-pink-soft: rgba(255, 45, 85, 0.1);
 
   --danger: #ff3b30;
   --danger-soft: rgba(255, 59, 48, 0.1);
@@ -51,24 +45,11 @@
 
   /* 交互填充（hover/active） */
   --fill-hover: rgba(255, 255, 255, 0.55);
-  --fill-press: rgba(255, 255, 255, 0.4);
-
-  /* 图表主题色 */
-  --chart-axis: #8c7b72;
-  --chart-axis-line: #f0e2d4;
-  --chart-split: #f5ece2;
-  --chart-tooltip-bg: rgba(255, 255, 255, 0.96);
-  --chart-tooltip-border: #f0e2d4;
-  --chart-tooltip-text: #4a3a33;
-  --chart-who-strong: #a49482;
-  --chart-who-mid: #c4b6a6;
-  --chart-who-soft: #d8cbbd;
 
   --select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2357534e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
 
   /* 液态玻璃阴影 — 柔和、带色温 */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 32px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.06), 0 16px 64px rgba(0, 0, 0, 0.08);
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -85,41 +66,75 @@
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
 
-  /* Apple HIG 字号阶梯（SF Pro 近似） */
+  /* ===== Apple HIG 字号阶梯（SF Pro 近似）=====
+     新增字号一律取自本表，禁止裸写 font-size: Npx */
+  --fs-2xs: 10px; /* 微标签：TabBar 文字、图表轴刻度 */
   --fs-xs: 11px; /* Caption 2 */
   --fs-sm: 12px; /* Caption 1 */
+  --fs-13: 13px; /* Footnote：列表正文、辅助说明（高频） */
+  --fs-14: 14px; /* 卡片正文、次级标题（高频） */
   --fs-base: 15px; /* Subhead / Footnote+ */
-  --fs-md: 17px; /* Headline / Body */
-  --fs-lg: 20px; /* Title 3 */
+  --fs-16: 16px; /* 大号正文：计时读数、表单正文 */
+  --fs-md: 17px; /* Headline / Body / Section 标题 */
+  --fs-18: 18px; /* 强调数值、大图标 */
+  --fs-lg: 20px; /* Title 3 / 页面标题 */
   --fs-xl: 22px; /* Title 2 */
-  --fs-2xl: 28px; /* Title 1 */
-  --fs-3xl: 34px; /* Large Title */
+  --fs-24: 24px; /* 展示级数值、装饰 emoji 图标 */
+  --fs-display: 64px; /* 欢迎/空态大 emoji */
 
-  /* Apple HIG 圆角（连续圆角近似） */
+  /* ===== 间距阶梯（8pt 网格，含 4 半步）=====
+     组件内外边距、分组间距一律取自本表 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* ===== 布局 ===== */
+  /* 页面 / 页头统一水平 gutter：改这里即可全站对齐（媒体查询会在 400/700 断点重定义） */
+  --page-gutter: 16px;
+
+  /* ===== Apple HIG 圆角（连续圆角近似）===== */
+  --radius-2xs: 4px; /* 小徽章、色块 */
   --radius-xs: 8px;
   --radius-sm: 10px;
-  --radius: 12px;
+  --radius: 12px; /* 默认卡片/输入框 */
   --radius-md: 16px;
-  --radius-lg: 20px;
+  --radius-lg: 20px; /* 弹窗面板、大卡 */
   --radius-xl: 28px;
   --radius-pill: 999px;
 
-  /* 交互反馈 */
-  --tap-scale: 0.96;
+  /* ===== 交互反馈 ===== */
+  --tap-scale: 0.96; /* 按钮/选项/图标按钮 */
+  --tap-scale-item: 0.985; /* 列表行/大块可点区（面积极大时收缩更小幅度） */
+  --tap-scale-strong: 0.92; /* 强调按压（关闭、删除类） */
   --focus-ring: 0 0 0 3.5px var(--primary-soft);
 
-  /* 液态玻璃动效曲线 */
+  /* ===== 动效：时长 + 曲线 =====
+     颜色/底色过渡用 base，位移/缩放用 slow，弹层入场用 enter */
+  --dur-press: 0.06s; /* 按压反馈，要求即时 */
+  --dur-fast: 0.12s; /* 微交互（hover、显隐） */
+  --dur-base: 0.2s; /* 颜色/底色/描边过渡 */
+  --dur-slow: 0.3s; /* 位移/缩放/布局 */
+  --dur-enter: 0.35s; /* 弹层、Toast 入场 */
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ===== z-index 阶梯（禁止裸写 z-index）===== */
+  --z-base: 1; /* 组件内局部堆叠（如记录页日期标签盖过时间轴线） */
+  --z-header: 40; /* 页头 */
+  --z-tabbar-scrim: 49; /* TabBar 遮罩 */
+  --z-tabbar: 50; /* 悬浮 TabBar */
+  --z-float: 100; /* 计时悬浮球 */
+  --z-modal: 200; /* 弹窗遮罩 + 面板 */
+  --z-toast: 300; /* Toast（须盖过弹窗，否则弹窗内保存反馈不可见） */
 
   font-family:
     -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 16px;
+  font-size: var(--fs-16);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -133,7 +148,6 @@
   color-scheme: dark;
 
   --bg: #0f0e0c;
-  --bg-soft: #1a1816;
   --surface: rgba(44, 40, 36, 0.72);
   --surface-2: rgba(50, 46, 42, 0.6);
   --surface-3: rgba(56, 52, 48, 0.5);
@@ -154,15 +168,10 @@
   --on-primary: #ffffff;
   --primary-glow: rgba(255, 122, 69, 0.35);
   --accent-green: #30d158;
-  --accent-green-soft: rgba(48, 209, 88, 0.15);
   --accent-blue: #0a84ff;
   --accent-blue-soft: rgba(10, 132, 255, 0.15);
   --accent-yellow: #ff9f0a;
   --accent-yellow-soft: rgba(255, 159, 10, 0.15);
-  --accent-purple: #bf5af2;
-  --accent-purple-soft: rgba(191, 90, 242, 0.15);
-  --accent-pink: #ff375f;
-  --accent-pink-soft: rgba(255, 55, 95, 0.15);
 
   --danger: #ff453a;
   --danger-soft: rgba(255, 69, 58, 0.15);
@@ -175,22 +184,10 @@
   --glass-inset: rgba(255, 255, 255, 0.06);
 
   --fill-hover: rgba(255, 255, 255, 0.06);
-  --fill-press: rgba(255, 255, 255, 0.04);
-
-  --chart-axis: #b9ab9e;
-  --chart-axis-line: #42372f;
-  --chart-split: #2b251f;
-  --chart-tooltip-bg: rgba(41, 35, 30, 0.96);
-  --chart-tooltip-border: #42372f;
-  --chart-tooltip-text: #f0e6dd;
-  --chart-who-strong: #6d6158;
-  --chart-who-mid: #5a5048;
-  --chart-who-soft: #4a413a;
 
   --select-arrow: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b0a89f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3), 0 8px 32px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4), 0 16px 64px rgba(0, 0, 0, 0.45);
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -221,7 +218,7 @@ body {
   overflow-x: hidden;
   overscroll-behavior-y: none;
   -webkit-touch-callout: none;
-  transition: background-color 0.3s ease;
+  transition: background-color var(--dur-slow) ease;
 }
 
 [data-theme='dark'] body {
@@ -253,7 +250,7 @@ input,
 select,
 textarea {
   font-family: inherit;
-  font-size: 16px;
+  font-size: var(--fs-16);
   color: inherit;
 }
 
@@ -306,18 +303,20 @@ textarea {
 .page {
   min-height: 100vh;
   min-height: 100dvh;
-  padding: calc(var(--header-height) + var(--safe-top) + 12px) 16px
-    calc(var(--tabbar-height) + var(--tabbar-bottom) + 24px);
+  padding: calc(var(--header-height) + var(--safe-top) + var(--space-3)) var(--page-gutter)
+    calc(var(--tabbar-height) + var(--tabbar-bottom) + var(--space-6));
   max-width: 640px;
   margin: 0 auto;
 }
 
 @media (min-width: 700px) {
+  :root {
+    --page-gutter: 32px;
+  }
+
   .page {
     max-width: 1200px;
     margin: 0 auto;
-    padding-left: 32px;
-    padding-right: 32px;
   }
 }
 
@@ -331,8 +330,8 @@ textarea {
   position: relative;
   overflow: hidden;
   transition:
-    box-shadow 0.3s var(--ease-out),
-    transform 0.3s var(--ease-out);
+    box-shadow var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
 }
 
 .card::before {
@@ -362,7 +361,7 @@ textarea {
   font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-secondary);
-  margin: 18px 4px 8px;
+  margin: 18px var(--space-1) var(--space-2);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -376,18 +375,18 @@ textarea {
   justify-content: center;
   gap: 6px;
   min-height: 44px;
-  padding: 10px 16px;
+  padding: 10px var(--space-4);
   border-radius: var(--radius);
   font-weight: 600;
   font-size: var(--fs-base);
   line-height: 1.2;
   letter-spacing: -0.01em;
   transition:
-    transform 0.35s var(--spring),
-    opacity 0.2s var(--ease-out),
-    background 0.2s var(--ease-out),
-    box-shadow 0.2s var(--ease-out),
-    border-color 0.2s var(--ease-out);
+    transform var(--dur-enter) var(--spring),
+    opacity var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -443,7 +442,7 @@ textarea {
 .btn-lg {
   min-height: 50px;
   padding: 13px 22px;
-  font-size: 16px;
+  font-size: var(--fs-16);
   border-radius: var(--radius-md);
 }
 
@@ -456,7 +455,7 @@ textarea {
 
 .form-label {
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 6px;
@@ -469,7 +468,7 @@ textarea {
   min-width: 0;
   max-width: 100%;
   min-height: 44px;
-  padding: 9px 12px;
+  padding: 9px var(--space-3);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
@@ -477,9 +476,9 @@ textarea {
   -webkit-backdrop-filter: var(--glass-blur-light);
   outline: none;
   transition:
-    border-color 0.25s var(--ease-out),
-    box-shadow 0.3s var(--spring),
-    background 0.25s var(--ease-out);
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-slow) var(--spring),
+    background var(--dur-base) var(--ease-out);
   box-sizing: border-box;
 }
 
@@ -505,7 +504,7 @@ input[type='time']::-webkit-date-and-time-value {
 .form-input:focus,
 .form-textarea:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3.5px var(--primary-soft);
+  box-shadow: var(--focus-ring);
   background: var(--surface);
 }
 
@@ -535,7 +534,7 @@ select.form-input {
 
 select.form-input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3.5px var(--primary-soft);
+  box-shadow: var(--focus-ring);
 }
 
 .form-textarea {
@@ -550,7 +549,7 @@ select.form-input:focus {
   background: var(--modal-mask);
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
-  z-index: 200;
+  z-index: var(--z-modal);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -576,11 +575,11 @@ select.form-input:focus {
   max-height: 88dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 20px 18px calc(20px + var(--safe-bottom));
+  padding: var(--space-5) 18px calc(20px + var(--safe-bottom));
   box-shadow:
     0 -8px 40px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 var(--glass-shine);
-  animation: glassSlideUp 0.4s var(--spring);
+  animation: glassSlideUp var(--dur-enter) var(--spring);
   position: relative;
 }
 
@@ -592,7 +591,7 @@ select.form-input:focus {
   transform: translateX(-50%);
   width: 36px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--border-strong);
 }
 
@@ -620,13 +619,12 @@ select.form-input:focus {
 
 /* ===== 小屏适配（≤ 400px） ===== */
 @media (max-width: 400px) {
-  .page {
-    padding-left: 10px;
-    padding-right: 10px;
+  :root {
+    --page-gutter: 10px;
   }
 
   .card {
-    padding: 12px;
+    padding: var(--space-3);
   }
 
   .form-actions,
@@ -643,7 +641,7 @@ select.form-input:focus {
 /* 动画 */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity var(--dur-base) ease;
 }
 
 .fade-enter-from,
@@ -658,7 +656,7 @@ select.form-input:focus {
 }
 
 .spring-in {
-  animation: springIn 0.4s var(--spring);
+  animation: springIn var(--dur-enter) var(--spring);
 }
 
 /* 校验失败：错误字段轻晃提示 */
@@ -672,7 +670,7 @@ select.form-input:focus {
 }
 
 .shake {
-  animation: shake 0.4s var(--ease-out);
+  animation: shake var(--dur-enter) var(--ease-out);
 }
 
 /* 滚动条 */

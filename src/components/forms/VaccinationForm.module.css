@@ -15,9 +15,9 @@
 }
 
 .plan-tip {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   line-height: 1.6;
 }
 
@@ -25,7 +25,7 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .plan-tab {
@@ -33,17 +33,18 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--glass-border);
   background: var(--surface);
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--text-secondary);
-  transition: background-color 0.3s var(--spring), border-color 0.3s var(--spring), color 0.3s var(--spring),
-    box-shadow 0.3s var(--spring), transform 0.3s var(--spring), opacity 0.3s var(--spring);
+  transition: background-color var(--dur-slow) var(--spring), border-color var(--dur-slow) var(--spring), color var(--dur-slow) var(--spring),
+    box-shadow var(--dur-slow) var(--spring), transform var(--dur-slow) var(--spring), opacity var(--dur-slow) var(--spring);
 }
 
 .plan-tab.active {
+  border-width: 1.5px;
   border-color: var(--primary);
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-dark);
 }
 
 .plan-list {
@@ -58,17 +59,17 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   border-radius: var(--radius);
   border: 1px solid var(--glass-border);
   background: var(--surface-2);
   text-align: left;
-  transition: background-color 0.3s var(--spring), border-color 0.3s var(--spring), color 0.3s var(--spring),
-    box-shadow 0.3s var(--spring), transform 0.3s var(--spring), opacity 0.3s var(--spring);
+  transition: background-color var(--dur-slow) var(--spring), border-color var(--dur-slow) var(--spring), color var(--dur-slow) var(--spring),
+    box-shadow var(--dur-slow) var(--spring), transform var(--dur-slow) var(--spring), opacity var(--dur-slow) var(--spring);
 }
 
 .plan-item:not(.disabled):active {
-  transform: scale(0.98);
+  transform: scale(var(--tap-scale-item));
   border-color: var(--primary);
   background: var(--primary-soft);
 }
@@ -79,13 +80,13 @@
 }
 
 .plan-item-name {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 700;
   color: var(--text);
 }
 
 .plan-item-meta {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
   display: flex;
   align-items: center;
@@ -94,17 +95,17 @@
 }
 
 .plan-item-note {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
 .plan-item-added {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: #6ab86a;
   background: rgba(106, 184, 106, 0.12);
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-2xs);
   white-space: nowrap;
 }
 
@@ -112,7 +113,7 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .status-btn {
@@ -121,12 +122,12 @@
   align-items: center;
   gap: 4px;
   min-height: 44px;
-  padding: 12px 6px;
+  padding: var(--space-3) 6px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--glass-border);
   background: var(--surface);
-  transition: background-color 0.3s var(--spring), border-color 0.3s var(--spring), color 0.3s var(--spring),
-    box-shadow 0.3s var(--spring), transform 0.3s var(--spring), opacity 0.3s var(--spring);
+  transition: background-color var(--dur-slow) var(--spring), border-color var(--dur-slow) var(--spring), color var(--dur-slow) var(--spring),
+    box-shadow var(--dur-slow) var(--spring), transform var(--dur-slow) var(--spring), opacity var(--dur-slow) var(--spring);
 }
 
 .status-btn.selected {
@@ -134,11 +135,11 @@
 }
 
 .status-icon {
-  font-size: 20px;
+  font-size: var(--fs-lg);
 }
 
 .status-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;

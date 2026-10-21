@@ -11,7 +11,7 @@
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: var(--text-muted);
   pointer-events: none;
 }
@@ -20,7 +20,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .method-btn {
@@ -29,25 +29,27 @@
   align-items: center;
   gap: 4px;
   min-height: 44px;
-  padding: 10px 4px;
+  padding: 10px var(--space-1);
   border-radius: var(--radius-sm);
   border: 1px solid var(--glass-border);
   background: var(--surface);
-  transition: background-color 0.3s var(--spring), border-color 0.3s var(--spring), color 0.3s var(--spring),
-    box-shadow 0.3s var(--spring), transform 0.3s var(--spring), opacity 0.3s var(--spring);
+  transition: background-color var(--dur-slow) var(--spring), border-color var(--dur-slow) var(--spring), color var(--dur-slow) var(--spring),
+    box-shadow var(--dur-slow) var(--spring), transform var(--dur-slow) var(--spring), opacity var(--dur-slow) var(--spring);
 }
 
 .method-btn.selected {
+  border-width: 1.5px;
   border-color: var(--primary);
   background: var(--primary-soft);
+  color: var(--primary-dark);
 }
 
 .method-icon {
-  font-size: 18px;
+  font-size: var(--fs-18);
 }
 
 .method-label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
