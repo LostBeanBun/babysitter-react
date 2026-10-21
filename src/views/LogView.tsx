@@ -320,9 +320,23 @@ export default function LogView() {
 
   // 弹窗
   const [modalState, setModalState] = useState<{ kind: EntryKind; editing?: TimelineEntry } | null>(null)
-  /** 当前选中/交互中的记录（点击后持续高亮，直到点另一条） */
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<TimelineEntry | null>(null)
+
+  /** 列表高亮：点行编辑与点 × 删除都会切到当前记录；交互结束后保留 1s 便于用户看清是哪一条 */
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const selectedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // 关闭表单/删除确认 1s 后取消高亮（计时在回调里 setState，不打断渲染链路）
+  useEffect(() => {
+    if (modalState !== null || confirmDelete !== null) return
+    selectedTimer.current = setTimeout(() => setSelectedKey(null), 1000)
+    return () => clearTimeout(selectedTimer.current)
+  }, [modalState, confirmDelete])
+
+  function selectEntry(entry: TimelineEntry) {
+    clearTimeout(selectedTimer.current)
+    setSelectedKey(entry.kind + '-' + entry.id)
+  }
 
   // 表单弹窗打开时隐藏悬浮球
   useEffect(() => {
@@ -354,7 +368,7 @@ export default function LogView() {
   }, [router])
 
   function onEdit(entry: TimelineEntry) {
-    setSelectedKey(entry.kind + '-' + entry.id)
+    selectEntry(entry)
     setModalState({ kind: entry.kind, editing: entry })
   }
 
@@ -363,6 +377,7 @@ export default function LogView() {
   }
 
   function onDelete(entry: TimelineEntry) {
+    selectEntry(entry)
     setConfirmDelete(entry)
   }
 
