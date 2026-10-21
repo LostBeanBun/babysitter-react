@@ -159,6 +159,14 @@
   opacity: 1;
 }
 
+/* 点删除按钮的高亮原本只落在按钮上：同样的高亮状态扩展到整条记录，
+   让用户看清当前操作的是哪一条（松手进入 tl-deleting 待确认态，样式一致） */
+.tl-item:has(.tl-delete:active),
+.tl-item:has(.tl-delete:focus-visible) {
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+}
+
 /* 刚保存的新条目：轻闪提示后淡出 */
 @keyframes tl-saved-flash {
   from {
