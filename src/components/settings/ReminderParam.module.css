@@ -1,3 +1,11 @@
+.reminder-param-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* 输入本体 40px，包裹 label 撑到 44px 热区（规范 3.4），点击标签文字即聚焦输入 */
+  min-height: 44px;
+}
+
 .reminder-param-label {
   font-size: var(--fs-sm);
   font-weight: 600;
@@ -5,8 +13,8 @@
 }
 
 :global(.form-input).reminder-param-input {
-  width: 88px;
-  min-height: 44px;
+  width: 72px;
+  min-height: 40px;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-xs);
 }

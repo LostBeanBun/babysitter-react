@@ -3,6 +3,8 @@ import {
   loadReminders,
   saveReminders,
   checkReminders,
+  clampIntervalHours,
+  INTERVAL_MAX_HOURS,
   DEFAULT_REMINDERS,
   type ReminderContext,
 } from '@/utils/reminderScheduler'
@@ -74,6 +76,48 @@ describe('loadReminders / saveReminders', () => {
     localStorage.setItem('babysitter.reminders', 'not-json{')
     const cfg = loadReminders()
     expect(cfg.feed.enabled).toBe(false)
+  })
+
+  it('载入清洗：越界间隔钳回 [min, 24]', () => {
+    localStorage.setItem(
+      'babysitter.reminders',
+      JSON.stringify({
+        feed: { enabled: true, intervalHours: -5 },
+        medication: { enabled: true, intervalHours: 999 },
+        diaper: { enabled: true, intervalHours: 0 },
+        sleep: { enabled: true, time: '20:00', intervalHours: 100 },
+      }),
+    )
+    const cfg = loadReminders()
+    expect(cfg.feed.intervalHours).toBe(0)
+    expect(cfg.medication.intervalHours).toBe(INTERVAL_MAX_HOURS)
+    expect(cfg.diaper.intervalHours).toBe(1)
+    expect(cfg.sleep.intervalHours).toBe(INTERVAL_MAX_HOURS)
+  })
+})
+
+describe('clampIntervalHours - 间隔输入边界', () => {
+  it('空串与非法值回退 min', () => {
+    expect(clampIntervalHours('', 1)).toBe(1)
+    expect(clampIntervalHours('  ', 0)).toBe(0)
+    expect(clampIntervalHours('abc', 1)).toBe(1)
+  })
+
+  it('负数钳到 min', () => {
+    expect(clampIntervalHours('-3', 0)).toBe(0)
+    expect(clampIntervalHours('-3', 1)).toBe(1)
+  })
+
+  it('超上限钳到 24', () => {
+    expect(clampIntervalHours(999)).toBe(INTERVAL_MAX_HOURS)
+    expect(clampIntervalHours('99999', 1)).toBe(INTERVAL_MAX_HOURS)
+  })
+
+  it('区间内原值保留（含边界值与小数）', () => {
+    expect(clampIntervalHours('2.5', 0)).toBe(2.5)
+    expect(clampIntervalHours(0, 0)).toBe(0)
+    expect(clampIntervalHours(24, 1)).toBe(24)
+    expect(clampIntervalHours(1, 1)).toBe(1)
   })
 })
 

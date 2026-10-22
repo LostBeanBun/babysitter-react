@@ -241,9 +241,11 @@ iOS 26 Liquid Glass + Apple HIG。整体观感：**半透明玻璃层、柔和�
 ### 4.3 表单
 
 - 输入框：高 `48px`，圆角 `var(--radius-sm)`，底 `--surface-2`，边框 `1px solid var(--glass-border)`。
+- 行内参数紧凑输入（如提醒设置的 ReminderParam）：高 `40px`，圆角 `var(--radius-xs)`，宽度由场景定（提醒参数为 `72px`）；因输入本体低于 3.4 的 44px 热区，必须用包裹 `<label>` 撑到 `min-height: 44px`（点击标签文字即聚焦输入），两端同结构。
 - focus：边框 `--primary` + `box-shadow: var(--focus-ring)`，两处写法全局统一。
 - 错误：边框 `--danger` + 错误文案 `--fs-sm`/`--danger`，提交失败触发 `shake` 动画（`reduce` 下静态红色边框）。
 - 标签：`--fs-14`/`--text-secondary`，与输入框间距 `--space-2`。
+- 数值类行内输入必须做边界钳制（min/max + 空值回退 min），失焦时静默修正并回显，规则常量见 `src/utils/reminderScheduler.ts`（`clampIntervalHours`、`INTERVAL_MIN_HOURS`、`INTERVAL_MAX_HOURS`，两端同源）。
 
 ### 4.4 列表项（TimelineList）
 

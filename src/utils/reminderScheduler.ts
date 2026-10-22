@@ -28,6 +28,26 @@ export const DEFAULT_REMINDERS: ReminderConfig = {
   diaper: { enabled: false, intervalHours: 3 },
 }
 
+export type IntervalReminderType = 'feed' | 'sleep' | 'medication' | 'diaper'
+
+/** 各类间隔提醒下限（小时）：喂养/睡眠 0 有特殊语义（按月龄推荐 / 仅定时提醒），用药/尿布至少 1 小时 */
+export const INTERVAL_MIN_HOURS: Record<IntervalReminderType, number> = {
+  feed: 0,
+  sleep: 0,
+  medication: 1,
+  diaper: 1,
+}
+
+/** 间隔输入统一上限（小时）：超过一天的间隔无提醒意义，输入钳制与载入清洗共用 */
+export const INTERVAL_MAX_HOURS = 24
+
+/** 间隔边界钳制：空值/非法值回退 min，越界钳到 [min, INTERVAL_MAX_HOURS] */
+export function clampIntervalHours(raw: string | number, min = 0): number {
+  const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
+  if (Number.isNaN(n)) return min
+  return Math.min(Math.max(n, min), INTERVAL_MAX_HOURS)
+}
+
 const REMINDER_KEY = 'babysitter.reminders'
 const NOTIFIED_KEY = 'babysitter.reminderNotified'
 const LEGACY_FEED_KEY = 'babysitter.feedReminder'
@@ -44,7 +64,10 @@ export function loadReminders(): ReminderConfig {
         if (p && typeof p === 'object') {
           const target = cfg[k] as Record<string, unknown>
           if (typeof p.enabled === 'boolean') target.enabled = p.enabled
-          if (typeof p.intervalHours === 'number') target.intervalHours = p.intervalHours
+          if (typeof p.intervalHours === 'number' && k !== 'vaccination') {
+            // 载入清洗：旧版/手改数据可能越界，统一钳回 [min, 24]
+            target.intervalHours = clampIntervalHours(p.intervalHours, INTERVAL_MIN_HOURS[k])
+          }
           if (typeof p.time === 'string') target.time = p.time
         }
       })

@@ -129,19 +129,21 @@ export default function SettingsView() {
     saveReminders(next)
   }
 
-  function persistReminders() {
-    if (reminders) saveReminders(reminders)
-  }
-
-  function setIntervalReminder(type: 'feed' | 'medication' | 'diaper' | 'sleep', v: number | string) {
+  /** 间隔提交：组件已钳制边界，此处合并写状态与持久化（React 状态异步，分两步会存旧值） */
+  function commitInterval(type: 'feed' | 'medication' | 'diaper' | 'sleep', v: number | string) {
     if (!reminders) return
     const hours = typeof v === 'number' ? v : Number(v)
-    setReminders({ ...reminders, [type]: { ...reminders[type], intervalHours: hours } })
+    const next = { ...reminders, [type]: { ...reminders[type], intervalHours: hours } }
+    setReminders(next)
+    saveReminders(next)
   }
 
-  function setSleepTime(v: number | string) {
+  /** 时间提交：同样合并写状态与持久化 */
+  function commitSleepTime(v: number | string) {
     if (!reminders) return
-    setReminders({ ...reminders, sleep: { ...reminders.sleep, time: String(v) } })
+    const next = { ...reminders, sleep: { ...reminders.sleep, time: String(v) } }
+    setReminders(next)
+    saveReminders(next)
   }
 
   const reminderRows = useMemo(
@@ -386,8 +388,7 @@ export default function SettingsView() {
                       step={0.5}
                       placeholder={t('reminders.intervalPh', { n: '2.5' })}
                       hint={t('reminders.feed.hint')}
-                      onValueChange={(v) => setIntervalReminder('feed', v)}
-                      onChange={persistReminders}
+                      onCommit={(v) => commitInterval('feed', v)}
                     />
                   )}
                   {r.type === 'sleep' && (
@@ -396,8 +397,7 @@ export default function SettingsView() {
                       label={t('reminders.sleepTimeLabel')}
                       value={reminders.sleep.time}
                       placeholder={t('common.selectTime')}
-                      onValueChange={setSleepTime}
-                      onChange={persistReminders}
+                      onCommit={commitSleepTime}
                     />
                   )}
                   {r.type === 'sleep' && reminders.sleep.enabled && (
@@ -409,8 +409,7 @@ export default function SettingsView() {
                       step={1}
                       placeholder={t('reminders.intervalPh', { n: '4' })}
                       hint={t('reminders.sleep.hint')}
-                      onValueChange={(v) => setIntervalReminder('sleep', v)}
-                      onChange={persistReminders}
+                      onCommit={(v) => commitInterval('sleep', v)}
                     />
                   )}
                   {r.type === 'medication' && (
@@ -422,8 +421,7 @@ export default function SettingsView() {
                       step={1}
                       placeholder={t('reminders.intervalPh', { n: '6' })}
                       hint={t('reminders.medication.hint')}
-                      onValueChange={(v) => setIntervalReminder('medication', v)}
-                      onChange={persistReminders}
+                      onCommit={(v) => commitInterval('medication', v)}
                     />
                   )}
                   {r.type === 'diaper' && (
@@ -435,8 +433,7 @@ export default function SettingsView() {
                       step={1}
                       placeholder={t('reminders.intervalPh', { n: '6' })}
                       hint={t('reminders.diaper.hint')}
-                      onValueChange={(v) => setIntervalReminder('diaper', v)}
-                      onChange={persistReminders}
+                      onCommit={(v) => commitInterval('diaper', v)}
                     />
                   )}
                 </div>
