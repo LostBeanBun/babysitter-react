@@ -277,7 +277,6 @@ weight: 'Weight {value} kg',
     backupSubNever: 'Data lives only in this browser — back it up now',
     backupSub: 'No backup for {days} days — export a JSON backup',
     backupAction: 'Back up now',
-    repeatLast: 'Repeat last:',
     snooze15: 'Snooze 15 min',
   },
   log: {

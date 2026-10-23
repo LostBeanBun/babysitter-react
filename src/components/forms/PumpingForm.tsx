@@ -25,24 +25,20 @@ export interface PumpingFormProps {
     amount?: number
     notes?: string
   }
-  /** 「重复上次」预填：只带参数，不带 id/时间 */
-  prefill?: { side?: PumpSide; amount?: number; notes?: string }
   onSaved?: () => void
   onCancelled?: () => void
   onStartRecord?: () => void
 }
 
-export default function PumpingForm({ editing, prefill, onSaved, onCancelled, onStartRecord }: PumpingFormProps) {
+export default function PumpingForm({ editing, onSaved, onCancelled, onStartRecord }: PumpingFormProps) {
   const { t } = useTranslation()
   const { activeBabyId } = useBabies()
   const { getByKind, start: startTimer, reset: resetTimer } = useActiveTimer()
   const err = useFormErrors()
 
-  const [side, setSide] = useState<PumpSide>(editing?.side ?? prefill?.side ?? 'both')
-  const [amount, setAmount] = useState(
-    editing?.amount != null || prefill?.amount != null ? String(editing?.amount ?? prefill?.amount) : '',
-  )
-  const [notes, setNotes] = useState(editing?.notes ?? prefill?.notes ?? '')
+  const [side, setSide] = useState<PumpSide>(editing?.side ?? 'both')
+  const [amount, setAmount] = useState(editing?.amount != null ? String(editing.amount) : '')
+  const [notes, setNotes] = useState(editing?.notes ?? '')
   const [startTime, setStartTime] = useState(() => toDateTimeLocal(editing?.startTime ?? Date.now()))
   const [endTime, setEndTime] = useState(editing?.endTime ? toDateTimeLocal(editing.endTime) : '')
 

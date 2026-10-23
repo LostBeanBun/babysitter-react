@@ -277,7 +277,6 @@ weight: '体重 {value} kg',
     backupSubNever: '数据只保存在本浏览器，建议立即导出备份',
     backupSub: '已 {days} 天未备份，建议导出 JSON 备份',
     backupAction: '立即备份',
-    repeatLast: '重复上次：',
     snooze15: '稍后 15 分钟',
   },
   log: {

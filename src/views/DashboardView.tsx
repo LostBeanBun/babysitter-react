@@ -10,9 +10,9 @@ import PageHeader from '@/components/common/PageHeader'
 import BaseModal from '@/components/common/BaseModal'
 import OnboardingModal from '@/components/dashboard/OnboardingModal'
 import TodayOverview from '@/components/dashboard/TodayOverview'
-import FeedingForm, { type FeedingFormProps } from '@/components/forms/FeedingForm'
-import DiaperForm, { type DiaperFormProps } from '@/components/forms/DiaperForm'
-import PumpingForm, { type PumpingFormProps } from '@/components/forms/PumpingForm'
+import FeedingForm from '@/components/forms/FeedingForm'
+import DiaperForm from '@/components/forms/DiaperForm'
+import PumpingForm from '@/components/forms/PumpingForm'
 import SleepForm from '@/components/forms/SleepForm'
 import GrowthForm from '@/components/forms/GrowthForm'
 import SolidFoodForm from '@/components/forms/SolidFoodForm'
@@ -27,7 +27,7 @@ import { useSleepModal } from '@/hooks/useSleepModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
 import { recordQuickUse, sortQuickKinds } from '@/utils/quickOrder'
-import type { FeedType, Vaccination, RecordKind } from '@/types'
+import type { FeedType, Vaccination } from '@/types'
 import s from './DashboardView.module.css'
 
 type EntryKind =
@@ -136,8 +136,6 @@ export default function DashboardView() {
 
   // 记录弹窗状态
   const [modalKind, setModalKind] = useState<EntryKind | null>(null)
-  /** 「重复上次」参数预填（不含 id/时间） */
-  const [prefill, setPrefill] = useState<Record<string, unknown> | null>(null)
   /** 疫苗提醒直接编辑：打开对应计划记录的编辑弹窗 */
   const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
 
@@ -148,15 +146,9 @@ export default function DashboardView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalKind])
 
-  function openAdd(kind: EntryKind, nextPrefill: Record<string, unknown> | null = null) {
+  function openAdd(kind: EntryKind) {
     setEditingVaccination(null)
-    setPrefill(nextPrefill)
     setModalKind(kind)
-  }
-
-  /** 重复上次：只复用参数，时间由表单取当前 */
-  function onRepeat(kind: RecordKind, nextPrefill: Record<string, unknown>) {
-    openAdd(kind as EntryKind, nextPrefill)
   }
 
   /** 点击疫苗提醒：打开对应计划记录编辑 */
@@ -175,14 +167,12 @@ export default function DashboardView() {
   function onSaved() {
     setModalKind(null)
     setEditingVaccination(null)
-    setPrefill(null)
     toast(t('common.recordSaved'))
   }
 
   function onCancelled() {
     setModalKind(null)
     setEditingVaccination(null)
-    setPrefill(null)
   }
 
   const modalTitle = editingVaccination ? t('log.editTitle') : t('log.addTitle')
@@ -238,7 +228,7 @@ export default function DashboardView() {
       {hasBaby && (
         <>
           {/* 今日概览（提醒条 + 统计卡 + 小结按钮） */}
-          <TodayOverview now={now} onEdit={onEditVaccination} onRepeat={onRepeat} />
+          <TodayOverview now={now} onEdit={onEditVaccination} />
 
           {/* 快捷记录 */}
           <p className="section-title">{t('dashboard.quickRecord')}</p>
@@ -298,27 +288,14 @@ export default function DashboardView() {
             onClose={() => {
               setModalKind(null)
               setEditingVaccination(null)
-              setPrefill(null)
             }}
           >
             {modalKind === 'feeding' && (
-              <FeedingForm
-                prefill={prefill as FeedingFormProps['prefill']}
-                onStartRecord={onStartRecord}
-                onSaved={onSaved}
-                onCancelled={onCancelled}
-              />
+              <FeedingForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />
             )}
-            {modalKind === 'diaper' && (
-              <DiaperForm prefill={prefill as DiaperFormProps['prefill']} onSaved={onSaved} onCancelled={onCancelled} />
-            )}
+            {modalKind === 'diaper' && <DiaperForm onSaved={onSaved} onCancelled={onCancelled} />}
             {modalKind === 'pumping' && (
-              <PumpingForm
-                prefill={prefill as PumpingFormProps['prefill']}
-                onStartRecord={onStartRecord}
-                onSaved={onSaved}
-                onCancelled={onCancelled}
-              />
+              <PumpingForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />
             )}
             {modalKind === 'sleep' && (
               <SleepForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />

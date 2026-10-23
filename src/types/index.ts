@@ -203,7 +203,7 @@ export type MilestoneType =
   | 'wave' // 挥手再见
   | 'other' // 其他
 
-/** 记录类型（用于快捷入口/重复上次等跨模块的参数类型） */
+/** 记录类型（用于快捷入口等跨模块的参数类型） */
 export type RecordKind =
   | 'feeding'
   | 'diaper'
