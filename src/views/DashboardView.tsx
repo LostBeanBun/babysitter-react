@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { toast } from '@/stores/toast'
@@ -26,7 +26,6 @@ import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useSleepModal } from '@/hooks/useSleepModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
-import { recordQuickUse, sortQuickKinds } from '@/utils/quickOrder'
 import type { FeedType, Vaccination } from '@/types'
 import s from './DashboardView.module.css'
 
@@ -177,31 +176,6 @@ export default function DashboardView() {
 
   const modalTitle = editingVaccination ? t('log.editTitle') : t('log.addTitle')
 
-  // —— 快捷记录按使用频率排序（下次打开时常用类型置前）——
-  const QUICK_KINDS: EntryKind[] = [
-    'feeding',
-    'diaper',
-    'sleep',
-    'pumping',
-    'growth',
-    'solidFood',
-    'medication',
-    'vaccination',
-    'temperature',
-    'milestone',
-  ]
-  const [quickKinds] = useState<EntryKind[]>(() => sortQuickKinds(QUICK_KINDS))
-  const quickOrder = useMemo(() => {
-    const map = new Map<EntryKind, number>()
-    quickKinds.forEach((k, i) => map.set(k, i))
-    return map
-  }, [quickKinds])
-
-  function handleQuick(kind: EntryKind) {
-    recordQuickUse(kind)
-    openAdd(kind)
-  }
-
   return (
     <div className="page dashboard">
       <PageHeader />
@@ -233,43 +207,43 @@ export default function DashboardView() {
           {/* 快捷记录 */}
           <p className="section-title">{t('dashboard.quickRecord')}</p>
           <div className={s['quick-actions']}>
-            <button className={`${s['quick-btn']} ${s.feed}`} style={{ order: quickOrder.get('feeding') }} onClick={() => handleQuick('feeding')}>
+            <button className={`${s['quick-btn']} ${s.feed}`} onClick={() => openAdd('feeding')}>
               <span className={s['quick-icon']}>🍼</span>
               <span className={s['quick-label']}>{t('log.filters.feeding')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.diaper}`} style={{ order: quickOrder.get('diaper') }} onClick={() => handleQuick('diaper')}>
+            <button className={`${s['quick-btn']} ${s.diaper}`} onClick={() => openAdd('diaper')}>
               <span className={s['quick-icon']}>🧷</span>
               <span className={s['quick-label']}>{t('log.filters.diaper')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.sleep}`} style={{ order: quickOrder.get('sleep') }} onClick={() => handleQuick('sleep')}>
+            <button className={`${s['quick-btn']} ${s.sleep}`} onClick={() => openAdd('sleep')}>
               <span className={s['quick-icon']}>😴</span>
               <span className={s['quick-label']}>{t('log.filters.sleep')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.pump}`} style={{ order: quickOrder.get('pumping') }} onClick={() => handleQuick('pumping')}>
+            <button className={`${s['quick-btn']} ${s.pump}`} onClick={() => openAdd('pumping')}>
               <span className={s['quick-icon']}>🎀</span>
               <span className={s['quick-label']}>{t('log.filters.pumping')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.growth}`} style={{ order: quickOrder.get('growth') }} onClick={() => handleQuick('growth')}>
+            <button className={`${s['quick-btn']} ${s.growth}`} onClick={() => openAdd('growth')}>
               <span className={s['quick-icon']}>📏</span>
               <span className={s['quick-label']}>{t('log.filters.growth')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.solidFood}`} style={{ order: quickOrder.get('solidFood') }} onClick={() => handleQuick('solidFood')}>
+            <button className={`${s['quick-btn']} ${s.solidFood}`} onClick={() => openAdd('solidFood')}>
               <span className={s['quick-icon']}>🍎</span>
               <span className={s['quick-label']}>{t('log.filters.solidFood')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.medication}`} style={{ order: quickOrder.get('medication') }} onClick={() => handleQuick('medication')}>
+            <button className={`${s['quick-btn']} ${s.medication}`} onClick={() => openAdd('medication')}>
               <span className={s['quick-icon']}>💊</span>
               <span className={s['quick-label']}>{t('log.filters.medication')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.vaccination}`} style={{ order: quickOrder.get('vaccination') }} onClick={() => handleQuick('vaccination')}>
+            <button className={`${s['quick-btn']} ${s.vaccination}`} onClick={() => openAdd('vaccination')}>
               <span className={s['quick-icon']}>💉</span>
               <span className={s['quick-label']}>{t('log.filters.vaccination')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.temperature}`} style={{ order: quickOrder.get('temperature') }} onClick={() => handleQuick('temperature')}>
+            <button className={`${s['quick-btn']} ${s.temperature}`} onClick={() => openAdd('temperature')}>
               <span className={s['quick-icon']}>🌡️</span>
               <span className={s['quick-label']}>{t('log.filters.temperature')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.milestone}`} style={{ order: quickOrder.get('milestone') }} onClick={() => handleQuick('milestone')}>
+            <button className={`${s['quick-btn']} ${s.milestone}`} onClick={() => openAdd('milestone')}>
               <span className={s['quick-icon']}>🌟</span>
               <span className={s['quick-label']}>{t('log.filters.milestone')}</span>
             </button>
