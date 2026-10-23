@@ -7,12 +7,22 @@ import BaseModal from '@/components/common/BaseModal'
 import ReminderParam from '@/components/settings/ReminderParam'
 import { countAllRecords, clearAllData, clearBabyData, db } from '@/db'
 import { exportBabyCsvs, exportAllBabiesCsv, importAllCsv } from '@/services/export'
-import { BABY_AVATARS } from '@/constants'
+import { exportJsonBackup, getLastBackupAt, importJsonBackup } from '@/services/backup'
+import { BABY_AVATARS, MS_PER_HOUR } from '@/constants'
 import { APP_VERSION } from '@/constants/version'
-import { loadReminders, saveReminders, type ReminderConfig, type ReminderType } from '@/utils/reminderScheduler'
+import {
+  clampIntervalHours,
+  loadReminders,
+  saveReminders,
+  type ReminderConfig,
+  type ReminderType,
+} from '@/utils/reminderScheduler'
+import { recommendedIntervalMs } from '@/utils/feedingGuide'
 import { useBabies } from '@/stores/baby'
+import { toast } from '@/stores/toast'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
+import { formatDate } from '@/utils/format'
 import type { Baby, BabyGender } from '@/types'
 import s from './SettingsView.module.css'
 
@@ -48,6 +58,16 @@ export default function SettingsView() {
   const importFileRef = useRef<HTMLInputElement | null>(null)
   const [clearAllConfirm, setClearAllConfirm] = useState(false)
   const [clearBusy, setClearBusy] = useState(false)
+
+  // —— JSON 全量备份 / 恢复 ——
+  const [lastBackupAt, setLastBackupAt] = useState<number | null>(null)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 客户端 localStorage 初始化
+    setLastBackupAt(getLastBackupAt())
+  }, [])
+  const [jsonBusy, setJsonBusy] = useState(false)
+  const [jsonImportPending, setJsonImportPending] = useState<File | null>(null)
+  const jsonFileRef = useRef<HTMLInputElement | null>(null)
 
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
 
@@ -144,6 +164,43 @@ export default function SettingsView() {
     const next = { ...reminders, sleep: { ...reminders.sleep, time: String(v) } }
     setReminders(next)
     saveReminders(next)
+  }
+
+  /** 免打扰开关：开启后时间段内不发系统通知 */
+  function toggleQuiet() {
+    if (!reminders) return
+    const next: ReminderConfig = {
+      ...reminders,
+      quiet: { ...reminders.quiet, enabled: !reminders.quiet.enabled },
+    }
+    setReminders(next)
+    saveReminders(next)
+  }
+
+  /** 免打扰起止时间提交 */
+  function commitQuietTime(which: 'start' | 'end', v: number | string) {
+    if (!reminders) return
+    const next: ReminderConfig = {
+      ...reminders,
+      quiet: { ...reminders.quiet, [which]: String(v) },
+    }
+    setReminders(next)
+    saveReminders(next)
+  }
+
+  /** 按月龄推荐喂奶间隔（点击后写入喂奶提醒配置） */
+  const recommendedHours = useMemo(() => recommendedIntervalMs(activeBaby) / MS_PER_HOUR, [activeBaby])
+
+  function applyAgeRecommendation() {
+    if (!reminders) return
+    const hours = recommendedHours
+    const next: ReminderConfig = {
+      ...reminders,
+      feed: { ...reminders.feed, intervalHours: clampIntervalHours(hours, 0) },
+    }
+    setReminders(next)
+    saveReminders(next)
+    toast(t('settings.recommendApplied', { hours }))
   }
 
   const reminderRows = useMemo(
@@ -243,13 +300,67 @@ export default function SettingsView() {
     setTimeout(() => setExportSuccess(false), 3000)
   }
 
+  // —— JSON 全量备份 / 恢复 ——
+
+  async function handleExportJson() {
+    try {
+      await exportJsonBackup()
+      setLastBackupAt(getLastBackupAt())
+      setExportSuccess(true)
+      setTimeout(() => setExportSuccess(false), 3000)
+    } catch {
+      toast(t('settings.backupFailed'))
+    }
+  }
+
+  function handleJsonFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) setJsonImportPending(file)
+    e.target.value = ''
+  }
+
+  /** 备份文件校验错误码 → 文案（服务层抛出的是错误码字符串） */
+  function restoreErrorMessage(e: unknown): string {
+    if (e === 'invalidJson') return t('settings.restoreInvalid')
+    if (e === 'notBackup') return t('settings.restoreNotBackup')
+    if (e === 'tooNew') return t('settings.restoreTooNew')
+    return t('settings.restoreFailed')
+  }
+
+  async function confirmJsonImport() {
+    const file = jsonImportPending
+    if (!file) return
+    setJsonBusy(true)
+    try {
+      const result = await importJsonBackup(file)
+      setLastBackupAt(getLastBackupAt())
+      setRecordCounts(await countAllRecords())
+      setJsonImportPending(null)
+      toast(t('settings.restoreSuccess', { babies: result.babies }), 'success', { duration: 5000 })
+    } catch (e) {
+      toast(restoreErrorMessage(e), 'error', { duration: 5000 })
+    } finally {
+      setJsonBusy(false)
+    }
+  }
+
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setImportBusy(true)
+    // 覆盖式导入前先自动导出一份当前数据，避免误导入后无法回头
+    try {
+      await exportJsonBackup()
+      setLastBackupAt(getLastBackupAt())
+    } catch {
+      toast(t('settings.autoBackupFailed'))
+      setImportBusy(false)
+      e.target.value = ''
+      return
+    }
     try {
       const result = await importAllCsv(file)
-      alert(
+      toast(
         t('settings.importSuccess', {
           babies: result.babies,
           feedings: result.feedings,
@@ -263,10 +374,12 @@ export default function SettingsView() {
           temperatures: result.temperatures,
           milestones: result.milestones,
         }),
+        'success',
+        { duration: 5000 },
       )
       setRecordCounts(await countAllRecords())
     } catch {
-      alert(t('settings.importFailed'))
+      toast(t('settings.importFailed'), 'error')
     } finally {
       setImportBusy(false)
       if (importFileRef.current) importFileRef.current.value = ''
@@ -440,6 +553,51 @@ export default function SettingsView() {
               )}
             </div>
           ))}
+
+        {/* 免打扰时段：区间内不发系统通知，页面内提醒条保留 */}
+        {reminders && (
+          <div className={s['reminder-block']}>
+            <div className={s['reminder-row']}>
+              <div className={s['reminder-info']}>
+                <p className={s['reminder-title']}>{t('reminders.quietTitle')}</p>
+                <p className={s['reminder-sub']}>{t('reminders.quietSub')}</p>
+              </div>
+              <button
+                className={`${s.switch} ${reminders.quiet.enabled ? s.on : ''}`}
+                role="switch"
+                aria-checked={reminders.quiet.enabled}
+                onClick={toggleQuiet}
+              >
+                <span className={s['switch-knob']} />
+              </button>
+            </div>
+            {reminders.quiet.enabled && (
+              <div className={s['reminder-param']}>
+                <ReminderParam
+                  mode="time"
+                  label={t('reminders.quietStart')}
+                  value={reminders.quiet.start}
+                  placeholder={t('common.selectTime')}
+                  onCommit={(v) => commitQuietTime('start', v)}
+                />
+                <ReminderParam
+                  mode="time"
+                  label={t('reminders.quietEnd')}
+                  value={reminders.quiet.end}
+                  placeholder={t('common.selectTime')}
+                  onCommit={(v) => commitQuietTime('end', v)}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 按月龄推荐喂奶间隔 */}
+        {reminders && (
+          <button className="btn btn-outline btn-block" onClick={applyAgeRecommendation}>
+            {t('settings.recommendInterval', { hours: recommendedHours })}
+          </button>
+        )}
       </div>
 
       {/* 分享给朋友 */}
@@ -489,6 +647,29 @@ export default function SettingsView() {
           </span>
         </div>
         <div className={s['data-actions']}>
+          <p className={s['data-tip']}>{t('settings.jsonTip')}</p>
+          <p className={s['data-tip']}>
+            {lastBackupAt
+              ? t('settings.lastBackup', { date: formatDate(lastBackupAt) })
+              : t('settings.neverBackup')}
+          </p>
+          <button className="btn btn-primary btn-block" onClick={handleExportJson}>
+            {t('settings.exportJson')}
+          </button>
+          <button
+            className="btn btn-outline btn-block"
+            disabled={jsonBusy}
+            onClick={() => jsonFileRef.current?.click()}
+          >
+            {t('settings.importJson')}
+          </button>
+          <input
+            ref={jsonFileRef}
+            type="file"
+            accept=".json,application/json"
+            hidden
+            onChange={handleJsonFile}
+          />
           <button className="btn btn-primary btn-block" disabled={!activeBaby} onClick={handleExportBabyCsv}>
             <span className={s['btn-label']}>
               {activeBaby ? t('settings.exportBabyCsv', { name: activeBaby.name }) : t('common.noBaby')}
@@ -638,6 +819,23 @@ export default function SettingsView() {
           </button>
           <button className="btn btn-danger-soft" onClick={confirmDeleteBaby}>
             {t('log.confirmDelete')}
+          </button>
+        </div>
+      </BaseModal>
+
+      {/* 从 JSON 备份恢复确认 */}
+      <BaseModal
+        show={jsonImportPending !== null}
+        title={t('settings.restoreConfirmTitle')}
+        onClose={() => setJsonImportPending(null)}
+      >
+        <p className={s['confirm-text']}>{t('settings.restoreConfirmText')}</p>
+        <div className="form-actions">
+          <button className="btn btn-outline" onClick={() => setJsonImportPending(null)}>
+            {t('common.cancel')}
+          </button>
+          <button className="btn btn-danger-soft" disabled={jsonBusy} onClick={confirmJsonImport}>
+            {t('settings.confirmRestore')}
           </button>
         </div>
       </BaseModal>

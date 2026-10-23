@@ -130,6 +130,8 @@ export default function LogView() {
   const [dateFilter, setDateFilter] = useState<number | null>(null)
   /** 日期面板展开状态 */
   const [dateOpen, setDateOpen] = useState(false)
+  /** 搜索关键词（匹配标题/详情，含备注） */
+  const [keyword, setKeyword] = useState('')
 
   const [todayStart] = useState(() => startOfDay(Date.now()))
 
@@ -478,6 +480,17 @@ export default function LogView() {
   const currentFilterLabel = t(filters.find((f) => f.key === filter)?.labelKey ?? 'log.filters.all')
   const isEditing = Boolean(modalState?.editing)
 
+  const emptyContent = (
+    <div className={s['empty-inline']}>
+      <p>
+        {keyword.trim()
+          ? t('log.emptySearch', { keyword: keyword.trim() })
+          : t('log.empty', { type: filter === 'all' ? '' : currentFilterLabel })}
+      </p>
+      <p className={s['empty-hint']}>{t('log.emptyHint')}</p>
+    </div>
+  )
+
   return (
     <div className="page log-page">
       <PageHeader />
@@ -548,6 +561,42 @@ export default function LogView() {
         </button>
       </div>
 
+      {/* 关键词搜索：匹配记录标题/详情（备注包含在详情中） */}
+      <div className={s['search-row']}>
+        <svg
+          className={s['search-icon']}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          width="18"
+          height="18"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <input
+          value={keyword}
+          type="search"
+          className={`form-input ${s['search-input']}`}
+          placeholder={t('log.searchPlaceholder')}
+          aria-label={t('log.searchPlaceholder')}
+          onChange={(e) => setKeyword(e.target.value)}
+        />
+        {keyword && (
+          <button
+            type="button"
+            className={s['search-clear']}
+            aria-label={t('log.searchClear')}
+            title={t('log.searchClear')}
+            onClick={() => setKeyword('')}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       <div className="card">
         {logsLoading ? (
           <div className={s['log-skeleton']} aria-hidden="true">
@@ -571,14 +620,13 @@ export default function LogView() {
             deletingKey={confirmDelete ? confirmDelete.kind + '-' + confirmDelete.id : null}
             selectedKey={selectedKey}
             grouped
+            keyword={keyword}
+            empty={emptyContent}
             onEdit={onEdit}
             onDelete={onDelete}
           />
         ) : (
-          <div className={s['empty-inline']}>
-            <p>{t('log.empty', { type: filter === 'all' ? '' : currentFilterLabel })}</p>
-            <p className={s['empty-hint']}>{t('log.emptyHint')}</p>
-          </div>
+          emptyContent
         )}
       </div>
 

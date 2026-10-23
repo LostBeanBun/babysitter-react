@@ -18,13 +18,16 @@ export interface ReminderBannerProps {
   chips?: ReminderChip[]
   /** 「全部 N 条」入口文案（疫苗计划数多于提醒条可容纳时展示），点击触发 onAll */
   allLabel?: string
-  variant?: 'feed' | 'vaccine'
+  /** 操作按钮文案（如备份提醒的「立即备份」），点击触发 onAction */
+  actionLabel?: string
+  variant?: 'feed' | 'vaccine' | 'backup'
   dismissLabel: string
   /** 整条点击（仅 vaccine 变体响应，如打开编辑） */
   onClick?: () => void
   onDismiss?: () => void
   onSelect?: (key: number | string) => void
   onAll?: () => void
+  onAction?: () => void
 }
 
 /**
@@ -37,12 +40,14 @@ export default function ReminderBanner({
   sub,
   chips,
   allLabel,
+  actionLabel,
   variant = 'feed',
   dismissLabel,
   onClick,
   onDismiss,
   onSelect,
   onAll,
+  onAction,
 }: ReminderBannerProps) {
   return (
     <div
@@ -53,9 +58,9 @@ export default function ReminderBanner({
       <div className={s['rb-text']}>
         <p className={s['rb-title']}>{title}</p>
         {sub && <p className={s['rb-sub']}>{sub}</p>}
-        {chips && chips.length > 0 && (
+        {((chips && chips.length > 0) || allLabel || actionLabel) && (
           <p className={s['rb-sub']}>
-            {chips.map((c) => (
+            {chips?.map((c) => (
               <button
                 key={c.key}
                 type="button"
@@ -79,6 +84,18 @@ export default function ReminderBanner({
                 }}
               >
                 {allLabel} ›
+              </button>
+            )}
+            {actionLabel && (
+              <button
+                type="button"
+                className={`${s['rb-chip']} ${s['rb-chip-all']}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAction?.()
+                }}
+              >
+                {actionLabel} ›
               </button>
             )}
           </p>

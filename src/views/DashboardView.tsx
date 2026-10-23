@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { toast } from '@/stores/toast'
@@ -10,9 +10,9 @@ import PageHeader from '@/components/common/PageHeader'
 import BaseModal from '@/components/common/BaseModal'
 import OnboardingModal from '@/components/dashboard/OnboardingModal'
 import TodayOverview from '@/components/dashboard/TodayOverview'
-import FeedingForm from '@/components/forms/FeedingForm'
-import DiaperForm from '@/components/forms/DiaperForm'
-import PumpingForm from '@/components/forms/PumpingForm'
+import FeedingForm, { type FeedingFormProps } from '@/components/forms/FeedingForm'
+import DiaperForm, { type DiaperFormProps } from '@/components/forms/DiaperForm'
+import PumpingForm, { type PumpingFormProps } from '@/components/forms/PumpingForm'
 import SleepForm from '@/components/forms/SleepForm'
 import GrowthForm from '@/components/forms/GrowthForm'
 import SolidFoodForm from '@/components/forms/SolidFoodForm'
@@ -26,7 +26,8 @@ import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useSleepModal } from '@/hooks/useSleepModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
-import type { FeedType, Vaccination } from '@/types'
+import { recordQuickUse, sortQuickKinds } from '@/utils/quickOrder'
+import type { FeedType, Vaccination, RecordKind } from '@/types'
 import s from './DashboardView.module.css'
 
 type EntryKind =
@@ -135,6 +136,8 @@ export default function DashboardView() {
 
   // 记录弹窗状态
   const [modalKind, setModalKind] = useState<EntryKind | null>(null)
+  /** 「重复上次」参数预填（不含 id/时间） */
+  const [prefill, setPrefill] = useState<Record<string, unknown> | null>(null)
   /** 疫苗提醒直接编辑：打开对应计划记录的编辑弹窗 */
   const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
 
@@ -145,9 +148,15 @@ export default function DashboardView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalKind])
 
-  function openAdd(kind: EntryKind) {
+  function openAdd(kind: EntryKind, nextPrefill: Record<string, unknown> | null = null) {
     setEditingVaccination(null)
+    setPrefill(nextPrefill)
     setModalKind(kind)
+  }
+
+  /** 重复上次：只复用参数，时间由表单取当前 */
+  function onRepeat(kind: RecordKind, nextPrefill: Record<string, unknown>) {
+    openAdd(kind as EntryKind, nextPrefill)
   }
 
   /** 点击疫苗提醒：打开对应计划记录编辑 */
@@ -166,15 +175,42 @@ export default function DashboardView() {
   function onSaved() {
     setModalKind(null)
     setEditingVaccination(null)
+    setPrefill(null)
     toast(t('common.recordSaved'))
   }
 
   function onCancelled() {
     setModalKind(null)
     setEditingVaccination(null)
+    setPrefill(null)
   }
 
   const modalTitle = editingVaccination ? t('log.editTitle') : t('log.addTitle')
+
+  // —— 快捷记录按使用频率排序（下次打开时常用类型置前）——
+  const QUICK_KINDS: EntryKind[] = [
+    'feeding',
+    'diaper',
+    'sleep',
+    'pumping',
+    'growth',
+    'solidFood',
+    'medication',
+    'vaccination',
+    'temperature',
+    'milestone',
+  ]
+  const [quickKinds] = useState<EntryKind[]>(() => sortQuickKinds(QUICK_KINDS))
+  const quickOrder = useMemo(() => {
+    const map = new Map<EntryKind, number>()
+    quickKinds.forEach((k, i) => map.set(k, i))
+    return map
+  }, [quickKinds])
+
+  function handleQuick(kind: EntryKind) {
+    recordQuickUse(kind)
+    openAdd(kind)
+  }
 
   return (
     <div className="page dashboard">
@@ -202,48 +238,48 @@ export default function DashboardView() {
       {hasBaby && (
         <>
           {/* 今日概览（提醒条 + 统计卡 + 小结按钮） */}
-          <TodayOverview now={now} onEdit={onEditVaccination} />
+          <TodayOverview now={now} onEdit={onEditVaccination} onRepeat={onRepeat} />
 
           {/* 快捷记录 */}
           <p className="section-title">{t('dashboard.quickRecord')}</p>
           <div className={s['quick-actions']}>
-            <button className={`${s['quick-btn']} ${s.feed}`} onClick={() => openAdd('feeding')}>
+            <button className={`${s['quick-btn']} ${s.feed}`} style={{ order: quickOrder.get('feeding') }} onClick={() => handleQuick('feeding')}>
               <span className={s['quick-icon']}>🍼</span>
               <span className={s['quick-label']}>{t('log.filters.feeding')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.diaper}`} onClick={() => openAdd('diaper')}>
+            <button className={`${s['quick-btn']} ${s.diaper}`} style={{ order: quickOrder.get('diaper') }} onClick={() => handleQuick('diaper')}>
               <span className={s['quick-icon']}>🧷</span>
               <span className={s['quick-label']}>{t('log.filters.diaper')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.sleep}`} onClick={() => openAdd('sleep')}>
+            <button className={`${s['quick-btn']} ${s.sleep}`} style={{ order: quickOrder.get('sleep') }} onClick={() => handleQuick('sleep')}>
               <span className={s['quick-icon']}>😴</span>
               <span className={s['quick-label']}>{t('log.filters.sleep')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.pump}`} onClick={() => openAdd('pumping')}>
+            <button className={`${s['quick-btn']} ${s.pump}`} style={{ order: quickOrder.get('pumping') }} onClick={() => handleQuick('pumping')}>
               <span className={s['quick-icon']}>🎀</span>
               <span className={s['quick-label']}>{t('log.filters.pumping')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.growth}`} onClick={() => openAdd('growth')}>
+            <button className={`${s['quick-btn']} ${s.growth}`} style={{ order: quickOrder.get('growth') }} onClick={() => handleQuick('growth')}>
               <span className={s['quick-icon']}>📏</span>
               <span className={s['quick-label']}>{t('log.filters.growth')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.solidFood}`} onClick={() => openAdd('solidFood')}>
+            <button className={`${s['quick-btn']} ${s.solidFood}`} style={{ order: quickOrder.get('solidFood') }} onClick={() => handleQuick('solidFood')}>
               <span className={s['quick-icon']}>🍎</span>
               <span className={s['quick-label']}>{t('log.filters.solidFood')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.medication}`} onClick={() => openAdd('medication')}>
+            <button className={`${s['quick-btn']} ${s.medication}`} style={{ order: quickOrder.get('medication') }} onClick={() => handleQuick('medication')}>
               <span className={s['quick-icon']}>💊</span>
               <span className={s['quick-label']}>{t('log.filters.medication')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.vaccination}`} onClick={() => openAdd('vaccination')}>
+            <button className={`${s['quick-btn']} ${s.vaccination}`} style={{ order: quickOrder.get('vaccination') }} onClick={() => handleQuick('vaccination')}>
               <span className={s['quick-icon']}>💉</span>
               <span className={s['quick-label']}>{t('log.filters.vaccination')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.temperature}`} onClick={() => openAdd('temperature')}>
+            <button className={`${s['quick-btn']} ${s.temperature}`} style={{ order: quickOrder.get('temperature') }} onClick={() => handleQuick('temperature')}>
               <span className={s['quick-icon']}>🌡️</span>
               <span className={s['quick-label']}>{t('log.filters.temperature')}</span>
             </button>
-            <button className={`${s['quick-btn']} ${s.milestone}`} onClick={() => openAdd('milestone')}>
+            <button className={`${s['quick-btn']} ${s.milestone}`} style={{ order: quickOrder.get('milestone') }} onClick={() => handleQuick('milestone')}>
               <span className={s['quick-icon']}>🌟</span>
               <span className={s['quick-label']}>{t('log.filters.milestone')}</span>
             </button>
@@ -262,14 +298,27 @@ export default function DashboardView() {
             onClose={() => {
               setModalKind(null)
               setEditingVaccination(null)
+              setPrefill(null)
             }}
           >
             {modalKind === 'feeding' && (
-              <FeedingForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />
+              <FeedingForm
+                prefill={prefill as FeedingFormProps['prefill']}
+                onStartRecord={onStartRecord}
+                onSaved={onSaved}
+                onCancelled={onCancelled}
+              />
             )}
-            {modalKind === 'diaper' && <DiaperForm onSaved={onSaved} onCancelled={onCancelled} />}
+            {modalKind === 'diaper' && (
+              <DiaperForm prefill={prefill as DiaperFormProps['prefill']} onSaved={onSaved} onCancelled={onCancelled} />
+            )}
             {modalKind === 'pumping' && (
-              <PumpingForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />
+              <PumpingForm
+                prefill={prefill as PumpingFormProps['prefill']}
+                onStartRecord={onStartRecord}
+                onSaved={onSaved}
+                onCancelled={onCancelled}
+              />
             )}
             {modalKind === 'sleep' && (
               <SleepForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />

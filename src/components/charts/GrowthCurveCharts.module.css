@@ -84,3 +84,81 @@
   font-size: var(--fs-13);
   line-height: 1.6;
 }
+
+/* ===== 生长结论 ===== */
+.growth-conclusion {
+  padding: 14px;
+}
+
+.gc-title {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.gc-list {
+  display: grid;
+  gap: 8px;
+}
+
+.gc-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+}
+
+.gc-label {
+  font-size: var(--fs-13);
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gc-value {
+  font-size: var(--fs-13);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-percentile {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gc-band {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.gc-band.low,
+.gc-band.below {
+  background: var(--accent-yellow-soft);
+  color: var(--accent-yellow-dark, #9a6b1f);
+}
+
+.gc-band.high,
+.gc-band.above {
+  background: var(--accent-blue-soft);
+  color: var(--accent-blue-dark, #2f6a8f);
+}
+
+.gc-note {
+  margin-top: 10px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.6;
+}

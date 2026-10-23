@@ -28,6 +28,10 @@
   box-shadow: var(--shadow-md);
 }
 
+.reminder-banner--backup {
+  background: linear-gradient(135deg, var(--accent-yellow-soft), var(--surface));
+}
+
 .rb-icon {
   font-size: var(--fs-24);
   flex-shrink: 0;

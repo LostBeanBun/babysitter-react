@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
@@ -13,17 +13,21 @@ import { MS_PER_DAY } from '@/constants'
 import { upcomingVaccinations, vaccineDaysLeft } from '@/services/reminders'
 import { recommendedIntervalMs, recommendedIntervalLabel } from '@/utils/feedingGuide'
 import { dailyGuide } from '@/utils/dailyGuides'
-import type { Feeding, DiaperChange, Pumping, Sleep, Vaccination } from '@/types'
+import { exportJsonBackup, getLastBackupAt, shouldSuggestBackup } from '@/services/backup'
+import { isSnoozed, snoozeReminder } from '@/utils/reminderScheduler'
+import type { Feeding, DiaperChange, Pumping, Sleep, Vaccination, RecordKind } from '@/types'
 import s from './TodayOverview.module.css'
 
 export interface TodayOverviewProps {
   now: number
   /** 点击疫苗提醒条/芯片：编辑对应计划记录 */
   onEdit?: (v: Vaccination) => void
+  /** 重复上次：复用参数（不含时间）打开新增表单 */
+  onRepeat?: (kind: RecordKind, prefill: Record<string, unknown>) => void
 }
 
 /** 今日概览：喂奶/疫苗提醒条 + 统计卡 + 每日小结（数据按 now 实时重算） */
-export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
+export default function TodayOverview({ now, onEdit, onRepeat }: TodayOverviewProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const { activeBaby, activeBabyId } = useBabies()
@@ -135,6 +139,7 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
   const lastFeeding = useMemo(() => [...feedings].sort((a, b) => b.startTime - a.startTime)[0], [feedings])
   const lastSleep = useMemo(() => [...sleeps].sort((a, b) => (b.endTime ?? b.startTime) - (a.endTime ?? a.startTime))[0], [sleeps])
   const lastDiaper = useMemo(() => [...diapers].sort((a, b) => b.time - a.time)[0], [diapers])
+  const lastPumping = useMemo(() => [...pumpings].sort((a, b) => b.startTime - a.startTime)[0], [pumpings])
   const sinceMs = lastFeeding ? now - (lastFeeding.endTime ?? lastFeeding.startTime) : null
   const sinceSleepMs = lastSleep ? now - (lastSleep.endTime ?? lastSleep.startTime) : null
   const sinceDiaperMs = lastDiaper ? now - lastDiaper.time : null
@@ -147,17 +152,103 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
   /** 按月龄的每日参考数据（无出生日期时为 null） */
   const guide = recommended.guide
 
+  // —— 稍后提醒：15 分钟内隐藏横幅并抑制系统通知 ——
+  const [snoozeTick, setSnoozeTick] = useState(0)
+  const feedSnoozed = useMemo(() => {
+    void snoozeTick
+    return isSnoozed('feed', now)
+  }, [now, snoozeTick])
+  function snoozeFeed() {
+    snoozeReminder('feed', 15, now)
+    setSnoozeTick((n) => n + 1)
+  }
+
+  // —— 备份提醒：本地数据唯一兜底，超过 7 天未备份时提示 ——
+  const [lastBackupAt, setLastBackupAt] = useState<number | null>(null)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 客户端 localStorage 初始化
+    setLastBackupAt(getLastBackupAt())
+  }, [])
+  const hasAnyData =
+    feedings.length + diapers.length + pumpings.length + sleeps.length + vaccinations.length > 0
+  const backupDue = shouldSuggestBackup({ lastBackupAt, hasData: hasAnyData, now })
+  const backupDays = lastBackupAt == null ? 0 : Math.floor((now - lastBackupAt) / MS_PER_DAY)
+  async function handleBackup() {
+    await exportJsonBackup()
+    setLastBackupAt(getLastBackupAt())
+  }
+
+  /** 重复上次：只复用参数（类型/侧别/奶量等），时间由表单取当前 */
+  const repeatables = useMemo(() => {
+    const list: { kind: RecordKind; icon: string; label: string; prefill: Record<string, unknown> }[] = []
+    if (lastFeeding) {
+      list.push({
+        kind: 'feeding',
+        icon: '🍼',
+        label: t('log.filters.feeding'),
+        prefill: {
+          type: lastFeeding.type,
+          side: lastFeeding.side,
+          amount: lastFeeding.amount,
+          notes: lastFeeding.notes,
+        },
+      })
+    }
+    if (lastDiaper) {
+      list.push({
+        kind: 'diaper',
+        icon: '🧷',
+        label: t('log.filters.diaper'),
+        prefill: {
+          type: lastDiaper.type,
+          color: lastDiaper.color,
+          amount: lastDiaper.amount,
+          notes: lastDiaper.notes,
+        },
+      })
+    }
+    if (lastPumping) {
+      list.push({
+        kind: 'pumping',
+        icon: '🥛',
+        label: t('log.filters.pumping'),
+        prefill: { side: lastPumping.side, amount: lastPumping.amount, notes: lastPumping.notes },
+      })
+    }
+    return list
+  }, [lastFeeding, lastDiaper, lastPumping, t])
+
   return (
     <div className="today-overview">
       {/* 喂奶提醒条 */}
-      {overdue && !dismissed.feed && (
+      {overdue && !dismissed.feed && !feedSnoozed && (
         <ReminderBanner
           icon="🍼"
           variant="feed"
           title={t('feed.sinceLast', { duration: formatDuration(sinceMs ?? 0) })}
           sub={t('feed.reminderSub', { label: recommendedIntervalLabel(activeBaby) })}
+          actionLabel={t('dashboard.snooze15')}
           dismissLabel={t('common.close')}
+          onAction={snoozeFeed}
           onDismiss={() => dismiss('feed')}
+        />
+      )}
+
+      {/* 备份提醒 */}
+      {backupDue && !dismissed.backup && (
+        <ReminderBanner
+          icon="💾"
+          variant="backup"
+          title={t('dashboard.backupTitle')}
+          sub={
+            lastBackupAt == null
+              ? t('dashboard.backupSubNever')
+              : t('dashboard.backupSub', { days: backupDays })
+          }
+          actionLabel={t('dashboard.backupAction')}
+          dismissLabel={t('common.close')}
+          onAction={handleBackup}
+          onDismiss={() => dismiss('backup')}
         />
       )}
 
@@ -286,6 +377,26 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
           </div>
         </div>
       </div>
+
+      {/* 重复上次：只复用参数，时间取当前 */}
+      {repeatables.length > 0 && (
+        <div className={s['repeat-row']}>
+          <span className={s['repeat-row__label']}>{t('dashboard.repeatLast')}</span>
+          <div className={s['repeat-row__btns']}>
+            {repeatables.map((r) => (
+              <button
+                key={r.kind}
+                type="button"
+                className={s['repeat-btn']}
+                onClick={() => onRepeat?.(r.kind, r.prefill)}
+              >
+                <span aria-hidden="true">{r.icon}</span>
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

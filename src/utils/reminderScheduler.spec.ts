@@ -6,6 +6,9 @@ import {
   clampIntervalHours,
   INTERVAL_MAX_HOURS,
   DEFAULT_REMINDERS,
+  isQuietNow,
+  snoozeReminder,
+  isSnoozed,
   type ReminderContext,
 } from '@/utils/reminderScheduler'
 import type { Feeding, Medication, Vaccination, DiaperChange, Baby } from '@/types'
@@ -222,5 +225,69 @@ describe('checkReminders - 综合', () => {
       feedings: [feeding(new Date(2026, 0, 1, 4, 0).getTime())],
     })
     expect(checkReminders(ctx).some((h) => h.type === 'feed')).toBe(true)
+  })
+})
+describe('isQuietNow - 免打扰时段', () => {
+  const quiet = (start: string, end: string, enabled = true) => ({
+    ...DEFAULT_REMINDERS,
+    quiet: { enabled, start, end },
+  })
+
+  const at = (h: number, m = 0) => new Date(2026, 0, 1, h, m).getTime()
+
+  it('默认关闭时不静音', () => {
+    expect(isQuietNow(DEFAULT_REMINDERS, at(23))).toBe(false)
+  })
+
+  it('普通区间（13:00–15:00）内静音、外不静音', () => {
+    const cfg = quiet('13:00', '15:00')
+    expect(isQuietNow(cfg, at(12, 59))).toBe(false)
+    expect(isQuietNow(cfg, at(13, 0))).toBe(true)
+    expect(isQuietNow(cfg, at(14, 59))).toBe(true)
+    expect(isQuietNow(cfg, at(15, 0))).toBe(false)
+  })
+
+  it('跨零点区间（22:00–07:00）正确处理', () => {
+    const cfg = quiet('22:00', '07:00')
+    expect(isQuietNow(cfg, at(23))).toBe(true)
+    expect(isQuietNow(cfg, at(3))).toBe(true)
+    expect(isQuietNow(cfg, at(7))).toBe(false)
+    expect(isQuietNow(cfg, at(12))).toBe(false)
+  })
+
+  it('起止相同视为未配置（避免整天静音）', () => {
+    expect(isQuietNow(quiet('08:00', '08:00'), at(8))).toBe(false)
+  })
+
+  it('非法时间不静音', () => {
+    expect(isQuietNow(quiet('25:00', '07:00'), at(23))).toBe(false)
+  })
+})
+
+describe('snoozeReminder - 稍后提醒', () => {
+  it('snooze 后窗口内不再触发，到期后恢复', () => {
+    saveReminders({ ...DEFAULT_REMINDERS, feed: { enabled: true, intervalHours: 3 } })
+    const base = new Date(2026, 0, 1, 12, 0).getTime()
+    const ctx = makeContext({ now: base, feedings: [feeding(new Date(2026, 0, 1, 8, 0).getTime())] })
+    expect(checkReminders(ctx).some((h) => h.type === 'feed')).toBe(true)
+
+    snoozeReminder('feed', 15, base)
+    expect(isSnoozed('feed', base + 14 * 60_000)).toBe(true)
+    expect(checkReminders({ ...ctx, now: base + 14 * 60_000 }).length).toBe(0)
+    expect(isSnoozed('feed', base + 16 * 60_000)).toBe(false)
+    expect(checkReminders({ ...ctx, now: base + 16 * 60_000 }).some((h) => h.type === 'feed')).toBe(true)
+  })
+
+  it('免打扰时段内不发通知', () => {
+    saveReminders({
+      ...DEFAULT_REMINDERS,
+      feed: { enabled: true, intervalHours: 3 },
+      quiet: { enabled: true, start: '22:00', end: '07:00' },
+    })
+    const ctx = makeContext({
+      now: new Date(2026, 0, 1, 23, 0).getTime(),
+      feedings: [feeding(new Date(2026, 0, 1, 8, 0).getTime())],
+    })
+    expect(checkReminders(ctx).length).toBe(0)
   })
 })

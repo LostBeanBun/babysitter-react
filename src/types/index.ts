@@ -203,6 +203,19 @@ export type MilestoneType =
   | 'wave' // 挥手再见
   | 'other' // 其他
 
+/** 记录类型（用于快捷入口/重复上次等跨模块的参数类型） */
+export type RecordKind =
+  | 'feeding'
+  | 'diaper'
+  | 'pumping'
+  | 'sleep'
+  | 'growth'
+  | 'solidFood'
+  | 'medication'
+  | 'vaccination'
+  | 'temperature'
+  | 'milestone'
+
 /** 里程碑记录（翻身/独坐/爬行/说话/长牙等发育节点） */
 export interface Milestone {
   id?: number

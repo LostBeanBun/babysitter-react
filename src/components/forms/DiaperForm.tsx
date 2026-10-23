@@ -22,20 +22,22 @@ export interface DiaperFormProps {
     amount?: DiaperAmount
     notes?: string
   }
+  /** 「重复上次」预填：只带参数，不带 id/时间 */
+  prefill?: { type?: DiaperType; color?: DiaperColor; amount?: DiaperAmount; notes?: string }
   onSaved?: () => void
   onCancelled?: () => void
 }
 
-export default function DiaperForm({ editing, onSaved, onCancelled }: DiaperFormProps) {
+export default function DiaperForm({ editing, prefill, onSaved, onCancelled }: DiaperFormProps) {
   const { t } = useTranslation()
   const { activeBabyId } = useBabies()
   const err = useFormErrors()
 
-  const [type, setType] = useState<DiaperType>(editing?.type ?? 'wet')
-  const [color, setColor] = useState<DiaperColor | ''>(editing?.color ?? '')
-  const [amount, setAmount] = useState<DiaperAmount | ''>(editing?.amount ?? '')
+  const [type, setType] = useState<DiaperType>(editing?.type ?? prefill?.type ?? 'wet')
+  const [color, setColor] = useState<DiaperColor | ''>(editing?.color ?? prefill?.color ?? '')
+  const [amount, setAmount] = useState<DiaperAmount | ''>(editing?.amount ?? prefill?.amount ?? '')
   const [time, setTime] = useState(() => toDateTimeLocal(editing?.time ?? Date.now()))
-  const [notes, setNotes] = useState(editing?.notes ?? '')
+  const [notes, setNotes] = useState(editing?.notes ?? prefill?.notes ?? '')
 
   const colorEntries = Object.entries(DIAPER_COLOR_LABELS) as [DiaperColor, string][]
   const amountEntries = Object.entries(DIAPER_AMOUNT_LABELS) as [DiaperAmount, string][]

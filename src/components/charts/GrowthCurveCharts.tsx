@@ -6,7 +6,7 @@ import type { EChartsOption } from 'echarts'
 import ChartCard from '@/components/charts/ChartCard'
 import BaseModal from '@/components/common/BaseModal'
 import { whoData, ageInMonths, type WhoField, type WhoPercentileKey } from '@/constants/whoGrowth'
-import { estimatePercentile } from '@/utils/growthPercentile'
+import { estimatePercentile, percentileBand, type PercentileBand } from '@/utils/growthPercentile'
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { CHART_COLORS } from '@/constants'
 import { startOfDay } from '@/utils/format'
@@ -129,6 +129,46 @@ export default function GrowthCurveCharts({ babyName, gender, birthDate, records
     }
     return t('stats.growthSub', { name: babyName })
   }
+
+  /** 生长结论：把最新一次测量的百分位翻译成区间文案（不做诊断） */
+  interface GrowthConclusion {
+    field: WhoField
+    labelKey: string
+    value: number
+    unit: string
+    percentile: number
+    band: PercentileBand
+  }
+
+  function conclusionFor(
+    field: WhoField,
+    points: { ts: number; value: number }[],
+    unit: string,
+    labelKey: string,
+  ): GrowthConclusion | null {
+    const p = latestPercentile(field, points)
+    if (p == null || points.length === 0) return null
+    return {
+      field,
+      labelKey,
+      value: points[points.length - 1].value,
+      unit,
+      percentile: p,
+      band: percentileBand(p),
+    }
+  }
+
+  const conclusions = useMemo(
+    () =>
+      [
+        conclusionFor('weight', weightPoints, 'kg', 'stats.babyWeight'),
+        conclusionFor('length', heightPoints, 'cm', 'stats.babyHeight'),
+        conclusionFor('hc', hcPoints, 'cm', 'stats.babyHead'),
+      ].filter((x): x is GrowthConclusion => x !== null),
+    // conclusionFor 只依赖这些入参与 birthDate/whoPoints
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [weightPoints, heightPoints, hcPoints, birthDate, whoPoints],
+  )
 
   /** 趋势图 tooltip：显示日期 + 各系列数值，用户数据行附加估算百分位 */
   const growthTooltip = (unit: string, field: WhoField, label: string) => ({
@@ -345,6 +385,27 @@ export default function GrowthCurveCharts({ babyName, gender, birthDate, records
           )}
 
           {!hasGrowthData && <div className={`card ${s['empty-inline']}`}>{t('stats.growthEmptyBoth')}</div>}
+
+          {/* 生长结论：把最新百分位翻译成可读区间 */}
+          {conclusions.length > 0 && (
+            <div className={`card ${s['growth-conclusion']}`}>
+              <p className={s['gc-title']}>{t('stats.growthConclusionTitle')}</p>
+              <ul className={s['gc-list']}>
+                {conclusions.map((c) => (
+                  <li key={c.field} className={s['gc-row']}>
+                    <span className={s['gc-label']}>{t(c.labelKey)}</span>
+                    <span className={s['gc-value']}>
+                      {c.value.toFixed(1)}
+                      {c.unit}
+                    </span>
+                    <span className={s['gc-percentile']}>P{c.percentile}</span>
+                    <span className={`${s['gc-band']} ${s[c.band]}`}>{t(`stats.bands.${c.band}`)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className={s['gc-note']}>{t('stats.growthConclusionNote')}</p>
+            </div>
+          )}
         </>
       ) : (
         <div className={`card ${s['empty-inline']}`}>{t('stats.growthCta', { name: babyName || t('common.baby') })}</div>

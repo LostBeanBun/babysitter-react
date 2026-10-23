@@ -82,3 +82,14 @@ function clampPercentile(p: number): number {
   if (Number.isNaN(p)) return 50
   return Math.max(1, Math.min(99, Math.round(p * 100)))
 }
+
+/** 百分位区间：用于把数字结论化成「偏低 / 正常 / 偏高」 */
+export type PercentileBand = 'low' | 'below' | 'normal' | 'above' | 'high'
+
+export function percentileBand(p: number): PercentileBand {
+  if (p < 3) return 'low'
+  if (p < 15) return 'below'
+  if (p <= 85) return 'normal'
+  if (p <= 97) return 'above'
+  return 'high'
+}

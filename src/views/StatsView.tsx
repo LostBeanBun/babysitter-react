@@ -18,8 +18,13 @@ import {
   type ComparisonResult,
 } from '@/services/stats'
 import { CHART_COLORS, MS_PER_DAY } from '@/constants'
-import { formatDuration, formatPercentChange, formatAmount, startOfDay } from '@/utils/format'
+import { formatDuration, formatPercentChange, formatAmount, startOfDay, formatDate } from '@/utils/format'
 import { useChartTheme } from '@/hooks/useChartTheme'
+import { buildWeeklyInsight, type InsightItem } from '@/services/insights'
+import { exportReportPng, type ReportGrowthRow, type ReportMetric } from '@/services/report'
+import { whoData, ageInMonths, type WhoField } from '@/constants/whoGrowth'
+import { estimatePercentile, percentileBand } from '@/utils/growthPercentile'
+import { toast } from '@/stores/toast'
 import type {
   Feeding,
   DiaperChange,
@@ -402,6 +407,127 @@ export default function StatsView() {
   const summaryDays = Math.max(1, currentAgg.dayCount)
   const rangeGrowthCount = growths.filter((g) => g.date >= rangeStart && g.date < rangeEnd).length
 
+  // —— P1-5 近 7 天小结 ——
+  const datasets = useMemo(
+    () => ({ feedings, diapers, pumpings, sleeps, solidFoods, medications, temperatures }),
+    [feedings, diapers, pumpings, sleeps, solidFoods, medications, temperatures],
+  )
+  const weekly = useMemo(() => buildWeeklyInsight(datasets, now), [datasets, now])
+
+  function insightText(item: InsightItem): string {
+    if (item.change == null || item.tone === 'steady') return t(`stats.insights.${item.key}.steady`)
+    return t(`stats.insights.${item.key}.${item.tone}`, { percent: Math.abs(Math.round(item.change)) })
+  }
+
+  // —— P1-4 儿保报告导出 ——
+  const [reportBusy, setReportBusy] = useState(false)
+
+  const reportMetrics = useMemo<ReportMetric[]>(() => {
+    const agg = currentAgg
+    const daysCount = summaryDays
+    return [
+      {
+        label: t('stats.summary.totalMilk'),
+        value: formatAmount(agg.totalMilkAmount),
+        sub: t('common.daily', { value: formatAmount(agg.totalMilkAmount / daysCount) }),
+      },
+      {
+        label: t('stats.summary.feedCount'),
+        value: t('common.times', { n: agg.feedCount }),
+        sub: t('common.daily', { value: t('common.times', { n: (agg.feedCount / daysCount).toFixed(1) }) }),
+      },
+      {
+        label: t('stats.summary.sleepMs'),
+        value: formatDuration(agg.sleepMs),
+        sub: t('common.daily', { value: formatDuration(agg.sleepMs / daysCount) }),
+      },
+      {
+        label: t('stats.summary.diaper'),
+        value: t('common.times', { n: agg.diaperCount }),
+        sub: t('common.daily', { value: t('common.times', { n: (agg.diaperCount / daysCount).toFixed(1) }) }),
+      },
+      {
+        label: t('stats.summary.pumpAmount'),
+        value: formatAmount(agg.pumpAmount),
+        sub: t('common.daily', { value: formatAmount(agg.pumpAmount / daysCount) }),
+      },
+      {
+        label: t('stats.summary.breastCount'),
+        value: t('common.times', { n: agg.breastCount }),
+        sub: t('common.daily', { value: t('common.times', { n: (agg.breastCount / daysCount).toFixed(1) }) }),
+      },
+    ]
+  }, [currentAgg, summaryDays, t])
+
+  /** 最新一次体重/身高/头围 + WHO 百分位，供报告使用 */
+  const reportGrowthRows = useMemo<ReportGrowthRow[]>(() => {
+    if (!activeBaby?.birthDate) return []
+    const who = whoData(activeBaby.gender)
+    const rows: ReportGrowthRow[] = []
+    const entries: {
+      field: WhoField
+      label: string
+      unit: string
+      pick: (g: GrowthRecord) => number | undefined
+    }[] = [
+      { field: 'weight', label: t('stats.babyWeight'), unit: 'kg', pick: (g) => g.weight },
+      { field: 'length', label: t('stats.babyHeight'), unit: 'cm', pick: (g) => g.height },
+      { field: 'hc', label: t('stats.babyHead'), unit: 'cm', pick: (g) => g.headCircumference },
+    ]
+
+    for (const e of entries) {
+      const latest = [...growths]
+        .filter((g) => e.pick(g) != null)
+        .sort((a, b) => b.date - a.date)[0]
+      if (!latest) continue
+      const value = e.pick(latest)!
+      const p = estimatePercentile(who, ageInMonths(activeBaby.birthDate, latest.date), e.field, value)
+      const band = percentileBand(p)
+      rows.push({
+        label: e.label,
+        value: `${value.toFixed(1)} ${e.unit}`,
+        percentile: p,
+        band: t(`stats.bands.${band}`),
+        tone: band === 'normal' ? 'normal' : 'attention',
+      })
+    }
+    return rows
+  }, [activeBaby, growths, t])
+
+  async function handleExportReport() {
+    if (reportBusy) return
+    setReportBusy(true)
+    try {
+      const babyLine = activeBaby
+        ? activeBaby.birthDate
+          ? `${activeBaby.name} · ${t('settings.ageMonths', {
+              n: Math.floor(ageInMonths(activeBaby.birthDate, now)),
+            })}`
+          : activeBaby.name
+        : t('common.baby')
+      await exportReportPng(
+        {
+          title: t('stats.report.title'),
+          babyLine,
+          rangeLine: `${rangeLabel} · ${formatDate(rangeStart)} ~ ${formatDate(rangeEnd - 1)}`,
+          generatedLine: t('stats.report.generatedAt', { date: formatDate(now) }),
+          metrics: reportMetrics,
+          growthTitle: t('stats.report.growthTitle'),
+          growthRows: reportGrowthRows,
+          noGrowth: t('stats.report.noGrowth'),
+          disclaimer: t('stats.report.disclaimer'),
+          footer: t('stats.report.footer'),
+        },
+        `babysitter-report-${formatDate(now)}.png`,
+      )
+      toast(t('stats.report.exported'), 'success', { duration: 4000 })
+    } catch {
+      toast(t('stats.report.failed'), 'error')
+    } finally {
+      setReportBusy(false)
+    }
+  }
+
   const summaryItems = useMemo(() => {
     const agg = currentAgg
     const daysCount = summaryDays
@@ -525,6 +651,22 @@ export default function StatsView() {
       {activeView === 'summary' && (
         <div className={`card ${s['overview-card']}`}>
           <span className={s['overview-sub']}>{t('stats.summarySub', { n: summaryDays })}</span>
+          {weekly.items.length > 0 && (
+            <div className={s['insight-block']}>
+              <p className={s['insight-title']}>
+                {t('stats.insightTitle')}
+                <span className={s['insight-sub']}>{t('stats.insightSub')}</span>
+              </p>
+              <ul className={s['insight-list']}>
+                {weekly.items.map((item) => (
+                  <li key={item.key} className={`${s['insight-item']} ${s[item.tone]}`}>
+                    <span className={s['insight-dot']} aria-hidden="true" />
+                    <span>{insightText(item)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className={s['summary-grid']}>
             {summaryItems.map((item) => (
               <div key={item.label} className={s['summary-item']}>
@@ -536,6 +678,13 @@ export default function StatsView() {
               </div>
             ))}
           </div>
+          <button
+            className={`btn btn-outline btn-block ${s['report-btn']}`}
+            disabled={reportBusy}
+            onClick={handleExportReport}
+          >
+            {reportBusy ? t('common.exporting') : t('stats.exportReport')}
+          </button>
         </div>
       )}
 

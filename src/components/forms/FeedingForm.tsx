@@ -26,21 +26,25 @@ export interface FeedingFormProps {
     amount?: number
     notes?: string
   }
+  /** 「重复上次」预填：只带参数，不带 id/时间 */
+  prefill?: { type?: FeedType; side?: BreastSide; amount?: number; notes?: string }
   onSaved?: () => void
   onCancelled?: () => void
   onStartRecord?: () => void
 }
 
-export default function FeedingForm({ editing, onSaved, onCancelled, onStartRecord }: FeedingFormProps) {
+export default function FeedingForm({ editing, prefill, onSaved, onCancelled, onStartRecord }: FeedingFormProps) {
   const { t } = useTranslation()
   const { activeBabyId } = useBabies()
   const { getByKind, start: startTimer, reset: resetTimer } = useActiveTimer()
   const err = useFormErrors()
 
-  const [type, setType] = useState<FeedType>(editing?.type ?? 'breast')
-  const [side, setSide] = useState<BreastSide>(editing?.side ?? 'left')
-  const [amount, setAmount] = useState(editing?.amount != null ? String(editing.amount) : '')
-  const [notes, setNotes] = useState(editing?.notes ?? '')
+  const [type, setType] = useState<FeedType>(editing?.type ?? prefill?.type ?? 'breast')
+  const [side, setSide] = useState<BreastSide>(editing?.side ?? prefill?.side ?? 'left')
+  const [amount, setAmount] = useState(
+    editing?.amount != null || prefill?.amount != null ? String(editing?.amount ?? prefill?.amount) : '',
+  )
+  const [notes, setNotes] = useState(editing?.notes ?? prefill?.notes ?? '')
   const [startTime, setStartTime] = useState(() => toDateTimeLocal(editing?.startTime ?? Date.now()))
   const [endTime, setEndTime] = useState(editing?.endTime ? toDateTimeLocal(editing.endTime) : '')
 

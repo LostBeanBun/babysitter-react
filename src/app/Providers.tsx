@@ -5,10 +5,13 @@ import { initTheme } from '@/stores/theme'
 import { hydrateActiveTimer } from '@/hooks/useActiveTimer'
 import { hydrateActiveBaby } from '@/stores/baby'
 import { hydrateLocale } from '@/i18n'
+import { requestPersistentStorage } from '@/services/backup'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     initTheme()
+    // 申请持久化存储：降低浏览器空间紧张时驱逐 IndexedDB 的概率（失败不影响使用）
+    void requestPersistentStorage()
     // 界面语言：首帧固定 zh-CN 与静态 HTML 一致，挂载后再恢复偏好，避免水合失败
     hydrateLocale()
     // 活跃记录：首帧与 SSR 一致（空），挂载后再恢复，避免水合失败

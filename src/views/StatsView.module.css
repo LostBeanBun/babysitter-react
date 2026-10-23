@@ -83,6 +83,70 @@
   margin-bottom: 10px;
 }
 
+/* ===== 近 7 天小结 ===== */
+.insight-block {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-border);
+}
+
+.insight-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+}
+
+.insight-sub {
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.insight-list {
+  margin-top: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+.insight-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.insight-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+}
+
+.up .insight-dot {
+  background: var(--primary);
+}
+
+.down .insight-dot {
+  background: var(--accent-green);
+}
+
+.steady .insight-dot {
+  background: var(--text-muted);
+}
+
+.report-btn {
+  margin-top: 12px;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
