@@ -194,6 +194,7 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
     return `${formatDate(ts).slice(5)} ${formatClock(ts)}`
   }
 
+  /** 距上次喂养结束（或开始）已过去多久 */
   const feedValue = (() => {
     const f = plan.feeding
     if (f.activeSince != null) {
@@ -201,9 +202,8 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
         duration: formatDuration(Math.max(0, now - f.activeSince)),
       })
     }
-    if (f.nextAt == null) return t('care.feedEmpty')
-    if (f.overdue) return t('care.feedOverdue')
-    return t('care.nextFeed', { time: formatClock(f.nextAt) })
+    if (f.lastAt == null) return t('care.feedEmpty')
+    return `${formatDuration(Math.max(0, now - f.lastAt))}${t('common.ago')}`
   })()
 
   /** 今日喂养汇总 + 上次喂养时间 */
@@ -265,8 +265,17 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
     .filter(Boolean)
     .join(' · ')
 
-  const diaperValue = t('care.todayDiaper', { count: stats.diaperCount })
-  const diaperHint = lastDiaper ? t('care.lastAt', { time: timeLabel(lastDiaper.time) }) : ''
+  /** 距上次换尿布已过去多久 */
+  const diaperValue = lastDiaper
+    ? `${formatDuration(Math.max(0, now - lastDiaper.time))}${t('common.ago')}`
+    : t('care.diaperEmpty')
+  /** 今日换尿布次数 + 上次时间 */
+  const diaperHint = [
+    t('care.todayDiaper', { count: stats.diaperCount }),
+    lastDiaper ? t('care.lastAt', { time: timeLabel(lastDiaper.time) }) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const diaperMeta = guide ? t('care.dailyGuide', { guide: guide.diaper }) : ''
 
   /** 照护卡只展示喂养 / 睡眠 / 尿布，三者都为空时给出空态提示 */

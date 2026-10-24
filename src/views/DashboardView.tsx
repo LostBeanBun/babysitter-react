@@ -208,21 +208,9 @@ export default function DashboardView() {
           {/* 今日照护卡：今日汇总 + 下一步参考 + 交接摘要 */}
           <CarePlanCard now={now} onAdd={openAdd} />
 
-          {/* 快捷记录 */}
+          {/* 快捷记录（喂养 / 睡眠 / 换尿布已并入今日照护，不再重复展示） */}
           <p className="section-title">{t('dashboard.quickRecord')}</p>
           <div className={s['quick-actions']}>
-            <button className={`${s['quick-btn']} ${s.feed}`} onClick={() => openAdd('feeding')}>
-              <span className={s['quick-icon']}>🍼</span>
-              <span className={s['quick-label']}>{t('log.filters.feeding')}</span>
-            </button>
-            <button className={`${s['quick-btn']} ${s.diaper}`} onClick={() => openAdd('diaper')}>
-              <span className={s['quick-icon']}>🧷</span>
-              <span className={s['quick-label']}>{t('log.filters.diaper')}</span>
-            </button>
-            <button className={`${s['quick-btn']} ${s.sleep}`} onClick={() => openAdd('sleep')}>
-              <span className={s['quick-icon']}>😴</span>
-              <span className={s['quick-label']}>{t('log.filters.sleep')}</span>
-            </button>
             <button className={`${s['quick-btn']} ${s.pump}`} onClick={() => openAdd('pumping')}>
               <span className={s['quick-icon']}>🎀</span>
               <span className={s['quick-label']}>{t('log.filters.pumping')}</span>

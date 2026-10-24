@@ -101,14 +101,37 @@ describe('buildHandoffSummary', () => {
     expect(summary.nextVaccine?.name).toBe('五联')
   })
 
-  it('跨窗口睡眠按 24 小时边界裁剪，并计算清醒时长与下次喂养', () => {
-    expect(summary.sleepMs).toBe(2 * HOUR)
+  it('睡眠只统计当日总量，跨日睡眠按当日 0 点裁剪', () => {
+    expect(summary.sleepMs).toBe(1 * HOUR)
     expect(summary.lastSleep?.endTime).toBe(NOW - 2 * HOUR)
     expect(summary.awakeMs).toBe(2 * HOUR)
     expect(summary.nextFeedAt).toBe(NOW + 1 * HOUR)
   })
 
-  it('正在睡时把当前睡眠计入窗口', () => {
+  it('昨天的睡眠不计入今日，跨零点睡眠只计今日部分', () => {
+    const todayStart = new Date(2026, 2, 15).getTime()
+    const s = buildHandoffSummary({
+      baby,
+      now: NOW,
+      feedings: [],
+      diapers: [],
+      pumpings: [],
+      sleeps: [
+        // 昨天 11:00–13:00：整段在昨天，不计入
+        sleep({ startTime: NOW - 25 * HOUR, endTime: NOW - 23 * HOUR }),
+        // 昨天 23:00–今天 01:00：只计今天 0:00–1:00
+        sleep({ startTime: todayStart - 1 * HOUR, endTime: todayStart + 1 * HOUR }),
+        // 今天 09:00–10:00
+        sleep({ startTime: NOW - 3 * HOUR, endTime: NOW - 2 * HOUR }),
+      ],
+      medications: [],
+      vaccinations: [],
+      temperatures: [],
+    })
+    expect(s.sleepMs).toBe(2 * HOUR)
+  })
+
+  it('正在睡时把当前睡眠计入今日总量', () => {
     const active = buildHandoffSummary({
       baby,
       now: NOW,

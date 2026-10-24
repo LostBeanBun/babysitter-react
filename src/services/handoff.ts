@@ -52,12 +52,14 @@ export interface HandoffSummary {
   awakeMs: number | null
 }
 
-/** 汇总最近 24 小时的交接数据；数量按窗口统计，最近一次事件取全部记录 */
+/** 汇总交接数据：数量按最近 24 小时统计，睡眠按当日累计，最近一次事件取全部记录 */
 export function buildHandoffSummary(input: HandoffInput): HandoffSummary {
   const { baby, now, feedings, diapers, pumpings, sleeps, medications, vaccinations, temperatures } =
     input
   const windowStart = now - MS_PER_DAY
   const windowEnd = now
+  /** 当日 0 点：睡眠总量按「今日」统计，不随 24 小时窗口滑动 */
+  const todayStart = startOfDay(now)
   const inWindow = (ts: number) => ts >= windowStart && ts <= windowEnd
 
   const windowFeedings = feedings.filter((f) => inWindow(f.startTime))
@@ -71,9 +73,9 @@ export function buildHandoffSummary(input: HandoffInput): HandoffSummary {
   const wetCount = windowDiapers.filter((d) => d.type === 'wet' || d.type === 'both').length
   const dirtyCount = windowDiapers.filter((d) => d.type === 'dirty' || d.type === 'both').length
 
-  const windowSleeps = sleeps.filter((s) => (s.endTime ?? s.startTime) >= windowStart)
+  const windowSleeps = sleeps.filter((s) => (s.endTime ?? s.startTime) >= todayStart)
   let sleepMs = windowSleeps.reduce((sum, s) => {
-    const start = Math.max(s.startTime, windowStart)
+    const start = Math.max(s.startTime, todayStart)
     const end = Math.min(s.endTime ?? s.startTime, windowEnd)
     return sum + Math.max(0, end - start)
   }, 0)
@@ -83,7 +85,7 @@ export function buildHandoffSummary(input: HandoffInput): HandoffSummary {
       .sort((a, b) => (b.endTime ?? b.startTime) - (a.endTime ?? a.startTime))[0] ?? null
   const activeSleepStart = input.activeSleepStart ?? null
   if (activeSleepStart != null) {
-    sleepMs += Math.max(0, windowEnd - Math.max(activeSleepStart, windowStart))
+    sleepMs += Math.max(0, windowEnd - Math.max(activeSleepStart, todayStart))
   }
 
   const windowPumpings = pumpings.filter((p) => inWindow(p.startTime))

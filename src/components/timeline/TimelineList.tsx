@@ -96,8 +96,6 @@ export interface TimelineListProps {
   deletingKey?: string | null
   /** 当前选中/交互中的条目 key（`kind-id`，点击后持续高亮，直到选中另一条） */
   selectedKey?: string | null
-  /** 关键词过滤：匹配标题/详情（备注已包含在详情中） */
-  keyword?: string
   /** 过滤后无结果时展示的内容（由调用方提供，便于复用空态文案） */
   empty?: React.ReactNode
   onEdit?: (entry: TimelineEntry) => void
@@ -127,7 +125,6 @@ export default function TimelineList(props: TimelineListProps) {
     grouped,
     deletingKey,
     selectedKey,
-    keyword,
     empty,
     onEdit,
     onDelete,
@@ -312,8 +309,7 @@ export default function TimelineList(props: TimelineListProps) {
     }
 
     const sorted = list.sort((a, b) => b.time - a.time)
-    const kw = (keyword ?? '').trim().toLowerCase()
-    return kw ? sorted.filter((e) => `${e.title} ${e.detail}`.toLowerCase().includes(kw)) : sorted
+    return sorted
   }, [
     feedings,
     diapers,
@@ -325,7 +321,6 @@ export default function TimelineList(props: TimelineListProps) {
     vaccinations,
     temperatures,
     milestones,
-    keyword,
     t,
   ])
 
