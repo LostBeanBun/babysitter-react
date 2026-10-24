@@ -10,6 +10,7 @@ import PageHeader from '@/components/common/PageHeader'
 import BaseModal from '@/components/common/BaseModal'
 import OnboardingModal from '@/components/dashboard/OnboardingModal'
 import TodayOverview from '@/components/dashboard/TodayOverview'
+import CarePlanCard from '@/components/dashboard/CarePlanCard'
 import FeedingForm from '@/components/forms/FeedingForm'
 import DiaperForm from '@/components/forms/DiaperForm'
 import PumpingForm from '@/components/forms/PumpingForm'
@@ -203,6 +204,9 @@ export default function DashboardView() {
         <>
           {/* 今日概览（提醒条 + 统计卡 + 小结按钮） */}
           <TodayOverview now={now} onEdit={onEditVaccination} />
+
+          {/* 今日照护卡：下次喂养参考 + 清醒窗口 + 今日待办 + 交接摘要 */}
+          <CarePlanCard now={now} onAdd={openAdd} onEditVaccination={onEditVaccination} />
 
           {/* 快捷记录 */}
           <p className="section-title">{t('dashboard.quickRecord')}</p>

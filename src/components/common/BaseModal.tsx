@@ -9,6 +9,8 @@ export interface BaseModalProps {
   show: boolean
   title?: string
   onClose?: () => void
+  /** 可选的面板附加类名（用于个别弹窗覆盖玻璃底色） */
+  panelClassName?: string
   children?: React.ReactNode
 }
 
@@ -30,7 +32,13 @@ function unlockBodyScroll() {
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-export default function BaseModal({ show, title, onClose, children }: BaseModalProps) {
+export default function BaseModal({
+  show,
+  title,
+  onClose,
+  panelClassName,
+  children,
+}: BaseModalProps) {
   const { t } = useTranslation()
   const panelRef = useRef<HTMLDivElement | null>(null)
   const [render, setRender] = useState(false)
@@ -110,7 +118,7 @@ export default function BaseModal({ show, title, onClose, children }: BaseModalP
     >
       <div
         ref={panelRef}
-        className={`modal-panel ${s['modal-panel']}`}
+        className={`modal-panel ${s['modal-panel']} ${panelClassName ?? ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}

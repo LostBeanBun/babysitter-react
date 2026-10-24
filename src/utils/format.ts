@@ -12,6 +12,12 @@ export function formatTime(ts: number): string {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 
+/** 格式化时间为 HH:mm（照护参考 / 交接摘要等紧凑场景） */
+export function formatClock(ts: number): string {
+  const d = new Date(ts)
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
 /** 格式化日期为 YYYY-MM-DD */
 export function formatDate(ts: number): string {
   const d = new Date(ts)

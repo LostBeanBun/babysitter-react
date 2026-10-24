@@ -6,6 +6,7 @@ import {
   formatAmount,
   fromDateTimeLocal,
   formatTime,
+  formatClock,
   formatDate,
   formatDuration,
   toDateTimeLocal,
@@ -84,6 +85,11 @@ describe('format utils', () => {
   it('formatTime 输出 HH:mm:ss', () => {
     const ts = new Date(2026, 7, 20, 8, 5, 3).getTime()
     expect(formatTime(ts)).toBe('08:05:03')
+  })
+
+  it('formatClock 输出 HH:mm', () => {
+    const ts = new Date(2026, 7, 20, 8, 5, 3).getTime()
+    expect(formatClock(ts)).toBe('08:05')
   })
 
   it('parseDate 解析与非法输入', () => {

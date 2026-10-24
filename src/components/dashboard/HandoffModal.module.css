@@ -1,0 +1,40 @@
+/* 交接摘要文字较多：面板用不透明底色，避免无 backdrop-filter 时透出页面文字 */
+.panel {
+  background: var(--bg);
+}
+
+.text {
+  margin: 0 0 16px;
+  padding: 14px;
+  max-height: 48vh;
+  overflow: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-13);
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.text:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.actions .btn {
+  flex: 1;
+}
+
+@media (max-width: 420px) {
+  .actions {
+    flex-direction: column;
+  }
+}
