@@ -202,11 +202,11 @@ export default function DashboardView() {
 
       {hasBaby && (
         <>
-          {/* 今日概览（提醒条 + 统计卡 + 小结按钮） */}
+          {/* 今日概览（提醒条） */}
           <TodayOverview now={now} onEdit={onEditVaccination} />
 
-          {/* 今日照护卡：下次喂养参考 + 清醒窗口 + 今日待办 + 交接摘要 */}
-          <CarePlanCard now={now} onAdd={openAdd} onEditVaccination={onEditVaccination} />
+          {/* 今日照护卡：今日汇总 + 下一步参考 + 交接摘要 */}
+          <CarePlanCard now={now} onAdd={openAdd} />
 
           {/* 快捷记录 */}
           <p className="section-title">{t('dashboard.quickRecord')}</p>

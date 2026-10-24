@@ -8,17 +8,23 @@ import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useDeleteUndo } from '@/hooks/useDeleteUndo'
 import { buildCarePlan } from '@/services/carePlan'
 import { buildHandoffSummary, formatHandoffText } from '@/services/handoff'
-import { vaccineDaysLeft } from '@/services/reminders'
-import { formatClock, formatDate, formatDuration, startOfDay } from '@/utils/format'
+import { computeTodayStats } from '@/services/todayStats'
+import { dailyGuide } from '@/utils/dailyGuides'
+import {
+  formatAmount,
+  formatClock,
+  formatDate,
+  formatDuration,
+  startOfDay,
+} from '@/utils/format'
 import { MS_PER_DAY } from '@/constants'
 import HandoffModal from '@/components/dashboard/HandoffModal'
-import type { RecordKind, Vaccination } from '@/types'
+import type { RecordKind } from '@/types'
 import s from './CarePlanCard.module.css'
 
 export interface CarePlanCardProps {
   now: number
   onAdd: (kind: RecordKind) => void
-  onEditVaccination: (v: Vaccination) => void
 }
 
 function keep<T extends { id?: number }>(
@@ -29,8 +35,8 @@ function keep<T extends { id?: number }>(
   return items.filter((x) => !isPending({ kind, id: x.id! }))
 }
 
-/** 今日照护卡：下次喂养参考 + 清醒窗口 + 今日待办 + 交接摘要 */
-export default function CarePlanCard({ now, onAdd, onEditVaccination }: CarePlanCardProps) {
+/** 今日照护卡：今日汇总 + 下次喂养 / 清醒参考 + 交接摘要 */
+export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
   const { t } = useTranslation()
   const { activeBaby, activeBabyId } = useBabies()
   const { isPending } = useDeleteUndo()
@@ -71,6 +77,38 @@ export default function CarePlanCard({ now, onAdd, onEditVaccination }: CarePlan
   const temperatures = useMemo(
     () => keep(temperaturesResult ?? [], 'temperature', isPending),
     [temperaturesResult, isPending],
+  )
+
+  const todayStart = startOfDay(now)
+  const todayEnd = todayStart + MS_PER_DAY - 1
+
+  /** 今日汇总：奶量 / 喂养次数 / 吸奶 / 母乳库存 / 睡眠 / 尿布（按当日边界裁剪） */
+  const stats = useMemo(
+    () =>
+      computeTodayStats({
+        feedings: feedings.filter(
+          (f) => f.startTime >= todayStart && f.startTime <= todayEnd,
+        ),
+        diapers: diapers.filter((d) => d.time >= todayStart && d.time <= todayEnd),
+        pumpings: pumpings.filter(
+          (p) => p.startTime >= todayStart && p.startTime <= todayEnd,
+        ),
+        sleeps: sleeps.filter(
+          (sl) =>
+            (sl.endTime ?? sl.startTime) >= todayStart && sl.startTime <= todayEnd,
+        ),
+        todayStart,
+        todayEnd,
+      }),
+    [feedings, diapers, pumpings, sleeps, todayStart, todayEnd],
+  )
+
+  /** 按月龄的每日参考（无出生日期时为 null） */
+  const guide = useMemo(() => dailyGuide(activeBaby), [activeBaby])
+
+  const lastDiaper = useMemo(
+    () => [...diapers].sort((a, b) => b.time - a.time)[0],
+    [diapers],
   )
 
   const activeFeedingStart = useMemo(() => {
@@ -168,16 +206,29 @@ export default function CarePlanCard({ now, onAdd, onEditVaccination }: CarePlan
     return t('care.nextFeed', { time: formatClock(f.nextAt) })
   })()
 
-  const feedHint = (() => {
-    const f = plan.feeding
-    if (f.activeSince != null) return t('care.feedActiveHint')
-    if (!f.lastFeeding) return t('care.feedEmptyHint')
-    return t('care.feedHint', {
-      time: timeLabel(f.lastFeeding.endTime ?? f.lastFeeding.startTime),
-      amount:
-        f.lastFeeding.amount != null ? t('care.feedAmount', { amount: f.lastFeeding.amount }) : '',
-    })
-  })()
+  /** 今日喂养汇总 + 上次喂养时间 */
+  const feedHint = [
+    t('care.todayMilk', {
+      amount: formatAmount(stats.totalMilk),
+      count: stats.feedCount,
+    }),
+    plan.feeding.lastAt != null
+      ? t('care.lastAt', { time: timeLabel(plan.feeding.lastAt) })
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  /** 吸奶次数 / 母乳库存 + 月龄奶量参考 */
+  const feedMeta = [
+    t('care.feedMeta', {
+      count: stats.pumpCount,
+      stock: formatAmount(stats.breastStock),
+    }),
+    guide ? t('care.dailyGuide', { guide: guide.milk }) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   const sleepValue = (() => {
     const sl = plan.sleep
@@ -190,56 +241,36 @@ export default function CarePlanCard({ now, onAdd, onEditVaccination }: CarePlan
     return t('care.awake', { duration: formatDuration(sl.awakeMs) })
   })()
 
-  const sleepHint = (() => {
-    const sl = plan.sleep
-    if (sl.activeSince != null) return t('care.sleepingHint')
-    if (sl.awakeMs == null) return t('care.sleepEmptyHint')
-    return t('care.awakeHint', {
-      range: `${formatDuration(sl.wakeMinMs)}–${formatDuration(sl.wakeMaxMs)}`,
-    })
-  })()
+  /** 今日睡眠总时长 + 上次睡眠结束时间 */
+  const sleepHint = [
+    t('care.todaySleep', { duration: formatDuration(stats.sleepMs) }),
+    plan.sleep.lastEndAt != null
+      ? t('care.lastAt', { time: timeLabel(plan.sleep.lastEndAt) })
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
-  const vaccine = plan.todo.vaccine
+  /** 清醒窗口参考 + 月龄睡眠参考 */
+  const sleepMeta = [
+    plan.sleep.activeSince != null
+      ? t('care.sleepingHint')
+      : plan.sleep.awakeMs != null
+        ? t('care.awakeHint', {
+            range: `${formatDuration(plan.sleep.wakeMinMs)}–${formatDuration(plan.sleep.wakeMaxMs)}`,
+          })
+        : '',
+    guide ? t('care.dailyGuide', { guide: guide.sleep }) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
-  function vaccineBadge(v: Vaccination): string {
-    const n = vaccineDaysLeft(v.date, startOfDay(now))
-    if (n === 0) return t('care.vaccineToday')
-    if (n > 0) return t('care.vaccineDays', { n })
-    return t('care.vaccineOverdue', { n: -n })
-  }
+  const diaperValue = t('care.todayDiaper', { count: stats.diaperCount })
+  const diaperHint = lastDiaper ? t('care.lastAt', { time: timeLabel(lastDiaper.time) }) : ''
+  const diaperMeta = guide ? t('care.dailyGuide', { guide: guide.diaper }) : ''
 
-  const todoLabel = vaccine
-    ? t('care.todo')
-    : plan.todo.lastMedication
-      ? t('log.filters.medication')
-      : t('care.todo')
-  const todoValue = vaccine
-    ? t('care.vaccineTodo', {
-        name: vaccine.name,
-        dose: vaccine.dose ? t('care.vaccineDose', { dose: vaccine.dose }) : '',
-      })
-    : plan.todo.lastMedication
-      ? t('care.medicationTodo', { n: plan.todo.medicationCount })
-      : t('care.todoEmpty')
-  const todoHint = vaccine
-    ? vaccineBadge(vaccine)
-    : plan.todo.lastMedication
-      ? t('care.medicationHint', {
-          time: timeLabel(plan.todo.lastMedication.time),
-          name: plan.todo.lastMedication.name
-            ? t('care.medicationName', { name: plan.todo.lastMedication.name })
-            : '',
-        })
-      : t('care.todoEmptyHint')
-  const todoIcon = vaccine ? '💉' : plan.todo.lastMedication ? '💊' : '📋'
-
-  function onTodoClick() {
-    if (vaccine) {
-      onEditVaccination(vaccine)
-      return
-    }
-    onAdd('medication')
-  }
+  /** 照护卡只展示喂养 / 睡眠 / 尿布，三者都为空时给出空态提示 */
+  const hasCareRecords = feedings.length + sleeps.length + diapers.length > 0
 
   return (
     <section className={s['care-card']} aria-labelledby="care-title">
@@ -265,6 +296,7 @@ export default function CarePlanCard({ now, onAdd, onEditVaccination }: CarePlan
             <span className={s['care-label']}>{t('care.feeding')}</span>
             <span className={s['care-value']}>{feedValue}</span>
             <span className={s['care-hint']}>{feedHint}</span>
+            <span className={s['care-meta']}>{feedMeta}</span>
           </span>
           <span className={s['care-chevron']} aria-hidden="true">
             ›
@@ -279,20 +311,22 @@ export default function CarePlanCard({ now, onAdd, onEditVaccination }: CarePlan
             <span className={s['care-label']}>{t('care.sleep')}</span>
             <span className={s['care-value']}>{sleepValue}</span>
             <span className={s['care-hint']}>{sleepHint}</span>
+            {sleepMeta && <span className={s['care-meta']}>{sleepMeta}</span>}
           </span>
           <span className={s['care-chevron']} aria-hidden="true">
             ›
           </span>
         </button>
 
-        <button type="button" className={s['care-row']} onClick={onTodoClick}>
-          <span className={`${s['care-icon']} ${s['care-icon--todo']}`} aria-hidden="true">
-            {todoIcon}
+        <button type="button" className={s['care-row']} onClick={() => onAdd('diaper')}>
+          <span className={`${s['care-icon']} ${s['care-icon--diaper']}`} aria-hidden="true">
+            🧷
           </span>
           <span className={s['care-body']}>
-            <span className={s['care-label']}>{todoLabel}</span>
-            <span className={s['care-value']}>{todoValue}</span>
-            <span className={s['care-hint']}>{todoHint}</span>
+            <span className={s['care-label']}>{t('care.diaper')}</span>
+            <span className={s['care-value']}>{diaperValue}</span>
+            <span className={s['care-hint']}>{diaperHint}</span>
+            {diaperMeta && <span className={s['care-meta']}>{diaperMeta}</span>}
           </span>
           <span className={s['care-chevron']} aria-hidden="true">
             ›
@@ -300,7 +334,7 @@ export default function CarePlanCard({ now, onAdd, onEditVaccination }: CarePlan
         </button>
       </div>
 
-      {!plan.hasRecords && <p className={s['care-empty']}>{t('care.empty')}</p>}
+      {!hasCareRecords && <p className={s['care-empty']}>{t('care.empty')}</p>}
 
       <HandoffModal show={handoffOpen} text={handoffText} onClose={() => setHandoffOpen(false)} />
     </section>
