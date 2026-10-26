@@ -303,7 +303,11 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
           </span>
           <span className={s['care-body']}>
             <span className={s['care-label']}>{t('care.feeding')}</span>
-            <span className={s['care-value']}>{feedValue}</span>
+            <span
+              className={`${s['care-value']} ${plan.feeding.activeSince != null ? s['care-value--live'] : ''}`}
+            >
+              {feedValue}
+            </span>
             <span className={s['care-hint']}>{feedHint}</span>
             <span className={s['care-meta']}>{feedMeta}</span>
           </span>
@@ -318,7 +322,11 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
           </span>
           <span className={s['care-body']}>
             <span className={s['care-label']}>{t('care.sleep')}</span>
-            <span className={s['care-value']}>{sleepValue}</span>
+            <span
+              className={`${s['care-value']} ${plan.sleep.activeSince != null ? s['care-value--live'] : ''}`}
+            >
+              {sleepValue}
+            </span>
             <span className={s['care-hint']}>{sleepHint}</span>
             {sleepMeta && <span className={s['care-meta']}>{sleepMeta}</span>}
           </span>
