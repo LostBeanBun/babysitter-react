@@ -401,7 +401,7 @@ babyName: 'Baby name',
     exportAllCsv: "Export all babies' records (CSV)",
     exportOk: '✓ CSV file exported',
     importSuccess:
-      'Import OK! Babies: {babies}, feedings: {feedings}, diapers: {diapers}, pumping: {pumpings}, sleep: {sleeps}, growth: {growths}, solid food: {solidFoods}, medication: {medications}, vaccination: {vaccinations}, temperature: {temperatures}, milestone: {milestones}',
+      'Import OK! Babies: {babies}, added feedings: {feedings}, diapers: {diapers}, pumping: {pumpings}, sleep: {sleeps}, growth: {growths}, solid food: {solidFoods}, medication: {medications}, vaccination: {vaccinations}, temperature: {temperatures}, milestone: {milestones}, skipped duplicates: {skipped}',
     importFailed: 'Import failed: invalid file format or data',
     clearAll: 'Clear All Data',
     clearConfirmTitle: 'Clear All Data',

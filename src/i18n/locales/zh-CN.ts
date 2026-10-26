@@ -400,7 +400,7 @@ weight: '体重 {value} kg',
     exportAllCsv: '导出全部宝宝记录 (CSV 表格)',
     exportOk: '✓ 已导出 CSV 文件',
     importSuccess:
-      '导入成功！宝宝 {babies} 个，喂养 {feedings} 条，纸尿裤 {diapers} 条，吸奶 {pumpings} 条，睡眠 {sleeps} 条，成长 {growths} 条，辅食 {solidFoods} 条，用药 {medications} 条，疫苗 {vaccinations} 条，体温 {temperatures} 条，里程碑 {milestones} 条',
+      '导入成功！宝宝 {babies} 个，新增喂养 {feedings} 条、纸尿裤 {diapers} 条、吸奶 {pumpings} 条、睡眠 {sleeps} 条、成长 {growths} 条、辅食 {solidFoods} 条、用药 {medications} 条、疫苗 {vaccinations} 条、体温 {temperatures} 条、里程碑 {milestones} 条，跳过重复 {skipped} 条',
     importFailed: '导入失败：文件格式不正确或数据有误',
     clearAll: '清空全部数据',
     clearConfirmTitle: '清空全部数据',

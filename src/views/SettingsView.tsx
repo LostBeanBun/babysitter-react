@@ -348,7 +348,7 @@ export default function SettingsView() {
     const file = e.target.files?.[0]
     if (!file) return
     setImportBusy(true)
-    // 覆盖式导入前先自动导出一份当前数据，避免误导入后无法回头
+    // 增量导入前仍自动导出一份当前数据备份，防误导入后无法回头
     try {
       await exportJsonBackup()
       setLastBackupAt(getLastBackupAt())
@@ -363,6 +363,7 @@ export default function SettingsView() {
       toast(
         t('settings.importSuccess', {
           babies: result.babies,
+          skipped: result.skipped,
           feedings: result.feedings,
           diapers: result.diapers,
           pumpings: result.pumpings,

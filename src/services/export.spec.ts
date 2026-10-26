@@ -269,6 +269,8 @@ describe('importAllCsv', () => {
       mockDb[t].where.mockReturnValue({ equals: () => ({ sortBy: async () => [] }) })
       mockDb[t].clear.mockResolvedValue(undefined)
       mockDb[t].bulkAdd.mockResolvedValue(undefined)
+      // 每个用例重置 toArray，避免上一用例覆盖的实现残留
+      mockDb[t].toArray = vi.fn(async () => [])
     }
     // babies 表额外需要 add 方法（用于导入时创建宝宝）
     mockDb.babies.add = vi.fn().mockImplementation(async (b) => b.id || 1)
@@ -533,6 +535,7 @@ describe('importAllCsv', () => {
     const result = await importAllCsv(new File([csv], 'roundtrip.csv', { type: 'text/csv' }))
     expect(result).toEqual({
       babies: 1,
+      skipped: 0,
       feedings: 2,
       diapers: 1,
       pumpings: 1,
@@ -649,5 +652,85 @@ describe('importAllCsv', () => {
     await expect(importAllCsv(file)).rejects.toThrow('exportCsv.invalidFile')
     expect(mockDb.feedings.clear).not.toHaveBeenCalled()
     expect(mockDb.babies.add).not.toHaveBeenCalled()
+  })
+
+  it('增量导入：不清空现有数据，按宝宝+时间戳去重只补缺失记录', async () => {
+    const csv =
+      'exportCsv.recordType,exportCsv.date,exportCsv.time,exportCsv.endDate,exportCsv.endTime,exportCsv.item,exportCsv.value,exportCsv.duration,exportCsv.status,exportCsv.notes\n' +
+      'feeding,2026-01-01,08:30,,,bottle_formula,120,,,\n' +
+      'feeding,2026-01-01,09:00,,,bottle_formula,150,,,'
+
+    // 已有 08:30 的同一条记录（重复），09:00 缺失
+    mockDb.feedings.toArray = vi.fn(async () => [
+      {
+        babyId: 1,
+        type: 'bottle_formula',
+        startTime: new Date(2026, 0, 1, 8, 30).getTime(),
+        amount: 120,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ])
+    const result = await importAllCsv(
+      new File([csv], 'incremental.csv', { type: 'text/csv' }),
+    )
+    expect(result.feedings).toBe(1)
+    expect(result.skipped).toBe(1)
+    const [items] = mockDb.feedings.bulkAdd.mock.calls[0] as [Array<Record<string, unknown>>]
+    expect(items).toHaveLength(1)
+    expect(items[0].startTime).toBe(new Date(2026, 0, 1, 9, 0).getTime())
+    // 不再清空现有数据
+    expect(mockDb.feedings.clear).not.toHaveBeenCalled()
+    expect(mockDb.babies.clear).not.toHaveBeenCalled()
+  })
+
+  it('重复导入同一文件：全部跳过，不写入任何记录', async () => {
+    const csv =
+      'exportCsv.recordType,exportCsv.date,exportCsv.time,exportCsv.endDate,exportCsv.endTime,exportCsv.item,exportCsv.value,exportCsv.duration,exportCsv.status,exportCsv.notes\n' +
+      'feeding,2026-01-01,09:30,,,bottle_formula,120,,,\n' +
+      'feeding,2026-01-01,10:00,,,bottle_formula,100,,,'
+
+    mockDb.feedings.toArray = vi.fn(async () => [
+      { babyId: 1, startTime: new Date(2026, 0, 1, 9, 30).getTime(), createdAt: 0, updatedAt: 0 },
+      { babyId: 1, startTime: new Date(2026, 0, 1, 10, 0).getTime(), createdAt: 0, updatedAt: 0 },
+    ])
+    const result = await importAllCsv(new File([csv], 'reimport.csv', { type: 'text/csv' }))
+    expect(result.feedings).toBe(0)
+    expect(result.skipped).toBe(2)
+    expect(mockDb.feedings.bulkAdd).not.toHaveBeenCalled()
+  })
+
+  it('宝宝按名字增量合并：已存在复用现有 id，不重复添加宝宝', async () => {
+    const csv =
+      'exportCsv.recordType,exportCsv.date,exportCsv.time,exportCsv.endDate,exportCsv.endTime,exportCsv.item,exportCsv.value,exportCsv.duration,exportCsv.status,exportCsv.notes\n' +
+      'feeding,2026-01-01,08:30,,,bottle_formula,120,,'
+
+    mockDb.babies.toArray = vi.fn(async () => [
+      { id: 7, name: 'exportCsv.defaultBaby', createdAt: 0 },
+    ])
+    await importAllCsv(new File([csv], 'reuse-baby.csv', { type: 'text/csv' }))
+    expect(mockDb.babies.add).not.toHaveBeenCalled()
+    const [items] = mockDb.feedings.bulkAdd.mock.calls[0] as [Array<Record<string, unknown>>]
+    expect(items[0].babyId).toBe(7)
+  })
+
+  it('同时间戳但不同内容的用药/疫苗都保留（按名称等附加字段区分）', async () => {
+    const csv =
+      'exportCsv.recordType,exportCsv.date,exportCsv.time,exportCsv.endDate,exportCsv.endTime,exportCsv.item,exportCsv.value,exportCsv.duration,exportCsv.status,exportCsv.notes\n' +
+      'medication,2026-01-01,09:00,,,维生素D,1滴,,,\n' +
+      'vaccination,2026-01-01,09:00,,,BCG,第1剂,,,'
+
+    const t9 = new Date(2026, 0, 1, 9, 0).getTime()
+    const dayStart = new Date(2026, 0, 1, 0, 0).getTime()
+    mockDb.medications.toArray = vi.fn(async () => [
+      { babyId: 1, time: t9, name: '维生素D', dose: '1滴', createdAt: 0, updatedAt: 0 },
+    ])
+    mockDb.vaccinations.toArray = vi.fn(async () => [
+      { babyId: 1, date: dayStart, name: 'BCG', dose: '第1剂', createdAt: 0, updatedAt: 0 },
+    ])
+    const result = await importAllCsv(new File([csv], 'dedupe-named.csv', { type: 'text/csv' }))
+    expect(result.medications).toBe(0)
+    expect(result.vaccinations).toBe(0)
+    expect(result.skipped).toBe(2)
   })
 })
