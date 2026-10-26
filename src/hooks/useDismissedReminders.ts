@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export type ReminderKind = 'feed' | 'vaccine' | 'backup'
+export type ReminderKind = 'feed' | 'vaccine' | 'backup' | 'sleep' | 'diaper'
 
 /**
  * 提醒条关闭状态（会话级，仅内存）：关闭后当前会话不再显示，刷新页面即重新提醒。
@@ -13,6 +13,8 @@ export function useDismissedReminders() {
     feed: false,
     vaccine: false,
     backup: false,
+    sleep: false,
+    diaper: false,
   })
 
   /** 关闭某提醒条（当前会话生效） */

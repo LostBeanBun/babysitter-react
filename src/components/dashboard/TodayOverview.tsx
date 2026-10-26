@@ -6,27 +6,31 @@ import { useTranslation } from 'react-i18next'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
 import { useBabies } from '@/stores/baby'
 import { useDismissedReminders } from '@/hooks/useDismissedReminders'
+import { useActiveTimer } from '@/hooks/useActiveTimer'
 import ReminderBanner from '@/components/common/ReminderBanner'
 import { startOfDay, formatDuration } from '@/utils/format'
-import { MS_PER_DAY } from '@/constants'
+import { MS_PER_DAY, MS_PER_HOUR } from '@/constants'
 import { upcomingVaccinations, vaccineDaysLeft } from '@/services/reminders'
 import { recommendedIntervalMs, recommendedIntervalLabel } from '@/utils/feedingGuide'
 import { exportJsonBackup, getLastBackupAt, shouldSuggestBackup } from '@/services/backup'
-import { isSnoozed, snoozeReminder } from '@/utils/reminderScheduler'
-import type { Vaccination } from '@/types'
+import { isSnoozed, snoozeReminder, loadReminders } from '@/utils/reminderScheduler'
+import type { RecordKind, Vaccination } from '@/types'
 
 export interface TodayOverviewProps {
   now: number
   /** 点击疫苗提醒条/芯片：编辑对应计划记录 */
   onEdit?: (v: Vaccination) => void
+  /** 点击喂奶/睡眠/尿布提醒条：打开对应记录表单 */
+  onAdd?: (kind: RecordKind) => void
 }
 
-/** 今日概览：喂奶 / 备份 / 疫苗提醒条（数据按 now 实时重算） */
-export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
+/** 今日概览：喂奶 / 备份 / 疫苗 / 睡眠 / 尿布提醒条（数据按 now 实时重算） */
+export default function TodayOverview({ now, onEdit, onAdd }: TodayOverviewProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const { activeBaby, activeBabyId } = useBabies()
   const { dismissed, dismiss } = useDismissedReminders()
+  const activeTimer = useActiveTimer()
 
   const feedingsResult = useRecordsLive('feedings', activeBabyId)
   const feedings = useMemo(() => feedingsResult ?? [], [feedingsResult])
@@ -96,6 +100,59 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
     snoozeReminder('feed', 15, now)
     setSnoozeTick((n) => n + 1)
   }
+  function snoozeSleep() {
+    snoozeReminder('sleep', 15, now)
+    setSnoozeTick((n) => n + 1)
+  }
+  function snoozeDiaper() {
+    snoozeReminder('diaper', 15, now)
+    setSnoozeTick((n) => n + 1)
+  }
+
+  // —— 睡眠提醒条 ——（仅当睡眠提醒开启：就寝时间前 1 小时窗口内 / 距上次睡眠超过设定间隔；正在进行睡眠时不显示）
+  const sleepReminders = loadReminders().sleep
+  const lastSleepStart = useMemo(
+    () => [...sleeps].sort((a, b) => b.startTime - a.startTime)[0]?.startTime ?? null,
+    [sleeps],
+  )
+  const sleepSinceMs = lastSleepStart == null ? null : now - lastSleepStart
+  const sleepTimeDueMs = useMemo(() => {
+    if (!sleepReminders.time) return -1
+    const [h, m] = sleepReminders.time.split(':').map(Number)
+    const target = new Date(now)
+    target.setHours(h, m, 0, 0)
+    const delta = now - target.getTime()
+    return delta >= 0 && delta <= MS_PER_HOUR ? delta : -1
+  }, [now, sleepReminders.time])
+  const sleepIntervalDue =
+    sleepReminders.intervalHours > 0 &&
+    sleepSinceMs != null &&
+    sleepSinceMs > sleepReminders.intervalHours * MS_PER_HOUR
+  const sleepSnoozed = useMemo(() => {
+    void snoozeTick
+    return isSnoozed('sleep', now)
+  }, [now, snoozeTick])
+  const sleepBannerActive =
+    sleepReminders.enabled &&
+    !activeTimer.hasKind('sleep') &&
+    !sleepSnoozed &&
+    !dismissed.sleep &&
+    (sleepTimeDueMs >= 0 || sleepIntervalDue)
+
+  // —— 尿布提醒条 ——（阈值与今日照护共用：距上次换尿布超过提醒设置间隔，默认 3 小时，常显）
+  const diaperReminders = loadReminders().diaper
+  const lastDiaperTime = useMemo(
+    () => [...diapers].sort((a, b) => b.time - a.time)[0]?.time ?? null,
+    [diapers],
+  )
+  const diaperSinceMs = lastDiaperTime == null ? null : now - lastDiaperTime
+  const diaperThresholdHours = diaperReminders.intervalHours > 0 ? diaperReminders.intervalHours : 3
+  const diaperDue = diaperSinceMs != null && diaperSinceMs > diaperThresholdHours * MS_PER_HOUR
+  const diaperSnoozed = useMemo(() => {
+    void snoozeTick
+    return isSnoozed('diaper', now)
+  }, [now, snoozeTick])
+  const diaperBannerActive = diaperDue && !diaperSnoozed && !dismissed.diaper
 
   // —— 备份提醒：本地数据唯一兜底，超过 7 天未备份时提示 ——
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(null)
@@ -114,7 +171,7 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
 
   return (
     <div className="today-overview">
-      {/* 喂奶提醒条 */}
+      {/* 喂奶提醒条：点击整条直达喂养记录表单 */}
       {overdue && !dismissed.feed && !feedSnoozed && (
         <ReminderBanner
           icon="🍼"
@@ -123,8 +180,43 @@ export default function TodayOverview({ now, onEdit }: TodayOverviewProps) {
           sub={t('feed.reminderSub', { label: recommendedIntervalLabel(activeBaby) })}
           actionLabel={t('dashboard.snooze15')}
           dismissLabel={t('common.close')}
+          onClick={() => onAdd?.('feeding')}
           onAction={snoozeFeed}
           onDismiss={() => dismiss('feed')}
+        />
+      )}
+
+      {/* 睡眠提醒条（开启提醒时）：到达就寝时间或距上次睡眠超过间隔，点击直达睡眠表单 */}
+      {sleepBannerActive && (
+        <ReminderBanner
+          icon="😴"
+          variant="sleep"
+          title={t('dashboard.sleepReminderTitle')}
+          sub={
+            sleepTimeDueMs >= 0
+              ? t('reminders.sleep.bodyTime', { time: sleepReminders.time })
+              : t('reminders.sleep.body', { duration: formatDuration(sleepSinceMs ?? 0) })
+          }
+          actionLabel={t('dashboard.snooze15')}
+          dismissLabel={t('common.close')}
+          onClick={() => onAdd?.('sleep')}
+          onAction={snoozeSleep}
+          onDismiss={() => dismiss('sleep')}
+        />
+      )}
+
+      {/* 尿布提醒条：距上次换尿布超过提醒间隔（默认 3 小时），点击直达纸尿裤表单 */}
+      {diaperBannerActive && (
+        <ReminderBanner
+          icon="🧷"
+          variant="diaper"
+          title={t('dashboard.diaperReminderTitle')}
+          sub={t('reminders.diaper.body', { hours: diaperThresholdHours })}
+          actionLabel={t('dashboard.snooze15')}
+          dismissLabel={t('common.close')}
+          onClick={() => onAdd?.('diaper')}
+          onAction={snoozeDiaper}
+          onDismiss={() => dismiss('diaper')}
         />
       )}
 

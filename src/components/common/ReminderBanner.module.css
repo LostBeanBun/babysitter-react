@@ -17,19 +17,37 @@
 
 .reminder-banner--vaccine {
   background: linear-gradient(135deg, var(--accent-blue-soft), var(--surface));
+}
+
+.reminder-banner--backup {
+  background: linear-gradient(135deg, var(--accent-yellow-soft), var(--surface));
+}
+
+.reminder-banner--sleep {
+  background: linear-gradient(135deg, var(--accent-blue-soft), var(--surface));
+}
+
+.reminder-banner--diaper {
+  background: linear-gradient(135deg, var(--accent-green-soft), var(--surface));
+}
+
+/* 可整条点击直达（喂奶 / 睡眠 / 尿布 / 疫苗）：点击打开对应记录表单 */
+.reminder-banner--feed,
+.reminder-banner--vaccine,
+.reminder-banner--sleep,
+.reminder-banner--diaper {
   cursor: pointer;
   transition:
     transform var(--dur-slow) var(--spring),
     box-shadow var(--dur-slow) var(--ease-out);
 }
 
-.reminder-banner--vaccine:active {
+.reminder-banner--feed:active,
+.reminder-banner--vaccine:active,
+.reminder-banner--sleep:active,
+.reminder-banner--diaper:active {
   transform: scale(var(--tap-scale-item));
   box-shadow: var(--shadow-md);
-}
-
-.reminder-banner--backup {
-  background: linear-gradient(135deg, var(--accent-yellow-soft), var(--surface));
 }
 
 .rb-icon {

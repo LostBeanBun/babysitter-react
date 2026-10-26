@@ -20,9 +20,9 @@ export interface ReminderBannerProps {
   allLabel?: string
   /** 操作按钮文案（如备份提醒的「立即备份」），点击触发 onAction */
   actionLabel?: string
-  variant?: 'feed' | 'vaccine' | 'backup'
+  variant?: 'feed' | 'vaccine' | 'backup' | 'sleep' | 'diaper'
   dismissLabel: string
-  /** 整条点击（仅 vaccine 变体响应，如打开编辑） */
+  /** 整条点击（backup 之外的变体响应，如打开对应记录表单） */
   onClick?: () => void
   onDismiss?: () => void
   onSelect?: (key: number | string) => void
@@ -31,8 +31,8 @@ export interface ReminderBannerProps {
 }
 
 /**
- * 今日提醒条（喂奶/疫苗共用）：图标 + 标题 + 副文/芯片 + 关闭按钮。
- * variant 仅决定配色与整条点击行为（vaccine 整条可点）。
+ * 今日提醒条：图标 + 标题 + 副文/芯片 + 关闭按钮。
+ * variant 决定配色与整条点击行为（backup 之外整条可点，直达对应记录表单）。
  */
 export default function ReminderBanner({
   icon,
@@ -49,10 +49,11 @@ export default function ReminderBanner({
   onAll,
   onAction,
 }: ReminderBannerProps) {
+  const clickable = variant !== 'backup'
   return (
     <div
       className={`${s['reminder-banner']} ${s[`reminder-banner--${variant}`]}`}
-      onClick={variant === 'vaccine' ? onClick : undefined}
+      onClick={clickable ? onClick : undefined}
     >
       <span className={s['rb-icon']}>{icon}</span>
       <div className={s['rb-text']}>

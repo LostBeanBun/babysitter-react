@@ -271,6 +271,8 @@ weight: '体重 {value} kg',
     backupSub: '已 {days} 天未备份，建议导出 JSON 备份',
     backupAction: '立即备份',
     snooze15: '稍后 15 分钟',
+    sleepReminderTitle: '睡眠提醒',
+    diaperReminderTitle: '尿布提醒',
   },
   care: {
     title: '今日照护',

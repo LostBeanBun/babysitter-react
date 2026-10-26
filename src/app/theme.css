@@ -24,6 +24,7 @@
   --on-primary: #ffffff;
   --primary-glow: rgba(255, 107, 53, 0.3);
   --accent-green: #34c759;
+  --accent-green-soft: rgba(52, 199, 89, 0.1);
   --accent-blue: #007aff;
   --accent-blue-soft: rgba(0, 122, 255, 0.1);
   --accent-yellow: #ff9500;
@@ -168,6 +169,7 @@
   --on-primary: #ffffff;
   --primary-glow: rgba(255, 122, 69, 0.35);
   --accent-green: #30d158;
+  --accent-green-soft: rgba(48, 209, 88, 0.15);
   --accent-blue: #0a84ff;
   --accent-blue-soft: rgba(10, 132, 255, 0.15);
   --accent-yellow: #ff9f0a;

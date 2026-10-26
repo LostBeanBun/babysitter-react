@@ -203,7 +203,7 @@ export default function DashboardView() {
       {hasBaby && (
         <>
           {/* 今日概览（提醒条） */}
-          <TodayOverview now={now} onEdit={onEditVaccination} />
+          <TodayOverview now={now} onEdit={onEditVaccination} onAdd={openAdd} />
 
           {/* 今日照护卡：今日汇总 + 下一步参考 + 交接摘要 */}
           <CarePlanCard now={now} onAdd={openAdd} />

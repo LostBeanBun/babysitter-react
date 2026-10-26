@@ -271,6 +271,8 @@ weight: 'Weight {value} kg',
     backupSub: 'No backup for {days} days — export a JSON backup',
     backupAction: 'Back up now',
     snooze15: 'Snooze 15 min',
+    sleepReminderTitle: 'Sleep reminder',
+    diaperReminderTitle: 'Diaper reminder',
   },
   care: {
     title: "Today's care",
