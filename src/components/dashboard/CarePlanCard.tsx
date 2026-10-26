@@ -17,7 +17,8 @@ import {
   formatDuration,
   startOfDay,
 } from '@/utils/format'
-import { MS_PER_DAY } from '@/constants'
+import { MS_PER_DAY, MS_PER_HOUR } from '@/constants'
+import { loadReminders } from '@/utils/reminderScheduler'
 import HandoffModal from '@/components/dashboard/HandoffModal'
 import type { RecordKind } from '@/types'
 import s from './CarePlanCard.module.css'
@@ -123,27 +124,34 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
     return sleeps.find((sl) => sl.id === active.recordId)?.startTime ?? active.startTime
   }, [activeTimer.records, sleeps])
 
+  /** 换尿布参考间隔（毫秒）：与提醒设置共用同一阈值（随渲染重新读取，设置变更即时生效） */
+  const diaperIntervalMs = loadReminders().diaper.intervalHours * MS_PER_HOUR
+
   const plan = useMemo(
     () =>
       buildCarePlan({
         baby: activeBaby,
         now,
         feedings,
+        diapers,
         sleeps,
         medications,
         vaccinations,
         activeFeedingStart,
         activeSleepStart,
+        diaperIntervalMs,
       }),
     [
       activeBaby,
       now,
       feedings,
+      diapers,
       sleeps,
       medications,
       vaccinations,
       activeFeedingStart,
       activeSleepStart,
+      diaperIntervalMs,
     ],
   )
 
@@ -304,7 +312,13 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
           <span className={s['care-body']}>
             <span className={s['care-label']}>{t('care.feeding')}</span>
             <span
-              className={`${s['care-value']} ${plan.feeding.activeSince != null ? s['care-value--live'] : ''}`}
+              className={`${s['care-value']} ${
+                plan.feeding.activeSince != null
+                  ? s['care-value--live']
+                  : plan.feeding.overdue
+                    ? s['care-value--attention']
+                    : ''
+              }`}
             >
               {feedValue}
             </span>
@@ -323,7 +337,13 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
           <span className={s['care-body']}>
             <span className={s['care-label']}>{t('care.sleep')}</span>
             <span
-              className={`${s['care-value']} ${plan.sleep.activeSince != null ? s['care-value--live'] : ''}`}
+              className={`${s['care-value']} ${
+                plan.sleep.activeSince != null
+                  ? s['care-value--live']
+                  : plan.sleep.overAwake
+                    ? s['care-value--attention']
+                    : ''
+              }`}
             >
               {sleepValue}
             </span>
@@ -341,7 +361,13 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
           </span>
           <span className={s['care-body']}>
             <span className={s['care-label']}>{t('care.diaper')}</span>
-            <span className={s['care-value']}>{diaperValue}</span>
+            <span
+              className={`${s['care-value']} ${
+                plan.diaper.overdue && plan.diaper.lastAt != null ? s['care-value--attention'] : ''
+              }`}
+            >
+              {diaperValue}
+            </span>
             <span className={s['care-hint']}>{diaperHint}</span>
             {diaperMeta && <span className={s['care-meta']}>{diaperMeta}</span>}
           </span>

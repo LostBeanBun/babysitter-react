@@ -140,6 +140,11 @@
   color: var(--primary-dark);
 }
 
+/* 超参考间隔：喂养超月龄间隔、清醒超窗口、换尿布超提醒间隔，用警示色提示 */
+.care-value--attention {
+  color: var(--danger);
+}
+
 .care-hint {
   overflow: hidden;
   color: var(--text-secondary);

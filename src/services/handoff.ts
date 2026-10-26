@@ -103,6 +103,7 @@ export function buildHandoffSummary(input: HandoffInput): HandoffSummary {
     baby,
     now,
     feedings,
+    diapers,
     sleeps,
     medications,
     vaccinations,

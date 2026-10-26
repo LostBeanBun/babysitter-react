@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildCarePlan, wakeWindowMs } from '@/services/carePlan'
-import type { Baby, Feeding, Medication, Sleep, Vaccination } from '@/types'
+import type { Baby, DiaperChange, Feeding, Medication, Sleep, Vaccination } from '@/types'
 
 const NOW = new Date(2026, 2, 15, 12, 0).getTime()
 const HOUR = 3600_000
@@ -22,6 +22,10 @@ function sleep(partial: Partial<Sleep> & { startTime: number; endTime?: number }
   return { ...BASE, type: 'nap', ...partial }
 }
 
+function diaper(partial: Partial<DiaperChange> & { time: number }): DiaperChange {
+  return { ...BASE, type: 'wet', ...partial }
+}
+
 function medication(partial: Partial<Medication> & { time: number; name: string }): Medication {
   return { ...BASE, ...partial }
 }
@@ -34,13 +38,16 @@ function vaccination(
 
 function build(overrides: Partial<Parameters<typeof buildCarePlan>[0]> = {}) {
   return buildCarePlan({
-    baby,
-    now: NOW,
-    feedings: [],
-    sleeps: [],
-    medications: [],
-    vaccinations: [],
-    ...overrides,
+    baby: overrides.baby ?? baby,
+    now: overrides.now ?? NOW,
+    feedings: overrides.feedings ?? [],
+    diapers: overrides.diapers ?? [],
+    sleeps: overrides.sleeps ?? [],
+    medications: overrides.medications ?? [],
+    vaccinations: overrides.vaccinations ?? [],
+    activeFeedingStart: overrides.activeFeedingStart,
+    activeSleepStart: overrides.activeSleepStart,
+    diaperIntervalMs: overrides.diaperIntervalMs,
   })
 }
 
@@ -95,6 +102,47 @@ describe('buildCarePlan', () => {
     })
     expect(active.sleep.activeSince).toBe(NOW - 20 * 60_000)
     expect(active.sleep.awakeMs).toBeNull()
+  })
+
+  it('清醒时长超过月龄窗口上限时标记 overAwake', () => {
+    // 2 月龄窗口上限 1.5 小时，清醒 2 小时应为 true，1 小时为 false
+    const over = build({ sleeps: [sleep({ startTime: NOW - 4 * HOUR, endTime: NOW - 2 * HOUR })] })
+    expect(over.sleep.awakeMs).toBe(2 * HOUR)
+    expect(over.sleep.overAwake).toBe(true)
+
+    const within = build({
+      sleeps: [sleep({ startTime: NOW - 3.5 * HOUR, endTime: NOW - 1 * HOUR })],
+    })
+    expect(within.sleep.awakeMs).toBe(1 * HOUR)
+    expect(within.sleep.overAwake).toBe(false)
+  })
+
+  it('换尿布超过参考间隔时标记 overdue（默认 3 小时）', () => {
+    const overdue = build({
+      diapers: [
+        diaper({ time: NOW - 3.5 * HOUR }),
+        diaper({ time: NOW - 5 * HOUR }), // 取最近一条
+      ],
+    })
+    expect(overdue.diaper.lastAt).toBe(NOW - 3.5 * HOUR)
+    expect(overdue.diaper.overdue).toBe(true)
+
+    const within = build({ diapers: [diaper({ time: NOW - 2.5 * HOUR })] })
+    expect(within.diaper.overdue).toBe(false)
+    expect(within.diaper.lastAt).toBe(NOW - 2.5 * HOUR)
+  })
+
+  it('换尿布间隔优先用提醒设置传入的毫秒值，无记录时不标记', () => {
+    // 自定义 1.5 小时间隔：2 小时前换过 → overdue
+    const custom = build({
+      diapers: [diaper({ time: NOW - 2 * HOUR })],
+      diaperIntervalMs: 1.5 * HOUR,
+    })
+    expect(custom.diaper.overdue).toBe(true)
+
+    const none = build({})
+    expect(none.diaper.lastAt).toBeNull()
+    expect(none.diaper.overdue).toBe(false)
   })
 
   it('待办优先取 14 天内最近的计划疫苗，并统计今日用药', () => {
