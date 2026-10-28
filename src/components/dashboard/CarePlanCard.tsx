@@ -306,11 +306,13 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
 
       <div className={s['care-list']}>
         <button type="button" className={s['care-row']} onClick={() => onAdd('feeding')}>
-          <span className={`${s['care-icon']} ${s['care-icon--feed']}`} aria-hidden="true">
-            🍼
+          <span className={s['care-lead']}>
+            <span className={`${s['care-icon']} ${s['care-icon--feed']}`} aria-hidden="true">
+              🍼
+            </span>
+            <span className={s['care-label']}>{t('care.feeding')}</span>
           </span>
           <span className={s['care-body']}>
-            <span className={s['care-label']}>{t('care.feeding')}</span>
             <span
               className={`${s['care-value']} ${
                 plan.feeding.activeSince != null
@@ -331,11 +333,13 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
         </button>
 
         <button type="button" className={s['care-row']} onClick={() => onAdd('sleep')}>
-          <span className={`${s['care-icon']} ${s['care-icon--sleep']}`} aria-hidden="true">
-            😴
+          <span className={s['care-lead']}>
+            <span className={`${s['care-icon']} ${s['care-icon--sleep']}`} aria-hidden="true">
+              😴
+            </span>
+            <span className={s['care-label']}>{t('care.sleep')}</span>
           </span>
           <span className={s['care-body']}>
-            <span className={s['care-label']}>{t('care.sleep')}</span>
             <span
               className={`${s['care-value']} ${
                 plan.sleep.activeSince != null
@@ -356,11 +360,13 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
         </button>
 
         <button type="button" className={s['care-row']} onClick={() => onAdd('diaper')}>
-          <span className={`${s['care-icon']} ${s['care-icon--diaper']}`} aria-hidden="true">
-            🧷
+          <span className={s['care-lead']}>
+            <span className={`${s['care-icon']} ${s['care-icon--diaper']}`} aria-hidden="true">
+              🧷
+            </span>
+            <span className={s['care-label']}>{t('care.diaper')}</span>
           </span>
           <span className={s['care-body']}>
-            <span className={s['care-label']}>{t('care.diaper')}</span>
             <span
               className={`${s['care-value']} ${
                 plan.diaper.overdue && plan.diaper.lastAt != null ? s['care-value--attention'] : ''
