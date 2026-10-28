@@ -19,3 +19,4 @@ yarn-error.log*
 *.sln
 *.sw?
 .playwright-mcp/
+e2e/.artifacts/

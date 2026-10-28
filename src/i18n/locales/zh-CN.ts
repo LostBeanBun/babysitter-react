@@ -355,7 +355,6 @@ weight: '体重 {value} kg',
     dateToday: '今日',
     dateClear: '清除日期筛选',
     deleteSimple: '确定要删除这条记录吗？删除后 3 秒内可撤销。',
-    deleteConfirm: '确定要删除这条{kind}记录吗？删除后 3 秒内可撤销。',
     confirmDelete: '确认删除',
   },
   settings: {

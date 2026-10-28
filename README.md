@@ -34,6 +34,15 @@ npm install
 npm run dev
 ```
 
+## 🧪 回归冒烟
+
+```bash
+npm run dev                  # 另开一个终端
+APP=react npm run smoke      # 默认 http://localhost:3000
+```
+
+自动种入固定数据，巡检今日照护卡布局、提醒横幅点击直达表单、今日 / 记录 / 统计 / 设置四页浅色与深色、统计图表、`prefers-reduced-motion: reduce`，并检查 console 报错；截图与结果落在 `e2e/.artifacts/<app>/`。改文案后两端一致性由 `npm run i18n:parity`（已挂进 `npm run lint`）校验。
+
 ## 📦 构建
 
 ```bash

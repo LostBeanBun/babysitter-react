@@ -355,7 +355,6 @@ filterLabel: 'Record type',
   dateToday: 'Today',
   dateClear: 'Clear date filter',
   deleteSimple: 'Delete this record? You can undo within 3 seconds.',
-  deleteConfirm: 'Delete this {kind} record? You can undo within 3 seconds.',
     confirmDelete: 'Delete',
   },
   settings: {

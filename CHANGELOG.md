@@ -3,6 +3,19 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.9.3] - 2026-10-28
+
+### 变更
+
+- **双端文案统一**：设置页 10 处中英文案对齐到 React 端（JSON 备份说明、备份过期提示、自动备份失败、恢复确认 / 成功 / 失败 / 版本过新、免打扰说明），并删除 React 端未被引用的 `log.deleteConfirm` 死键
+- **新增 `npm run i18n:parity`**（已挂进 `npm run lint`）：逐字比对两端 `zh-CN` / `en-US` 文案与 key 集合，并校验两端版本号一致；兄弟仓库缺失时自动跳过；确实无法同步的结构性差异登记在 `scripts/i18n-parity.allow.json` 并写明原因（登记过期会直接失败）
+- **新增 `npm run smoke`**：临时冒烟脚本固化为仓库内 `e2e/smoke.mjs`，自动种入固定数据并巡检照护卡三行布局（标题在图标下方 / 水平居中 / 不裁切）、提醒横幅点击直达表单、今日 / 记录 / 统计 / 设置四页浅色与深色文案、统计图表渲染、`prefers-reduced-motion: reduce` 布局与动画压缩、全程 console / pageerror；截图与 `results.json` 写入 `e2e/.artifacts/<app>/`
+- 文档与工程：`AGENTS.md` 补「冒烟统一用 `e2e/smoke.mjs`」与文案校验约定，`.gitignore` 忽略 `e2e/.artifacts/`，新增 `playwright-core` 开发依赖（复用本机 Chrome，不下载浏览器）
+
+### 已知差异
+
+- React 端 CSV 导出暂不含宝宝信息行（头像 emoji / 主题色，Vue 端已有），已在 `i18n-parity.allow.json` 登记，留待后续版本对齐
+
 ## [1.9.2] - 2026-10-28
 
 ### 变更
