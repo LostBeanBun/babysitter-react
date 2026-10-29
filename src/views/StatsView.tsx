@@ -20,7 +20,7 @@ import {
 import { CHART_COLORS, MS_PER_DAY } from '@/constants'
 import { formatDuration, formatPercentChange, formatAmount, startOfDay, formatDate } from '@/utils/format'
 import { useChartTheme } from '@/hooks/useChartTheme'
-import { buildWeeklyInsight, type InsightItem } from '@/services/insights'
+import { buildRangeInsight, type InsightItem } from '@/services/insights'
 import { exportReportPng, type ReportGrowthRow, type ReportMetric } from '@/services/report'
 import { whoData, ageInMonths, type WhoField } from '@/constants/whoGrowth'
 import { estimatePercentile, percentileBand } from '@/utils/growthPercentile'
@@ -52,8 +52,8 @@ export default function StatsView() {
     return () => window.clearInterval(nowTimer)
   }, [])
 
-  // 时间范围选择
-  const [rangeKey, setRangeKey] = useState('today')
+  // 时间范围选择（默认近 7 天：单看今天样本太少，趋势/对比更需要一段区间）
+  const [rangeKey, setRangeKey] = useState('7d')
   const range = RANGE_PRESETS.find((p) => p.key === rangeKey) ?? RANGE_PRESETS[1]!
 
   // 概览 tab：对比 / 汇总
@@ -410,12 +410,16 @@ export default function StatsView() {
   const summaryDays = Math.max(1, currentAgg.dayCount)
   const rangeGrowthCount = growths.filter((g) => g.date >= rangeStart && g.date < rangeEnd).length
 
-  // —— P1-5 近 7 天小结 ——
+  // —— 区间小结（跟随所选时间范围）——
   const datasets = useMemo(
     () => ({ feedings, diapers, pumpings, sleeps, solidFoods, medications, temperatures }),
     [feedings, diapers, pumpings, sleeps, solidFoods, medications, temperatures],
   )
-  const weekly = useMemo(() => buildWeeklyInsight(datasets, now), [datasets, now])
+  // —— 区间小结：跟随所选时间范围（「全部」没有可比的上期，不展示）——
+  const insight = useMemo(
+    () => (rangeKey === 'all' ? null : buildRangeInsight(datasets, rangeStart, rangeEnd, now)),
+    [rangeKey, datasets, rangeStart, rangeEnd, now],
+  )
 
   function insightText(item: InsightItem): string {
     if (item.change == null || item.tone === 'steady') return t(`stats.insights.${item.key}.steady`)
@@ -654,14 +658,14 @@ export default function StatsView() {
       {activeView === 'summary' && (
         <div className={`card ${s['overview-card']}`}>
           <span className={s['overview-sub']}>{t('stats.summarySub', { n: summaryDays })}</span>
-          {weekly.items.length > 0 && (
+          {insight && insight.items.length > 0 && (
             <div className={s['insight-block']}>
               <p className={s['insight-title']}>
-                {t('stats.insightTitle')}
+                {t('stats.insightTitle', { range: t(range.label) })}
                 <span className={s['insight-sub']}>{t('stats.insightSub')}</span>
               </p>
               <ul className={s['insight-list']}>
-                {weekly.items.map((item) => (
+                {insight.items.map((item) => (
                   <li key={item.key} className={`${s['insight-item']} ${s[item.tone]}`}>
                     <span className={s['insight-dot']} aria-hidden="true" />
                     <span>{insightText(item)}</span>

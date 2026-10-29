@@ -329,6 +329,32 @@ async function main() {
     check(`${theme}统计图表已渲染`, pages.stats.canvases > 0, `${pages.stats.canvases} 个 canvas`)
   }
 
+  // 小结跟随时间范围（1.10.0 回归点）：默认近 7 天，切换范围后标题同步变化
+  await page.goto(`${BASE_URL}${ROUTES.stats}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  await page.waitForTimeout(600)
+  const defaultRange = await page.locator('#range-select').inputValue()
+  check('统计页默认时间范围为近7天', defaultRange === '7d', defaultRange)
+  const readInsightTitle = async () => {
+    const el = page.locator('[class*="insight-title"]').first()
+    if (!(await el.count())) return ''
+    return (await el.innerText()).replace(/\s+/g, ' ').trim()
+  }
+  const weekTitle = await readInsightTitle()
+  check('小结标题跟随默认范围（近7天）', weekTitle.includes('近7天'), weekTitle)
+  await page.selectOption('#range-select', '30d')
+  await page.waitForTimeout(800)
+  const monthTitle = await readInsightTitle()
+  check('切换范围后小结跟随变更（近30天）', monthTitle.includes('近30天'), monthTitle)
+  const insightItems = await page.locator('[class*="insight-item"]').allInnerTexts()
+  const staleItem = insightItems.find((text) => /前\s*7\s*天/.test(text))
+  check(
+    '小结条目不再写死「前 7 天」',
+    insightItems.length > 0 && !staleItem,
+    staleItem || insightItems[0]?.trim() || '无条目',
+  )
+  await page.screenshot({ path: join(OUT_DIR, 'light-stats-30d.png'), fullPage: true })
+
   // prefers-reduced-motion: reduce —— 动画被压到 0.01ms 时布局仍成立
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
