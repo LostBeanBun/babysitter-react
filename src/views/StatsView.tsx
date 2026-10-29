@@ -124,8 +124,9 @@ export default function StatsView() {
         solidFoods,
         medications,
         temperatures,
+        now,
       ),
-    [feedings, diapers, pumpings, sleeps, rangeStart, rangeEnd, solidFoods, medications, temperatures],
+    [feedings, diapers, pumpings, sleeps, rangeStart, rangeEnd, solidFoods, medications, temperatures, now],
   )
 
   // 当前区间 vs 上一等长区间（对比）
@@ -142,8 +143,9 @@ export default function StatsView() {
         solidFoods,
         medications,
         temperatures,
+        now,
       ),
-    [feedings, diapers, pumpings, sleeps, rangeStart, rangeEnd, solidFoods, medications, temperatures],
+    [feedings, diapers, pumpings, sleeps, rangeStart, rangeEnd, solidFoods, medications, temperatures, now],
   )
   const previousAgg = useMemo(
     () =>
@@ -157,8 +159,9 @@ export default function StatsView() {
         solidFoods,
         medications,
         temperatures,
+        now,
       ),
-    [feedings, diapers, pumpings, sleeps, previousStart, rangeStart, solidFoods, medications, temperatures],
+    [feedings, diapers, pumpings, sleeps, previousStart, rangeStart, solidFoods, medications, temperatures, now],
   )
   const comparisons = useMemo<ComparisonResult[]>(() => compareRanges(currentAgg, previousAgg), [currentAgg, previousAgg])
 

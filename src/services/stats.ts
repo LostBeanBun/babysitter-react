@@ -1,5 +1,6 @@
 import type { Feeding, DiaperChange, Pumping, Sleep, SolidFood, Medication, Temperature } from '@/types'
 import { startOfDay, formatDate } from '@/utils/format'
+import { overlapMs, endOf } from '@/utils/interval'
 import { MS_PER_DAY } from '@/constants'
 
 /** 单日聚合数据 */
@@ -98,6 +99,7 @@ export function buildDailySeries(
   solidFoods: SolidFood[] = [],
   medications: Medication[] = [],
   temperatures: Temperature[] = [],
+  now: number = Date.now(),
 ): DayAggregate[] {
   const days: DayAggregate[] = []
   const startDay = startOfDay(start)
@@ -111,12 +113,20 @@ export function buildDailySeries(
   const dayMap = new Map<number, DayAggregate>()
   for (const d of days) dayMap.set(d.dayStart, d)
 
-  // 睡眠可能跨天，按开始时间归到当天
+  // 睡眠可能跨天：按与每日窗口的重叠时长分摊（未结束的按 now 截断）
+  const dayEnds = days.map((d, i) => {
+    if (days[i + 1]) return days[i + 1].dayStart
+    const next = new Date(d.dayStart)
+    return new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1).getTime()
+  })
   for (const s of sleeps) {
-    const d = dayMap.get(startOfDay(s.startTime))
-    if (!d) continue
-    const span = s.endTime != null ? s.endTime - s.startTime : (s.duration ?? 0)
-    d.sleepMs += Math.max(0, span)
+    const sleepEnd = endOf(s.startTime, s.endTime, s.duration, now)
+    if (sleepEnd <= s.startTime) continue
+    for (let i = 0; i < days.length; i++) {
+      if (dayEnds[i] <= s.startTime) continue
+      if (days[i].dayStart >= sleepEnd) break
+      days[i].sleepMs += overlapMs(s.startTime, sleepEnd, days[i].dayStart, dayEnds[i], now)
+    }
   }
 
   for (const f of feedings) {
@@ -192,8 +202,20 @@ export function aggregateRange(
   solidFoods: SolidFood[] = [],
   medications: Medication[] = [],
   temperatures: Temperature[] = [],
+  now: number = Date.now(),
 ): RangeAggregate {
-  const days = buildDailySeries(feedings, diapers, pumpings, sleeps, start, end, solidFoods, medications, temperatures)
+  const days = buildDailySeries(
+    feedings,
+    diapers,
+    pumpings,
+    sleeps,
+    start,
+    end,
+    solidFoods,
+    medications,
+    temperatures,
+    now,
+  )
   const agg: RangeAggregate = {
     dayCount: days.length,
     totalMilkAmount: 0,

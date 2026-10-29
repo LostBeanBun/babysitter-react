@@ -103,7 +103,7 @@ describe('stats aggregation', () => {
     expect(d1.totalMilkAmount).toBe(0)
   })
 
-  it('buildDailySeries 睡眠跨天按开始时间归当天', () => {
+  it('buildDailySeries 睡眠跨天按每日重叠时长分摊', () => {
     const days = buildDailySeries(
       [],
       [],
@@ -112,8 +112,49 @@ describe('stats aggregation', () => {
       day0,
       day1 + DAY,
     )
-    expect(days[0].sleepMs).toBe(6 * 3600_000)
-    expect(days[1].sleepMs).toBe(0)
+    expect(days[0].sleepMs).toBe(4 * 3600_000)
+    expect(days[1].sleepMs).toBe(2 * 3600_000)
+  })
+
+  it('buildDailySeries 跨零点睡眠计入次日（今日不再漏算 0 点后时长）', () => {
+    const days = buildDailySeries(
+      [],
+      [],
+      [],
+      [sleep({ startTime: day0 - 2 * 3600_000, endTime: day0 + 5 * 3600_000 })],
+      day0,
+      day1 + DAY,
+    )
+    expect(days[0].sleepMs).toBe(5 * 3600_000)
+  })
+
+  it('buildDailySeries 未结束的睡眠按 now 截断', () => {
+    const at = day0 + 7 * 3600_000
+    const days = buildDailySeries(
+      [],
+      [],
+      [],
+      [sleep({ startTime: day0 + 5 * 3600_000, endTime: undefined })],
+      day0,
+      day1 + DAY,
+      [],
+      [],
+      [],
+      at,
+    )
+    expect(days[0].sleepMs).toBe(2 * 3600_000)
+  })
+
+  it('buildDailySeries 超过一天的长睡眠按天拆分', () => {
+    const days = buildDailySeries(
+      [],
+      [],
+      [],
+      [sleep({ startTime: day0 + 22 * 3600_000, endTime: day0 + 50 * 3600_000 })],
+      day0,
+      day0 + 3 * DAY,
+    )
+    expect(days.map((d) => d.sleepMs)).toEqual([2 * 3600_000, 24 * 3600_000, 2 * 3600_000])
   })
 
   it('睡眠无 endTime 时回退 duration', () => {

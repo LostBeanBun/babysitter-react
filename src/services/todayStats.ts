@@ -1,4 +1,5 @@
 import type { Feeding, DiaperChange, Pumping, Sleep } from '@/types'
+import { overlapMs, endOf } from '@/utils/interval'
 
 /** 今日统计输入：仅包含今日（且已过滤删除中）的记录与当日边界 */
 export interface TodayStatsInput {
@@ -7,7 +8,10 @@ export interface TodayStatsInput {
   pumpings: Pumping[]
   sleeps: Sleep[]
   todayStart: number
+  /** 当日结束（不含），即次日 0 点 */
   todayEnd: number
+  /** 当前时刻：未结束的睡眠按此刻截断 */
+  now: number
 }
 
 /** 今日汇总统计 */
@@ -24,7 +28,7 @@ export interface TodayStats {
   bottleBreastmilkTotal: number
   /** 母乳库存 = 泵出 − 瓶喂母乳消耗（可为负） */
   breastStock: number
-  /** 今日睡眠时长（ms，跨天睡眠按当日边界裁剪） */
+  /** 今日睡眠时长（ms，跨天睡眠按当日边界裁剪，未结束的按 now 截断） */
   sleepMs: number
   /** 今日更换尿布次数 */
   diaperCount: number
@@ -32,7 +36,7 @@ export interface TodayStats {
 
 /** 计算今日汇总统计（入参需为今日记录） */
 export function computeTodayStats(input: TodayStatsInput): TodayStats {
-  const { feedings, diapers, pumpings, sleeps, todayStart, todayEnd } = input
+  const { feedings, diapers, pumpings, sleeps, todayStart, todayEnd, now } = input
 
   const totalMilk = feedings.reduce((sum, f) => sum + (f.amount ?? 0), 0)
   const pumpTotal = pumpings.reduce((s, p) => s + (p.amount ?? 0), 0)
@@ -40,11 +44,18 @@ export function computeTodayStats(input: TodayStatsInput): TodayStats {
     .filter((f) => f.type === 'bottle_breastmilk')
     .reduce((s, f) => s + (f.amount ?? 0), 0)
 
-  const sleepMs = sleeps.reduce((sum, s) => {
-    const s0 = Math.max(s.startTime, todayStart)
-    const e0 = Math.min(s.endTime ?? s.startTime, todayEnd)
-    return sum + Math.max(0, e0 - s0)
-  }, 0)
+  const sleepMs = sleeps.reduce(
+    (sum, s) =>
+      sum +
+      overlapMs(
+        s.startTime,
+        endOf(s.startTime, s.endTime, s.duration, now),
+        todayStart,
+        todayEnd,
+        now,
+      ),
+    0,
+  )
 
   return {
     totalMilk,

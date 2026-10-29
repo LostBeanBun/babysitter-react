@@ -77,6 +77,7 @@ export function buildWeeklyInsight(ds: RecordDatasets, now: number): WeeklyInsig
     ds.solidFoods,
     ds.medications,
     ds.temperatures,
+    now,
   )
   const previous = aggregateRange(
     ds.feedings,
@@ -88,6 +89,7 @@ export function buildWeeklyInsight(ds: RecordDatasets, now: number): WeeklyInsig
     ds.solidFoods,
     ds.medications,
     ds.temperatures,
+    now,
   )
 
   const items = [

@@ -60,7 +60,7 @@ const localDate = (ts) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-/** 种入一份可复现的数据：2 月龄宝宝 + 4h 前喂养 / 2h 前睡眠 / 4h 前尿布 */
+/** 种入一份可复现的数据：2 月龄宝宝 + 4h 前喂养 / 2h 前睡眠 / 4h 前尿布 + 跨零点睡眠（昨 20:00 → 今 01:00） */
 async function seed(page, now) {
   await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1200)
@@ -136,6 +136,19 @@ async function seed(page, now) {
         createdAt: now,
         updatedAt: now,
       })
+      // 跨零点睡眠：昨天 20:00 → 今天 01:00，今日部分应为 1 小时（1.9.4 回归点）
+      const today = new Date(now)
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+      put('sleeps', {
+        id: 2,
+        babyId: 1,
+        type: 'nap',
+        startTime: todayStart - 4 * 3600_000,
+        endTime: todayStart + 3600_000,
+        duration: 5 * 3600_000,
+        createdAt: now,
+        updatedAt: now,
+      })
       put('diapers', { id: 1, babyId: 1, type: 'wet', time: now - 4 * 3600_000, createdAt: now, updatedAt: now })
 
       await new Promise((resolve, reject) => {
@@ -182,12 +195,14 @@ async function readCareLayout(page) {
       const icon = row.querySelector('[class*="care-icon"]')
       const label = row.querySelector('[class*="care-label"]')
       const value = row.querySelector('[class*="care-value"]')
+      const hint = row.querySelector('[class*="care-hint"]')
       if (!icon || !label || !value) return { label: label?.textContent?.trim() ?? '', incomplete: true }
       const ir = icon.getBoundingClientRect()
       const lr = label.getBoundingClientRect()
       const style = getComputedStyle(label)
       return {
         label: label.textContent.trim(),
+        hint: hint?.textContent?.trim() ?? '',
         underIcon: lr.top >= ir.bottom - 1,
         centered: Math.abs(lr.left + lr.width / 2 - (ir.left + ir.width / 2)) <= 1.5,
         clipped: label.scrollWidth > label.clientWidth + 1,
@@ -204,12 +219,19 @@ async function sweep(page, theme) {
   for (const [name, route] of Object.entries(ROUTES)) {
     await page.goto(`${BASE_URL}${route}`, { waitUntil: 'networkidle' })
     await settle(page)
+    // 哈希路由只改 hash 不会整页刷新，懒加载路由组件需要额外等待
+    await page.waitForTimeout(600)
     if (name === 'stats') {
       const trend = page.getByText('趋势', { exact: true }).first()
       if (await trend.count()) {
         await trend.click()
         await page.waitForTimeout(1200)
       }
+      await page
+        .locator('canvas')
+        .first()
+        .waitFor({ state: 'attached', timeout: 8000 })
+        .catch(() => {})
     }
     pages[name] = await page.evaluate(() => {
       const text = document.body.innerText.replace(/\s+/g, ' ').trim()
@@ -259,6 +281,13 @@ async function main() {
   check('照护卡标题水平居中（±1.5px）', rows.length > 0 && rows.every((row) => row.centered))
   check('照护卡标题未被裁切', rows.length > 0 && rows.every((row) => !row.clipped))
   check('照护卡数值可见', rows.length > 0 && rows.every((row) => row.valueVisible), `标题字号 ${rows[0]?.fontSize ?? '-'}`)
+  // 1.9.4 回归点：跨零点睡眠必须计入今日（昨 20:00 → 今 01:00 应算 1 小时，修复前为 0）
+  const sleepRow = rows.find((row) => row.label.includes('睡眠'))
+  check(
+    '今日睡眠计入跨零点部分',
+    Boolean(sleepRow && sleepRow.hint.includes('1小时')),
+    sleepRow?.hint ?? '未找到睡眠行',
+  )
   await page.screenshot({ path: join(OUT_DIR, 'light-home.png'), fullPage: true })
 
   // 提醒横幅 → 点击直达「添加记录」弹窗（1.9.0 回归点）

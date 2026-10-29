@@ -4,6 +4,8 @@ import type { Feeding, DiaperChange, Pumping, Sleep } from '@/types'
 
 const TODAY_START = 1_700_000_000_000
 const TODAY_END = TODAY_START + 24 * 3600_000
+/** 假定的「此刻」：当日 20:00，用于未结束睡眠的截断 */
+const NOW = TODAY_START + 20 * 3600_000
 
 function feed(partial: Partial<Feeding>): Feeding {
   return {
@@ -59,6 +61,7 @@ const emptyInput = {
   sleeps: [],
   todayStart: TODAY_START,
   todayEnd: TODAY_END,
+  now: NOW,
 }
 
 describe('computeTodayStats', () => {
@@ -117,12 +120,21 @@ describe('computeTodayStats', () => {
     expect(stats.sleepMs).toBe(6.5 * 3600_000)
   })
 
-  it('无结束时间或负区间睡眠计 0', () => {
+  it('负区间睡眠计 0', () => {
     const stats = computeTodayStats({
       ...emptyInput,
-      sleeps: [sleep({ endTime: undefined }), sleep({ startTime: TODAY_END, endTime: TODAY_START })],
+      sleeps: [sleep({ startTime: TODAY_END, endTime: TODAY_START })],
     })
     expect(stats.sleepMs).toBe(0)
+  })
+
+  it('未结束的睡眠按 now 截断（含跨零点睡到此刻）', () => {
+    const stats = computeTodayStats({
+      ...emptyInput,
+      // 昨天 23:00 开始一直睡到现在（20:00）→ 今日部分 20 小时
+      sleeps: [sleep({ startTime: TODAY_START - 3600_000, endTime: undefined })],
+    })
+    expect(stats.sleepMs).toBe(20 * 3600_000)
   })
 
   it('纸尿裤计数', () => {

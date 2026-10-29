@@ -81,27 +81,25 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
   )
 
   const todayStart = startOfDay(now)
-  const todayEnd = todayStart + MS_PER_DAY - 1
+  /** 当日结束（不含）：次日 0 点 */
+  const todayEnd = todayStart + MS_PER_DAY
 
   /** 今日汇总：奶量 / 喂养次数 / 吸奶 / 母乳库存 / 睡眠 / 尿布（按当日边界裁剪） */
   const stats = useMemo(
     () =>
       computeTodayStats({
-        feedings: feedings.filter(
-          (f) => f.startTime >= todayStart && f.startTime <= todayEnd,
-        ),
-        diapers: diapers.filter((d) => d.time >= todayStart && d.time <= todayEnd),
-        pumpings: pumpings.filter(
-          (p) => p.startTime >= todayStart && p.startTime <= todayEnd,
-        ),
+        feedings: feedings.filter((f) => f.startTime >= todayStart && f.startTime < todayEnd),
+        diapers: diapers.filter((d) => d.time >= todayStart && d.time < todayEnd),
+        pumpings: pumpings.filter((p) => p.startTime >= todayStart && p.startTime < todayEnd),
+        // 跨天 / 进行中的睡眠：只要与今日有重叠就纳入，具体时长由 computeTodayStats 裁剪
         sleeps: sleeps.filter(
-          (sl) =>
-            (sl.endTime ?? sl.startTime) >= todayStart && sl.startTime <= todayEnd,
+          (sl) => (sl.endTime ?? now) >= todayStart && sl.startTime < todayEnd,
         ),
         todayStart,
         todayEnd,
+        now,
       }),
-    [feedings, diapers, pumpings, sleeps, todayStart, todayEnd],
+    [feedings, diapers, pumpings, sleeps, todayStart, todayEnd, now],
   )
 
   /** 按月龄的每日参考（无出生日期时为 null） */

@@ -1,6 +1,6 @@
 {
   "name": "babysitter",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "description": "宝宝喂养记录与统计 - 温馨简约的本地优先 PWA 应用",
   "private": true,
   "type": "module",
