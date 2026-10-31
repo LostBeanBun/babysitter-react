@@ -4,7 +4,7 @@
  *
  * 覆盖 AGENTS.md「回归核查」要求的固定清单：
  *   今日照护卡布局（标题在图标下方、水平居中、不裁切）· 提醒横幅点击直达弹窗
- *   今日 / 记录 / 统计 / 设置 四页浅色 + 深色巡检 · 统计图表渲染
+ *   今日 / 记录 / 统计 / 设置 四页浅色 + 深色巡检 · 统计三 tab 切换 · 图表与儿保报告 PNG 导出
  *   prefers-reduced-motion: reduce 下布局与静态兜底 · 全程无 console / pageerror
  *
  * 用法（先起 dev server）：
@@ -30,6 +30,8 @@ const HEADED = process.env.HEADED === '1'
 const ROUTES = IS_REACT
   ? { home: '/', log: '/log', stats: '/stats', settings: '/settings' }
   : { home: '/', log: '/#/log', stats: '/#/stats', settings: '/#/settings' }
+/** 统计页三个视图 tab 的可见文案（冒烟固定按中文口径定位） */
+const TABS = { summary: '总览', trend: '趋势', compare: '对比' }
 /** 与 src/db 的 store 名称保持一致；缺失时会先让应用重建库 */
 const STORES = [
   'babies',
@@ -213,7 +215,39 @@ async function readCareLayout(page) {
   })
 }
 
-/** 四页巡检：文案无 undefined / NaN / [object Object]，统计页切到「趋势」后应有图表 */
+/**
+ * 点击统计页 tab 并确认 aria-selected 真的生效。
+ * 路由组件懒加载 / hydration 未完成时首次点击可能被吞（1.12.1 冒烟偶发），因此重试。
+ */
+async function clickTab(page, label, attempts = 3) {
+  const tab = page.getByRole('tab', { name: label, exact: true }).first()
+  try {
+    await tab.waitFor({ state: 'visible', timeout: 15000 })
+  } catch {
+    return false
+  }
+  for (let i = 0; i < attempts; i++) {
+    await tab.click({ timeout: 10000 }).catch(() => {})
+    try {
+      await page.waitForFunction(
+        (name) => {
+          const el = Array.from(document.querySelectorAll('[role="tab"]')).find(
+            (node) => node.textContent?.trim() === name,
+          )
+          return el?.getAttribute('aria-selected') === 'true'
+        },
+        label,
+        { timeout: 3000 },
+      )
+      return true
+    } catch {
+      await page.waitForTimeout(400)
+    }
+  }
+  return false
+}
+
+/** 四页巡检：文案无 undefined / NaN / [object Object]，统计页逐个切 tab 并记录图表 / 对比数据 */
 async function sweep(page, theme) {
   const pages = {}
   for (const [name, route] of Object.entries(ROUTES)) {
@@ -221,19 +255,55 @@ async function sweep(page, theme) {
     await settle(page)
     // 哈希路由只改 hash 不会整页刷新，懒加载路由组件需要额外等待
     await page.waitForTimeout(600)
+    let tabs = null
     if (name === 'stats') {
-      const trend = page.getByText('趋势', { exact: true }).first()
-      if (await trend.count()) {
-        await trend.click()
-        await page.waitForTimeout(1200)
-      }
+      const trendSelected = await clickTab(page, TABS.trend)
       await page
         .locator('canvas')
         .first()
         .waitFor({ state: 'attached', timeout: 8000 })
         .catch(() => {})
+      const canvases = await page.locator('canvas').count()
+
+      const compareSelected = await clickTab(page, TABS.compare)
+      const compareItems = page.locator('[class*="compare-item"]')
+      await compareItems
+        .first()
+        .waitFor({ state: 'visible', timeout: 8000 })
+        .catch(() => {})
+      const compareTexts = await compareItems.allInnerTexts()
+      const compareSub = await page
+        .locator('[class*="overview-sub"]')
+        .first()
+        .innerText()
+        .catch(() => '')
+      // tab 高亮有 --dur-slow 的 background-color 过渡，等它结束再截图 / 读计算样式
+      await page.waitForTimeout(600)
+      const tabStyles = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('[role="tab"]')).map((el) => {
+          const style = getComputedStyle(el)
+          return {
+            label: el.textContent?.trim() ?? '',
+            selected: el.getAttribute('aria-selected') === 'true',
+            background: style.backgroundColor,
+            color: style.color,
+          }
+        }),
+      )
+      await page.screenshot({ path: join(OUT_DIR, `${theme}-stats-compare.png`), fullPage: true })
+
+      // 回到「趋势」，让主截图继续记录图表状态
+      await clickTab(page, TABS.trend)
+      tabs = {
+        trendSelected,
+        compareSelected,
+        canvases,
+        compareTexts,
+        compareSub: compareSub.trim(),
+        tabStyles,
+      }
     }
-    pages[name] = await page.evaluate(() => {
+    const info = await page.evaluate(() => {
       const text = document.body.innerText.replace(/\s+/g, ' ').trim()
       return {
         length: text.length,
@@ -241,6 +311,7 @@ async function sweep(page, theme) {
         canvases: document.querySelectorAll('canvas').length,
       }
     })
+    pages[name] = tabs ? { ...info, canvases: tabs.canvases, tabs } : info
     await page.screenshot({ path: join(OUT_DIR, `${theme}-${name}.png`), fullPage: true })
   }
   return pages
@@ -327,6 +398,29 @@ async function main() {
     const broken = Object.entries(pages).filter(([, info]) => info.broken || info.length < 20)
     check(`${theme}四页文案正常`, broken.length === 0, broken.map(([name]) => name).join(' / ') || '今日 / 记录 / 统计 / 设置')
     check(`${theme}统计图表已渲染`, pages.stats.canvases > 0, `${pages.stats.canvases} 个 canvas`)
+    const tabs = pages.stats.tabs
+    check(`${theme}统计「趋势」tab 切换生效`, Boolean(tabs?.trendSelected))
+    check(`${theme}统计「对比」tab 切换生效`, Boolean(tabs?.compareSelected))
+    const compareLabels = ['总奶量', '睡眠时长']
+    const missingLabels = compareLabels.filter((label) => !tabs?.compareTexts.some((text) => text.includes(label)))
+    check(
+      `${theme}对比面板指标行齐全`,
+      (tabs?.compareTexts.length ?? 0) >= compareLabels.length && missingLabels.length === 0,
+      `${tabs?.compareTexts.length ?? 0} 行 · ${tabs?.compareSub ?? '无副标题'}`,
+    )
+    check(
+      `${theme}对比副标题为「上一周期」口径`,
+      Boolean(tabs?.compareSub.includes('上一周期')),
+      tabs?.compareSub ?? '',
+    )
+    const activeTabs = tabs?.tabStyles.filter((tab) => tab.selected) ?? []
+    check(
+      `${theme}对比 tab 高亮生效（计算样式）`,
+      activeTabs.length === 1 &&
+        activeTabs[0].label === TABS.compare &&
+        activeTabs[0].background !== 'rgba(0, 0, 0, 0)',
+      activeTabs.map((tab) => `${tab.label} bg=${tab.background} color=${tab.color}`).join(' / ') || '无选中 tab',
+    )
   }
 
   // 小结跟随时间范围（1.10.0 回归点）：默认近 7 天，切换范围后标题同步变化
@@ -354,6 +448,33 @@ async function main() {
     staleItem || insightItems[0]?.trim() || '无条目',
   )
   await page.screenshot({ path: join(OUT_DIR, 'light-stats-30d.png'), fullPage: true })
+
+  // 儿保报告 PNG 导出（1.12.2 回归点）：按钮在「总览」tab，下载真实 PNG
+  const reportBtn = page.getByRole('button', { name: /导出儿保报告图片/ })
+  check('统计页有儿保报告导出按钮', (await reportBtn.count()) === 1)
+  const [reportDownload] = await Promise.all([
+    page.waitForEvent('download', { timeout: 30000 }),
+    reportBtn.first().click(),
+  ])
+  const reportName = reportDownload.suggestedFilename()
+  check(
+    '报告文件名为 babysitter-report-日期.png',
+    /^babysitter-report-\d{4}-\d{2}-\d{2}\.png$/.test(reportName),
+    reportName,
+  )
+  const reportBuf = readFileSync(await reportDownload.path())
+  // 留一份到 artifacts，便于人工核查排版
+  await reportDownload.saveAs(join(OUT_DIR, 'report.png'))
+  const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  const isPng = reportBuf.subarray(0, 8).equals(pngMagic)
+  // IHDR 宽高：720px 布局 × 2 倍缩放 = 1440 宽
+  const reportWidth = isPng ? reportBuf.readUInt32BE(16) : 0
+  const reportHeight = isPng ? reportBuf.readUInt32BE(20) : 0
+  check(
+    '报告 PNG 内容有效（签名 + 尺寸）',
+    isPng && reportWidth === 1440 && reportHeight > 720,
+    isPng ? `${reportWidth}×${reportHeight} · ${Math.round(reportBuf.length / 1024)} KB` : '非 PNG',
+  )
 
   // 备份提醒可关闭且不立刻重现（1.11.0 回归点）：关闭后静默 1 天，设置页可永久关闭
   await page.evaluate(() => {
