@@ -3,6 +3,17 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.12.1] - 2026-10-31
+
+### 变更
+
+- 删除 React 端无调用方的 `getComparisonRange()`（对比区间计算早已由视图内的 `RANGE_PRESETS` + `compareRanges` 完成），同步移除对应单测
+- 双端 i18n 差异登记表清空：`stats.previous` 随死代码一并删除，`i18n:parity` 现在报告「key 完全一致」
+
+### 单测
+
+- 新增 `utils/interval.spec.ts`（两端同一份，12 例）：`overlapMs` 覆盖完全重叠 / 跨零点只计窗口内部分 / 窗口外 / 覆盖整个窗口 / 未结束按 now 截断 / 异常数据；`endOf` 覆盖 endTime 优先 / duration 还原 / duration=0 / 进行中按 now，以及与 `overlapMs` 组合的跨零点场景
+
 ## [1.12.0] - 2026-10-31
 
 ### 新增

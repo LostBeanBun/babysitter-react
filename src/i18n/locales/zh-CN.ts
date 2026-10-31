@@ -542,7 +542,6 @@ babyWeight: '宝宝体重',
       month: '本月',
       all: '全部',
     },
-    previous: '上一周期',
     compare: {
       totalMilk: '总奶量',
       bottleMilk: '瓶喂母乳量',

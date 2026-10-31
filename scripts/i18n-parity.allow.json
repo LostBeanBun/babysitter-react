@@ -1,10 +1,4 @@
 {
   "note": "双端 key 集合差异登记表：只允许登记确实无法同步的结构性差异，并写明原因；文案（同名 key 的值）永远必须一致。新增条目需在 CHANGELOG 说明。",
-  "allow": [
-    {
-      "side": "react",
-      "keys": ["stats.previous"],
-      "reason": "React 统计对比用独立 key（stats.previous）拼接「上一周期」，Vue 用 compareSub 整句模板"
-    }
-  ]
+  "allow": []
 }

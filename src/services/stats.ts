@@ -404,21 +404,3 @@ export const RANGE_PRESETS: RangePreset[] = [
       getRange: (now) => [0, startOfDay(now) + MS_PER_DAY],
     },
 ]
-
-/** 对比预设：当前区间 vs 前一个等长区间 */
-export function getComparisonRange(
-  presetKey: string,
-  now: number,
-): { current: [number, number]; previous: [number, number]; currentLabel: string; previousLabel: string } | null {
-  const preset = RANGE_PRESETS.find((p) => p.key === presetKey)
-  if (!preset) return null
-  const [start, end] = preset.getRange(now)
-  const len = end - start
-  const previousStart = start - len
-  return {
-    current: [start, end],
-    previous: [previousStart, start],
-    currentLabel: preset.label,
-    previousLabel: 'stats.previous',
-  }
-}

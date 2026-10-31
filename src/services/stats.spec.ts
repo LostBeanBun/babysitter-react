@@ -3,7 +3,6 @@ import {
   buildDailySeries,
   aggregateRange,
   compareRanges,
-  getComparisonRange,
   RANGE_PRESETS,
 } from '@/services/stats'
 import type { Feeding, Sleep, DiaperChange, Pumping, SolidFood, Medication, Temperature } from '@/types'
@@ -338,19 +337,6 @@ describe('stats aggregation', () => {
     const result = compareRanges(current, previous)
     const feedCount = result.find((r) => r.key === 'feedCount')!
     expect(feedCount.dailyAvg).toBe(1)
-  })
-
-  it('getComparisonRange 生成当前与上一等长区间', () => {
-    const r = getComparisonRange('7d', now)!
-    expect(r).not.toBeNull()
-    const curLen = r.current[1] - r.current[0]
-    const prevLen = r.previous[1] - r.previous[0]
-    expect(curLen).toBe(prevLen)
-  })
-
-  it('未知 key → null', () => {
-    expect(getComparisonRange('nope', now)).toBeNull()
-    expect(getComparisonRange('__missing__' as string, now)).toBeNull()
   })
 })
 

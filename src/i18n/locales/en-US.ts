@@ -546,7 +546,6 @@ babyWeight: 'Baby weight',
       month: 'This month',
       all: 'All',
     },
-    previous: 'Previous period',
     compare: {
       totalMilk: 'Total milk',
       bottleMilk: 'Bottle breastmilk',
