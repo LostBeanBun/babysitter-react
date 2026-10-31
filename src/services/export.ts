@@ -16,9 +16,27 @@ import type {
   Milestone,
 } from '@/types'
 import { downloadBlob, formatDate, formatTime, parseDate, startOfDay } from '@/utils/format'
+import { AVATAR_COLORS } from '@/constants'
 
 const t = (key: string, options?: Record<string, unknown>): string =>
   String(i18n.t(key, options as never))
+
+/** CSV 数据列（不含可选宝宝名列与宝宝信息专用列），列序单一来源 */
+const CSV_COLUMN_KEYS = [
+  'recordType',
+  'date',
+  'time',
+  'endDate',
+  'endTime',
+  'item',
+  'value',
+  'duration',
+  'status',
+  'notes',
+] as const
+
+/** 宝宝信息专用列（仅宝宝信息行有值，记录行留空） */
+const BABY_COLUMN_KEYS = ['avatar', 'avatarColor'] as const
 
 /** 表头别名（导入用）：zh/en 两语言列名 + 内部键值，兼容任意语言导出的文件 */
 const HEADER_ALIASES: Record<string, string[]> = {
@@ -33,6 +51,8 @@ const HEADER_ALIASES: Record<string, string[]> = {
   duration: [zhCN.exportCsv.duration, enUS.exportCsv.duration, 'duration'],
   status: [zhCN.exportCsv.status, enUS.exportCsv.status, 'status'],
   notes: [zhCN.exportCsv.notes, enUS.exportCsv.notes, 'notes'],
+  avatar: [zhCN.exportCsv.avatar, enUS.exportCsv.avatar, 'avatar'],
+  avatarColor: [zhCN.exportCsv.avatarColor, enUS.exportCsv.avatarColor, 'avatarColor'],
 }
 
 /** 按表头取单元格：当前 locale 列名 -> zh -> en -> 内部键值，未命中返回 '' */
@@ -67,14 +87,14 @@ const LABELS_ZH: Record<string, string> = {
   both: '尿+便',
   // 纸尿裤颜色
   yellow: '黄色',
-  brown: '褐色',
+  brown: '棕色',
   green: '绿色',
   black: '黑色',
   red: '红色',
   other: '其他',
   // 纸尿裤量
   small: '少量',
-  medium: '中等',
+  medium: '适中',
   large: '大量',
   // 吸奶侧
   left: '左侧',
@@ -88,8 +108,12 @@ const LABELS_ZH: Record<string, string> = {
   // 体温方式
   armpit: '腋下',
   ear: '耳温',
-  forehead: '额头',
+  forehead: '额温',
   rectal: '肛温',
+  // 宝宝信息行
+  baby: '宝宝',
+  boy: '男孩',
+  girl: '女孩',
 }
 
 const LABELS_EN: Record<string, string> = {
@@ -137,6 +161,10 @@ const LABELS_EN: Record<string, string> = {
   ear: 'Ear',
   forehead: 'Forehead',
   rectal: 'Rectal',
+  // 宝宝信息行
+  baby: 'Baby',
+  boy: 'Boy',
+  girl: 'Girl',
 }
 
 /** 获取当前语言标签，未找到返回原键值 */
@@ -169,6 +197,14 @@ const LABEL_REV: Map<string, string> = (() => {
   return m
 })()
 
+/** 旧版 React 导出的标签（Vue 端一直是棕色 / 适中 / 额温），导入旧文件时仍能反查 */
+const LEGACY_LABEL_ALIASES: [string, string][] = [
+  ['褐色', 'brown'],
+  ['中等', 'medium'],
+  ['额头', 'forehead'],
+]
+for (const [label, key] of LEGACY_LABEL_ALIASES) if (!LABEL_REV.has(label)) LABEL_REV.set(label, key)
+
 function toInternal(label: string): string {
   return LABEL_REV.get(label) ?? label
 }
@@ -187,19 +223,30 @@ export function toCsv(rows: (string | number | undefined | null)[][]): string {
 
 /** CSV 表头（仅本地化展示） */
 function csvHeader(withBaby: boolean): Row {
-  const cols = [
-    t('exportCsv.recordType'),
-    t('exportCsv.date'),
-    t('exportCsv.time'),
-    t('exportCsv.endDate'),
-    t('exportCsv.endTime'),
-    t('exportCsv.item'),
-    t('exportCsv.value'),
-    t('exportCsv.duration'),
-    t('exportCsv.status'),
-    t('exportCsv.notes'),
-  ]
+  const cols = [...CSV_COLUMN_KEYS, ...BABY_COLUMN_KEYS].map((k) => t(`exportCsv.${k}`))
   return withBaby ? [t('exportCsv.babyName'), ...cols] : cols
+}
+
+/** 宝宝信息行（每份导出文件头部写入一条，保留姓名/性别/出生信息/头像等资料） */
+export function buildBabyInfoRow(baby: Baby, withBabyName = false): Row {
+  const parts: string[] = []
+  if (baby.birthWeight != null) parts.push(`${baby.birthWeight} kg`)
+  if (baby.birthHeight != null) parts.push(`${baby.birthHeight} cm`)
+  return [
+    ...(withBabyName ? [baby.name] : []),
+    bl('baby'),
+    baby.birthDate ?? '',
+    '',
+    '',
+    '',
+    baby.name,
+    parts.join(' · '),
+    '',
+    baby.gender ? bl(baby.gender) : '',
+    '',
+    baby.avatar ?? '',
+    baby.avatarColor ?? '',
+  ]
 }
 
 /**
@@ -387,7 +434,8 @@ export function buildBabyCsvRows(data: BabyCsvData, babyName?: string): Row[] {
     ])
   }
 
-  return rows
+  // 记录行末尾补两列宝宝信息占位（avatar / avatarColor 仅宝宝信息行有值）
+  return rows.map((row) => [...row, '', ''])
 }
 
 /** 读取单个宝宝的全部记录（按时间排序） */
@@ -418,7 +466,7 @@ export async function exportBabyCsvs(baby: Baby): Promise<void> {
     throw new Error('Invalid baby id for export')
   }
   const data = await fetchBabyData(baby.id)
-  const rows: Row[] = [csvHeader(false), ...buildBabyCsvRows(data)]
+  const rows: Row[] = [csvHeader(false), buildBabyInfoRow(baby), ...buildBabyCsvRows(data)]
   const stamp = formatDate(Date.now())
   downloadBlob(
     '\ufeff' + toCsv(rows),
@@ -432,6 +480,8 @@ export async function exportAllBabiesCsv(): Promise<void> {
   const babies = await db.babies.toArray()
   const rows: Row[] = [csvHeader(true)]
   for (const baby of babies) {
+    // 宝宝信息行始终写入（即使该宝宝没有任何记录，导入后也不丢失资料）
+    rows.push(buildBabyInfoRow(baby, true))
     const data = await fetchBabyData(baby.id!)
     rows.push(...buildBabyCsvRows(data, baby.name))
   }
@@ -526,6 +576,37 @@ const RECORD_TYPE_KEY_MAP: Record<string, string> = {
   vaccination: 'vaccinations',
   temperature: 'temperatures',
   milestone: 'milestones',
+}
+
+/** 宝宝信息行解析结果（导入用） */
+interface BabyInfoMeta {
+  name: string
+  birthDate?: string
+  gender?: 'boy' | 'girl'
+  birthWeight?: number
+  birthHeight?: number
+  avatar?: string
+  avatarColor?: string
+}
+
+/** 解析宝宝信息行（date=出生日期，item=姓名，value="x kg · y cm"，status=性别，头像两列） */
+function parseBabyInfoRow(obj: Record<string, string>): BabyInfoMeta | null {
+  const name = (headerCell(obj, 'item') || headerCell(obj, 'babyName')).trim()
+  if (!name) return null
+  const value = headerCell(obj, 'value')
+  const weightMatch = value.match(/([\d.]+)\s*kg/)
+  const heightMatch = value.match(/([\d.]+)\s*cm/)
+  const genderRaw = toInternal(headerCell(obj, 'status'))
+  const dateStr = headerCell(obj, 'date')
+  return {
+    name,
+    birthDate: /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr : undefined,
+    gender: genderRaw === 'boy' || genderRaw === 'girl' ? genderRaw : undefined,
+    birthWeight: weightMatch ? parseFloat(weightMatch[1]) : undefined,
+    birthHeight: heightMatch ? parseFloat(heightMatch[1]) : undefined,
+    avatar: headerCell(obj, 'avatar') || undefined,
+    avatarColor: headerCell(obj, 'avatarColor') || undefined,
+  }
 }
 
 /** 将 CSV 行映射为具体记录对象（列值为本地化标签或内部键值，统一经 toInternal 反查） */
@@ -783,7 +864,7 @@ export async function importAllCsv(
   const headers = rows[0]
   const hasBabyNameCol = [t('exportCsv.babyName'), ...HEADER_ALIASES.babyName].includes(headers[0])
 
-  const babiesMap = new Map<string, { name: string; id: number }>()
+  const babiesMap = new Map<string, BabyInfoMeta & { id: number }>()
   const recordBuckets: Record<string, unknown[]> = {
     feedings: [],
     diapers: [],
@@ -803,6 +884,30 @@ export async function importAllCsv(
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i]
     if (row.every((c) => c === '')) continue
+
+    // 宝宝信息行：合并进 babiesMap（先于记录行出现时即为目标宝宝）
+    const obj: Record<string, string> = {}
+    headers.forEach((h, idx) => {
+      obj[h] = row[idx] ?? ''
+    })
+    if (toInternal(headerCell(obj, 'recordType')) === 'baby') {
+      const meta = parseBabyInfoRow(obj)
+      if (meta) {
+        let entry = babiesMap.get(meta.name)
+        if (!entry) {
+          entry = { name: meta.name, id: -(babiesMap.size + 1) }
+          babiesMap.set(meta.name, entry)
+        }
+        if (meta.birthDate) entry.birthDate = meta.birthDate
+        if (meta.gender) entry.gender = meta.gender
+        if (meta.birthWeight != null) entry.birthWeight = meta.birthWeight
+        if (meta.birthHeight != null) entry.birthHeight = meta.birthHeight
+        if (meta.avatar) entry.avatar = meta.avatar
+        if (meta.avatarColor) entry.avatarColor = meta.avatarColor
+        mappedCount++
+      }
+      continue
+    }
 
     const babyName = hasBabyNameCol ? row[0] : ''
     let babyId: number
@@ -854,16 +959,36 @@ export async function importAllCsv(
       db.milestones,
     ],
     async () => {
-      // 宝宝按名字增量合并：已存在则复用现有 id，不存在才新增
+      // 宝宝按名字增量合并：已存在则复用（回填 CSV 提供而现有缺失的资料），不存在才新增
       const existingBabies = await db.babies.toArray()
       const existingByName = new Map(existingBabies.map((b) => [b.name, b]))
-      for (const [, { name, id: tempId }] of babyNames) {
-        const existed = existingByName.get(name)
+      for (const [, entry] of babyNames) {
+        const existed = existingByName.get(entry.name)
         if (existed && existed.id != null) {
-          babyIdMap.set(tempId, existed.id)
+          const existedId = existed.id
+          babyIdMap.set(entry.id, existedId)
+          const updates: Partial<Baby> = {}
+          if (entry.gender != null && existed.gender == null) updates.gender = entry.gender
+          if (entry.birthDate && !existed.birthDate) updates.birthDate = entry.birthDate
+          if (entry.birthWeight != null && existed.birthWeight == null)
+            updates.birthWeight = entry.birthWeight
+          if (entry.birthHeight != null && existed.birthHeight == null)
+            updates.birthHeight = entry.birthHeight
+          if (entry.avatar && !existed.avatar) updates.avatar = entry.avatar
+          if (entry.avatarColor && !existed.avatarColor) updates.avatarColor = entry.avatarColor
+          if (Object.keys(updates).length > 0) await db.babies.update(existedId, updates)
         } else {
-          const realId = (await db.babies.add({ name, avatarColor: '#FF6B6B', createdAt: now }))!
-          babyIdMap.set(tempId, realId)
+          const realId = (await db.babies.add({
+            name: entry.name,
+            gender: entry.gender,
+            birthDate: entry.birthDate,
+            birthWeight: entry.birthWeight,
+            birthHeight: entry.birthHeight,
+            avatar: entry.avatar,
+            avatarColor: entry.avatarColor ?? AVATAR_COLORS[0],
+            createdAt: now,
+          }))!
+          babyIdMap.set(entry.id, realId)
         }
       }
 

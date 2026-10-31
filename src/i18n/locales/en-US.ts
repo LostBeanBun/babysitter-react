@@ -680,6 +680,8 @@ duration: {
     duration: 'Duration (min)',
     status: 'Status',
     notes: 'Notes',
+    avatar: 'Avatar',
+    avatarColor: 'Avatar color',
     invalidFile: 'Invalid file format — not a valid CSV table',
     noBaby: 'File contains no baby data',
   },

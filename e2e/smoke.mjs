@@ -16,7 +16,7 @@
  *
  * 截图与结果写入 e2e/.artifacts/<APP>/（已 gitignore）。
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
@@ -405,6 +405,26 @@ async function main() {
   await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
   await settle(page)
   check('重新打开后备份提醒条恢复显示', await backupBanner.isVisible())
+
+  // CSV 导出含宝宝信息行与头像列（1.12.0 回归点）
+  await page.goto(`${BASE_URL}${ROUTES.settings}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  const [csvDownload] = await Promise.all([
+    page.waitForEvent('download', { timeout: 20000 }),
+    page.getByRole('button', { name: /导出全部宝宝记录/ }).click(),
+  ])
+  const csvText = readFileSync(await csvDownload.path(), 'utf8').replace(/^\ufeff/, '')
+  const csvLines = csvText.split('\r\n')
+  check(
+    'CSV 表头含头像 / 头像色列',
+    /头像/.test(csvLines[0]) && /头像色/.test(csvLines[0]),
+    csvLines[0],
+  )
+  check(
+    'CSV 含宝宝信息行（姓名 + 出生日期）',
+    csvLines[1].includes('宝宝') && csvLines[1].includes('小糯米'),
+    csvLines[1],
+  )
 
   // prefers-reduced-motion: reduce —— 动画被压到 0.01ms 时布局仍成立
   await page.emulateMedia({ reducedMotion: 'reduce' })
