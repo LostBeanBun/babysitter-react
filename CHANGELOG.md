@@ -3,6 +3,19 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.12.4] - 2026-10-31
+
+### 变更
+
+- `services/report.ts` 抽出纯函数 `buildReportLayout()`：指标卡片网格、生长行基线、徽标文案与配色、免责声明 / 页脚基线、画布高度全部由它决定，`drawReport()` 只按布局绘制
+- 新增 `wrapTextBy()`（measure 由调用方注入），让中文折行逻辑可以脱离 canvas 单测；`wrapText()` 内部改为调用它
+- 导出 `REPORT_WIDTH` / `REPORT_COLORS` / `GROWTH_BADGE_OFFSET` 供单测断言
+
+### 单测
+
+- 新增 `services/report.spec.ts`（两端同一份，14 例）：画布尺寸与生长行高度、3 列卡片网格换行、空指标不塌陷、7 项占 3 行、徽标 `P{n}` / `—`、tone 配色、无记录占位与首行对齐、免责声明与页脚基线、分隔线偏移、折行不丢字
+- 回归证据：改造前后冒烟导出的 `report.png` 字节完全一致，绘制结果未变
+
 ## [1.12.3] - 2026-10-31
 
 ### 修复
