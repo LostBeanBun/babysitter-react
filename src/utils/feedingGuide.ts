@@ -8,7 +8,8 @@ const t = (key: string, options?: Record<string, unknown>): string =>
 /** 按月龄返回推荐喂奶间隔（毫秒），参考常见育儿指南 */
 export function recommendedIntervalMs(baby?: Baby, at = Date.now()): number {
   const months = baby?.birthDate ? ageInMonths(baby.birthDate, at) : 0
-  if (months < 1) return 2.5 * 3600_000
+  // 出生日期无法解析时按新生儿兜底（与 Vue 端 bucketIndexByMonths 的 NaN → 0 一致）
+  if (!Number.isFinite(months) || months < 1) return 2.5 * 3600_000
   if (months < 3) return 3 * 3600_000
   if (months < 6) return 3.5 * 3600_000
   if (months < 9) return 4 * 3600_000

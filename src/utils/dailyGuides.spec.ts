@@ -74,9 +74,9 @@ describe('dailyGuide', () => {
     }
   })
 
-  it('非法 birthDate → NaN 落到段 5（记录当前行为）', () => {
+  it('非法 birthDate → NaN 月龄按新生儿兜底段 0（与 Vue 一致）', () => {
     const guide = dailyGuide(baby('not-a-date'))
     expect(guide).not.toBeNull()
-    expect(guide!.milk).toBe('guides.milk5')
+    expect(guide!.milk).toBe('guides.milk0')
   })
 })

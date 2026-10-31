@@ -81,8 +81,14 @@ describe('recommendedIntervalMs', () => {
     }
   })
 
-  it('非法 birthDate → NaN 月龄落到 5h（记录当前行为）', () => {
-    expect(recommendedIntervalMs(baby('abc'))).toBe(5 * H)
+  it('非法 birthDate → NaN 月龄按新生儿兜底 2.5h（与 Vue 一致）', () => {
+    expect(recommendedIntervalMs(baby('abc'))).toBe(2.5 * H)
+  })
+
+  it('显式传入 at 时以该时刻计算月龄', () => {
+    const b = baby('2026-01-01')
+    const at = new Date(2026, 7, 1, 12, 0).getTime() // 7 个月后
+    expect(recommendedIntervalMs(b, at)).toBe(4 * H)
   })
 })
 

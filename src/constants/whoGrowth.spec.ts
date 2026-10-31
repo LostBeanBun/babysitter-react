@@ -24,6 +24,10 @@ describe('ageInMonths', () => {
     expect(ageInMonths('2027-01-01', now)).toBeLessThan(0)
     expect(birth).toBeGreaterThan(now)
   })
+
+  it('非法出生日期 → NaN（调用方需自行兜底）', () => {
+    expect(Number.isNaN(ageInMonths('not-a-date', Date.now()))).toBe(true)
+  })
 })
 
 describe('interpolateWho', () => {
@@ -63,5 +67,34 @@ describe('whoData', () => {
   })
   it('undefined → WHO_GIRL（保守默认）', () => {
     expect(whoData(undefined)).toBe(WHO_GIRL)
+  })
+})
+
+describe('WHO 数据集', () => {
+  it('覆盖 0-24 月龄且逐月递增', () => {
+    for (const data of [WHO_BOY, WHO_GIRL]) {
+      expect(data).toHaveLength(25)
+      expect(data[0].month).toBe(0)
+      expect(data[24].month).toBe(24)
+      for (let i = 1; i < data.length; i++) {
+        expect(data[i].weight.p50).toBeGreaterThan(data[i - 1].weight.p50)
+        expect(data[i].length.p50).toBeGreaterThan(data[i - 1].length.p50)
+        expect(data[i].hc.p50).toBeGreaterThan(data[i - 1].hc.p50)
+      }
+    }
+  })
+
+  it('各百分位单调：p3 < p15 < p50 < p85 < p97', () => {
+    for (const data of [WHO_BOY, WHO_GIRL]) {
+      for (const point of data) {
+        for (const field of ['weight', 'length', 'hc'] as const) {
+          const p = point[field]
+          expect(p.p3).toBeLessThan(p.p15)
+          expect(p.p15).toBeLessThan(p.p50)
+          expect(p.p50).toBeLessThan(p.p85)
+          expect(p.p85).toBeLessThan(p.p97)
+        }
+      }
+    }
   })
 })

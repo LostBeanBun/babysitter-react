@@ -7,7 +7,8 @@ const t = (key: string, options?: Record<string, unknown>): string =>
 
 /** 按月龄返回参考数据分段索引（0:0-1月 1:1-3月 2:3-6月 3:6-9月 4:9-12月 5:12月+） */
 function guideIndex(months: number): number {
-  if (months < 1) return 0
+  // 出生日期无法解析时按新生儿兜底（与 Vue 端 bucketIndexByMonths 的 NaN → 0 一致）
+  if (!Number.isFinite(months) || months < 1) return 0
   if (months < 3) return 1
   if (months < 6) return 2
   if (months < 9) return 3
