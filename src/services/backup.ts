@@ -5,16 +5,23 @@
  * 因此备份是唯一的兜底手段：
  * - 导出：把 babies 与 10 张记录表打包成 ExportFile（结构见 types/index.ts）
  * - 导入：先自动备份当前数据，再事务性清空并恢复，任何校验失败都不动现有数据
- * - 提醒：超过 7 天未备份时首页提示（可由用户关闭当前会话的提示）
+ * - 提醒：超过 7 天未备份时首页提示（关闭后静默 1 天，设置页可永久关闭）
  */
 import { db, DB_VERSION } from '@/db'
 import { downloadBlob, formatDate } from '@/utils/format'
 import type { Baby, ExportFile } from '@/types'
 
 const LAST_BACKUP_KEY = 'babysitter.lastBackupAt'
+/** 关闭首页备份提醒后的静默截止时间（时间戳） */
+const SNOOZE_KEY = 'babysitter.backupSnoozeUntil'
+/** 首页备份提醒开关（'0' 表示永久关闭） */
+const ENABLED_KEY = 'babysitter.backupRemindEnabled'
 
 /** 超过该天数未备份即在首页提示 */
 export const BACKUP_REMIND_DAYS = 7
+
+/** 关闭提醒条后的静默天数：至少一天后才会再次提醒 */
+export const BACKUP_SNOOZE_DAYS = 1
 
 /** 读取上次备份时间（无记录返回 null） */
 export function getLastBackupAt(): number | null {
@@ -27,24 +34,70 @@ export function getLastBackupAt(): number | null {
   }
 }
 
-/** 记录一次成功备份（导出 JSON 时调用） */
+/** 记录一次成功备份（导出 JSON 时调用）：备份后解除静默 */
 export function markBackedUp(at = Date.now()): void {
   try {
     localStorage.setItem(LAST_BACKUP_KEY, String(at))
+    localStorage.removeItem(SNOOZE_KEY)
   } catch {
     /* 隐私模式/存储禁用时退化为本次会话不提示 */
   }
 }
 
+/** 首页备份提醒的静默截止时间（无记录返回 null） */
+export function getBackupSnoozeUntil(): number | null {
+  try {
+    const raw = localStorage.getItem(SNOOZE_KEY)
+    const n = raw ? Number(raw) : NaN
+    return Number.isFinite(n) && n > 0 ? n : null
+  } catch {
+    return null
+  }
+}
+
+/** 关闭首页备份提醒：默认静默 BACKUP_SNOOZE_DAYS 天，刷新页面也不会立刻重现 */
+export function snoozeBackupReminder(now = Date.now(), days = BACKUP_SNOOZE_DAYS): void {
+  try {
+    localStorage.setItem(SNOOZE_KEY, String(now + days * 86_400_000))
+  } catch {
+    /* 存储不可用时退化为本次会话不提示 */
+  }
+}
+
+/** 是否开启首页备份提醒（默认开启，设置页可永久关闭） */
+export function isBackupRemindEnabled(): boolean {
+  try {
+    return localStorage.getItem(ENABLED_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+/** 设置首页备份提醒开关；重新开启时同时解除静默 */
+export function setBackupRemindEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(ENABLED_KEY, enabled ? '1' : '0')
+    if (enabled) localStorage.removeItem(SNOOZE_KEY)
+  } catch {
+    /* 存储不可用时仅影响本次会话 */
+  }
+}
+
 /**
- * 是否需要提醒备份：有数据且从未备份 / 距上次备份超过 BACKUP_REMIND_DAYS 天。
+ * 是否需要提醒备份：开关开启、不在静默期、有数据，且从未备份 / 距上次备份超过 BACKUP_REMIND_DAYS 天。
  * 纯函数，便于单测。
  */
 export function shouldSuggestBackup(input: {
   lastBackupAt: number | null
   hasData: boolean
   now: number
+  /** 关闭提醒后的静默截止时间（now 早于它时不提醒） */
+  snoozeUntil?: number | null
+  /** 设置页「首页备份提醒」开关，默认开启 */
+  enabled?: boolean
 }): boolean {
+  if (input.enabled === false) return false
+  if (input.snoozeUntil != null && input.now < input.snoozeUntil) return false
   if (!input.hasData) return false
   if (input.lastBackupAt == null) return true
   return input.now - input.lastBackupAt > BACKUP_REMIND_DAYS * 86_400_000

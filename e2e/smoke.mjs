@@ -355,6 +355,57 @@ async function main() {
   )
   await page.screenshot({ path: join(OUT_DIR, 'light-stats-30d.png'), fullPage: true })
 
+  // 备份提醒可关闭且不立刻重现（1.11.0 回归点）：关闭后静默 1 天，设置页可永久关闭
+  await page.evaluate(() => {
+    localStorage.removeItem('babysitter.backupSnoozeUntil')
+    localStorage.removeItem('babysitter.backupRemindEnabled')
+    localStorage.removeItem('babysitter.lastBackupAt')
+  })
+  await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
+  await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
+  await settle(page)
+  const backupBanner = page.locator('[class*="reminder-banner--backup"]').first()
+  check('备份提醒条默认显示', await backupBanner.isVisible())
+  await backupBanner.locator('[class*="rb-close"]').click()
+  await page.waitForTimeout(500)
+  check('关闭后备份提醒条消失', !(await backupBanner.isVisible()))
+  const snoozeUntil = await page.evaluate(() => Number(localStorage.getItem('babysitter.backupSnoozeUntil')))
+  check(
+    '关闭写入 1 天静默截止时间',
+    snoozeUntil > Date.now() + 20 * 3600_000,
+    snoozeUntil ? new Date(snoozeUntil).toLocaleString() : '未写入',
+  )
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
+  await settle(page)
+  check('刷新后备份提醒仍不出现', !(await backupBanner.isVisible()))
+
+  // 设置页「首页备份提醒」开关：关闭后永久不提示，重新打开恢复
+  await page.goto(`${BASE_URL}${ROUTES.settings}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  const backupSwitch = page.locator('[class*="backup-remind"] [role="switch"]').first()
+  check('设置页有「首页备份提醒」开关', (await backupSwitch.count()) === 1)
+  await backupSwitch.click()
+  await page.waitForTimeout(300)
+  const remindOff = await page.evaluate(() => localStorage.getItem('babysitter.backupRemindEnabled'))
+  check('关闭开关写入永久关闭', remindOff === '0', String(remindOff))
+  // 清掉静默期，单独验证开关本身生效
+  await page.evaluate(() => localStorage.removeItem('babysitter.backupSnoozeUntil'))
+  await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
+  await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
+  await settle(page)
+  check('永久关闭后不再提示备份', !(await backupBanner.isVisible()))
+  await page.goto(`${BASE_URL}${ROUTES.settings}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  await page.locator('[class*="backup-remind"] [role="switch"]').first().click()
+  await page.waitForTimeout(300)
+  const remindOn = await page.evaluate(() => localStorage.getItem('babysitter.backupRemindEnabled'))
+  check('重新打开开关后恢复提醒', remindOn === '1', String(remindOn))
+  await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
+  await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
+  await settle(page)
+  check('重新打开后备份提醒条恢复显示', await backupBanner.isVisible())
+
   // prefers-reduced-motion: reduce —— 动画被压到 0.01ms 时布局仍成立
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })

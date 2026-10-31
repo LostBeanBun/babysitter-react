@@ -158,6 +158,12 @@
   padding-top: 10px;
 }
 
+/* 数据管理卡里的「首页备份提醒」开关：与上方「上次备份」文案拉开距离 */
+.backup-remind {
+  margin-top: 10px;
+  padding: 0;
+}
+
 .reminder-param {
   display: flex;
   align-items: center;

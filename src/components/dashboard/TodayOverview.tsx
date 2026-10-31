@@ -12,7 +12,15 @@ import { startOfDay, formatDuration } from '@/utils/format'
 import { MS_PER_DAY, MS_PER_HOUR } from '@/constants'
 import { upcomingVaccinations, vaccineDaysLeft } from '@/services/reminders'
 import { recommendedIntervalMs, recommendedIntervalLabel } from '@/utils/feedingGuide'
-import { exportJsonBackup, getLastBackupAt, shouldSuggestBackup } from '@/services/backup'
+import {
+  exportJsonBackup,
+  getBackupSnoozeUntil,
+  getLastBackupAt,
+  isBackupRemindEnabled,
+  shouldSuggestBackup,
+  snoozeBackupReminder,
+} from '@/services/backup'
+import { toast } from '@/stores/toast'
 import { isSnoozed, snoozeReminder, loadReminders } from '@/utils/reminderScheduler'
 import type { RecordKind, Vaccination } from '@/types'
 
@@ -154,19 +162,39 @@ export default function TodayOverview({ now, onEdit, onAdd }: TodayOverviewProps
   }, [now, snoozeTick])
   const diaperBannerActive = diaperDue && !diaperSnoozed && !dismissed.diaper
 
-  // —— 备份提醒：本地数据唯一兜底，超过 7 天未备份时提示 ——
+  // —— 备份提醒：本地数据唯一兜底，超过 7 天未备份时提示（关闭后静默 1 天，设置页可永久关闭）——
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(null)
+  const [backupSnoozeUntil, setBackupSnoozeUntil] = useState<number | null>(null)
+  const [backupRemindEnabled, setBackupRemindEnabledState] = useState(true)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 客户端 localStorage 初始化
     setLastBackupAt(getLastBackupAt())
+     
+    setBackupSnoozeUntil(getBackupSnoozeUntil())
+     
+    setBackupRemindEnabledState(isBackupRemindEnabled())
   }, [])
   const hasAnyData =
     feedings.length + diapers.length + pumpings.length + sleeps.length + vaccinations.length > 0
-  const backupDue = shouldSuggestBackup({ lastBackupAt, hasData: hasAnyData, now })
+  const backupDue = shouldSuggestBackup({
+    lastBackupAt,
+    hasData: hasAnyData,
+    now,
+    snoozeUntil: backupSnoozeUntil,
+    enabled: backupRemindEnabled,
+  })
   const backupDays = lastBackupAt == null ? 0 : Math.floor((now - lastBackupAt) / MS_PER_DAY)
   async function handleBackup() {
     await exportJsonBackup()
     setLastBackupAt(getLastBackupAt())
+    setBackupSnoozeUntil(getBackupSnoozeUntil())
+  }
+
+  /** 关闭备份提醒条：持久静默 1 天（刷新不再重现），不是会话级关闭 */
+  function dismissBackup() {
+    snoozeBackupReminder(now)
+    setBackupSnoozeUntil(getBackupSnoozeUntil())
+    toast(t('dashboard.backupSnoozed'))
   }
 
   return (
@@ -221,7 +249,7 @@ export default function TodayOverview({ now, onEdit, onAdd }: TodayOverviewProps
       )}
 
       {/* 备份提醒 */}
-      {backupDue && !dismissed.backup && (
+      {backupDue && (
         <ReminderBanner
           icon="💾"
           variant="backup"
@@ -234,7 +262,7 @@ export default function TodayOverview({ now, onEdit, onAdd }: TodayOverviewProps
           actionLabel={t('dashboard.backupAction')}
           dismissLabel={t('common.close')}
           onAction={handleBackup}
-          onDismiss={() => dismiss('backup')}
+          onDismiss={dismissBackup}
         />
       )}
 

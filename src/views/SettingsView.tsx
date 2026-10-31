@@ -7,7 +7,13 @@ import BaseModal from '@/components/common/BaseModal'
 import ReminderParam from '@/components/settings/ReminderParam'
 import { countAllRecords, clearAllData, clearBabyData, db } from '@/db'
 import { exportBabyCsvs, exportAllBabiesCsv, importAllCsv } from '@/services/export'
-import { exportJsonBackup, getLastBackupAt, importJsonBackup } from '@/services/backup'
+import {
+  exportJsonBackup,
+  getLastBackupAt,
+  importJsonBackup,
+  isBackupRemindEnabled,
+  setBackupRemindEnabled,
+} from '@/services/backup'
 import { BABY_AVATARS, MS_PER_HOUR } from '@/constants'
 import { APP_VERSION } from '@/constants/version'
 import {
@@ -61,10 +67,19 @@ export default function SettingsView() {
 
   // —— JSON 全量备份 / 恢复 ——
   const [lastBackupAt, setLastBackupAt] = useState<number | null>(null)
+  /** 首页备份提醒开关（关闭后永久不再提示，可随时再打开） */
+  const [backupRemindEnabled, setBackupRemindEnabledState] = useState(true)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 客户端 localStorage 初始化
     setLastBackupAt(getLastBackupAt())
+     
+    setBackupRemindEnabledState(isBackupRemindEnabled())
   }, [])
+  function toggleBackupRemind() {
+    const next = !backupRemindEnabled
+    setBackupRemindEnabledState(next)
+    setBackupRemindEnabled(next)
+  }
   const [jsonBusy, setJsonBusy] = useState(false)
   const [jsonImportPending, setJsonImportPending] = useState<File | null>(null)
   const jsonFileRef = useRef<HTMLInputElement | null>(null)
@@ -654,6 +669,22 @@ export default function SettingsView() {
               ? t('settings.lastBackup', { date: formatDate(lastBackupAt) })
               : t('settings.neverBackup')}
           </p>
+          <div className={`${s['reminder-block']} ${s['backup-remind']}`}>
+            <div className={s['reminder-row']}>
+              <div className={s['reminder-info']}>
+                <p className={s['reminder-title']}>{t('settings.backupRemindTitle')}</p>
+                <p className={s['reminder-sub']}>{t('settings.backupRemindSub')}</p>
+              </div>
+              <button
+                className={`${s.switch} ${backupRemindEnabled ? s.on : ''}`}
+                role="switch"
+                aria-checked={backupRemindEnabled}
+                onClick={toggleBackupRemind}
+              >
+                <span className={s['switch-knob']} />
+              </button>
+            </div>
+          </div>
           <button className="btn btn-primary btn-block" onClick={handleExportJson}>
             {t('settings.exportJson')}
           </button>

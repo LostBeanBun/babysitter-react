@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { shouldSuggestBackup, parseBackup, BACKUP_REMIND_DAYS } from './backup'
+import {
+  shouldSuggestBackup,
+  parseBackup,
+  BACKUP_REMIND_DAYS,
+  getBackupSnoozeUntil,
+  isBackupRemindEnabled,
+  markBackedUp,
+  setBackupRemindEnabled,
+  snoozeBackupReminder,
+} from './backup'
 
 const DAY = 86_400_000
 
@@ -28,6 +37,47 @@ describe('shouldSuggestBackup', () => {
     expect(
       shouldSuggestBackup({ lastBackupAt: now - BACKUP_REMIND_DAYS * DAY, hasData: true, now }),
     ).toBe(false)
+  })
+
+  it('关闭后静默期内不提醒（刷新页面也不重现）', () => {
+    expect(
+      shouldSuggestBackup({ lastBackupAt: null, hasData: true, now, snoozeUntil: now + DAY }),
+    ).toBe(false)
+  })
+
+  it('静默期结束后重新提醒', () => {
+    expect(
+      shouldSuggestBackup({ lastBackupAt: null, hasData: true, now, snoozeUntil: now - 1 }),
+    ).toBe(true)
+  })
+
+  it('设置页关闭备份提醒后永不提醒', () => {
+    expect(shouldSuggestBackup({ lastBackupAt: null, hasData: true, now, enabled: false })).toBe(
+      false,
+    )
+  })
+})
+
+describe('备份提醒静默与开关', () => {
+  const now = new Date('2026-10-23T10:00:00').getTime()
+
+  it('关闭提醒条后静默 1 天，成功备份后解除静默', () => {
+    localStorage.clear()
+    snoozeBackupReminder(now)
+    expect(getBackupSnoozeUntil()).toBe(now + DAY)
+    markBackedUp(now)
+    expect(getBackupSnoozeUntil()).toBeNull()
+  })
+
+  it('开关默认开启；关闭可读回，重新开启会清掉静默期', () => {
+    localStorage.clear()
+    expect(isBackupRemindEnabled()).toBe(true)
+    snoozeBackupReminder(now)
+    setBackupRemindEnabled(false)
+    expect(isBackupRemindEnabled()).toBe(false)
+    setBackupRemindEnabled(true)
+    expect(isBackupRemindEnabled()).toBe(true)
+    expect(getBackupSnoozeUntil()).toBeNull()
   })
 })
 
