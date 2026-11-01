@@ -3,6 +3,17 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.12.5] - 2026-10-31
+
+### 变更
+
+- React 端把时间轴条目构建从 `components/timeline/TimelineList.tsx` 的内联 `useMemo` 抽到 `services/timeline.ts`，与 Vue 端结构对齐：`buildTimelineEntries(data, t)` 接收翻译函数（组件传 `useTranslation` 的 `t`，语言切换后随 `t` 变化重算）
+- React 端 `KIND_COLORS` 随服务迁移并导出，组件只做 `export type { TimelineEntry, TimelineKind }` 转发，`LogView` 的引用不受影响
+
+### 单测
+
+- 新增 React `services/timeline.spec.ts`（11 例，与 Vue 端同一套用例）：空数据、多表合并按时间倒序且 raw 保持引用、10 种类型 kindColor、喂养图标/奶量/时长/亲喂侧别、尿布附加颜色量、吸奶侧别、睡眠区间与进行中、生长三项与日期标签、疫苗 done/planned 配色、里程碑备注兜底
+
 ## [1.12.4] - 2026-10-31
 
 ### 变更
