@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EChartsOption } from 'echarts'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
@@ -22,7 +22,14 @@ import { trendTooltip, trendAxes, areaLineSeries, type ChartThemeColors } from '
 import { formatDuration, formatPercentChange, formatAmount, startOfDay, formatDate } from '@/utils/format'
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { buildRangeInsight, type InsightItem } from '@/services/insights'
-import { exportReportPng, type ReportGrowthRow, type ReportMetric } from '@/services/report'
+import {
+  exportReportPng,
+  buildReportBlob,
+  type ReportData,
+  type ReportGrowthRow,
+  type ReportMetric,
+} from '@/services/report'
+import { canShareReportPng, shareOrDownloadReport } from '@/services/reportShare'
 import { whoData, type WhoField } from '@/constants/whoGrowth'
 import { ageInMonths } from '@/utils/age'
 import { estimatePercentile, percentileBand } from '@/utils/growthPercentile'
@@ -38,6 +45,14 @@ import type {
   Temperature,
 } from '@/types'
 import s from './StatsView.module.css'
+
+/** 分享能力不会在运行中变化：订阅函数保持稳定空实现 */
+const subscribeShareSupport = () => () => {}
+/** 静态导出时服务端没有 navigator，固定按「不支持分享」渲染 */
+const serverShareSupported = () => false
+/** 探测一次后缓存，避免每次渲染都构造探路 File */
+let shareSupport: boolean | undefined
+const getShareSupport = () => (shareSupport ??= canShareReportPng())
 
 export default function StatsView() {
   const { t } = useTranslation()
@@ -324,6 +339,8 @@ export default function StatsView() {
 
   // —— P1-4 儿保报告导出 ——
   const [reportBusy, setReportBusy] = useState(false)
+  /** 分享能力仅在支持分享文件时显示按钮；服务端快照固定 false，避免静态导出水合不一致 */
+  const shareSupported = useSyncExternalStore(subscribeShareSupport, getShareSupport, serverShareSupported)
 
   const reportMetrics = useMemo<ReportMetric[]>(() => {
     const agg = currentAgg
@@ -397,33 +414,57 @@ export default function StatsView() {
     return rows
   }, [activeBaby, growths, t])
 
+  /** 报告内容（导出与分享共用，避免两条路径文案/数据不一致） */
+  function reportData(): ReportData {
+    const babyLine = activeBaby
+      ? activeBaby.birthDate
+        ? `${activeBaby.name} · ${t('settings.ageMonths', {
+            n: Math.floor(ageInMonths(activeBaby.birthDate, now)),
+          })}`
+        : activeBaby.name
+      : t('common.baby')
+    return {
+      title: t('stats.report.title'),
+      babyLine,
+      rangeLine: `${rangeLabel} · ${formatDate(rangeStart)} ~ ${formatDate(rangeEnd - 1)}`,
+      generatedLine: t('stats.report.generatedAt', { date: formatDate(now) }),
+      metrics: reportMetrics,
+      growthTitle: t('stats.report.growthTitle'),
+      growthRows: reportGrowthRows,
+      noGrowth: t('stats.report.noGrowth'),
+      disclaimer: t('stats.report.disclaimer'),
+      footer: t('stats.report.footer'),
+    }
+  }
+
+  function reportFilename(): string {
+    return `babysitter-report-${formatDate(now)}.png`
+  }
+
   async function handleExportReport() {
     if (reportBusy) return
     setReportBusy(true)
     try {
-      const babyLine = activeBaby
-        ? activeBaby.birthDate
-          ? `${activeBaby.name} · ${t('settings.ageMonths', {
-              n: Math.floor(ageInMonths(activeBaby.birthDate, now)),
-            })}`
-          : activeBaby.name
-        : t('common.baby')
-      await exportReportPng(
-        {
-          title: t('stats.report.title'),
-          babyLine,
-          rangeLine: `${rangeLabel} · ${formatDate(rangeStart)} ~ ${formatDate(rangeEnd - 1)}`,
-          generatedLine: t('stats.report.generatedAt', { date: formatDate(now) }),
-          metrics: reportMetrics,
-          growthTitle: t('stats.report.growthTitle'),
-          growthRows: reportGrowthRows,
-          noGrowth: t('stats.report.noGrowth'),
-          disclaimer: t('stats.report.disclaimer'),
-          footer: t('stats.report.footer'),
-        },
-        `babysitter-report-${formatDate(now)}.png`,
-      )
+      await exportReportPng(reportData(), reportFilename())
       toast(t('stats.report.exported'), 'success', { duration: 4000 })
+    } catch {
+      toast(t('stats.report.failed'), 'error')
+    } finally {
+      setReportBusy(false)
+    }
+  }
+
+  async function handleShareReport() {
+    if (reportBusy) return
+    setReportBusy(true)
+    try {
+      const outcome = await shareOrDownloadReport(await buildReportBlob(reportData()), reportFilename(), {
+        title: t('stats.report.title'),
+        text: t('stats.report.footer'),
+      })
+      // 用户主动取消不提示；回退下载时提示导出成功
+      if (outcome === 'shared') toast(t('stats.report.shared'), 'success', { duration: 4000 })
+      else if (outcome === 'downloaded') toast(t('stats.report.exported'), 'success', { duration: 4000 })
     } catch {
       toast(t('stats.report.failed'), 'error')
     } finally {
@@ -588,6 +629,15 @@ export default function StatsView() {
           >
             {reportBusy ? t('common.exporting') : t('stats.exportReport')}
           </button>
+          {shareSupported && (
+            <button
+              className={`btn btn-outline btn-block ${s['report-btn']}`}
+              disabled={reportBusy}
+              onClick={handleShareReport}
+            >
+              {reportBusy ? t('common.exporting') : t('stats.shareReport')}
+            </button>
+          )}
         </div>
       )}
 

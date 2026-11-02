@@ -322,12 +322,16 @@ export function drawReport(data: ReportData): HTMLCanvasElement {
   return canvas
 }
 
-/** 生成 PNG 并触发下载 */
-export async function exportReportPng(data: ReportData, filename: string): Promise<void> {
+/** 绘制报告并生成 PNG Blob（下载与分享共用） */
+export async function buildReportBlob(data: ReportData): Promise<Blob> {
   const canvas = drawReport(data)
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   if (!blob) throw new Error('report png export failed')
+  return blob
+}
 
+/** 触发浏览器下载（导出与分享回退共用） */
+export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -336,4 +340,9 @@ export async function exportReportPng(data: ReportData, filename: string): Promi
   a.click()
   document.body.removeChild(a)
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/** 生成 PNG 并触发下载 */
+export async function exportReportPng(data: ReportData, filename: string): Promise<void> {
+  downloadBlob(await buildReportBlob(data), filename)
 }

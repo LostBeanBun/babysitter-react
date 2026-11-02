@@ -3,6 +3,20 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.13.0] - 2026-11-02
+
+### 新增
+
+- 儿保报告新增「分享图片」：支持 Web Share API 的浏览器（手机 Safari / Chrome）把 PNG 交给系统分享面板，可直接发微信或存相册；不支持分享文件、或分享过程报错时自动回退为下载，用户主动取消（`AbortError`）既不提示也不回退
+- 分享按钮仅在 `navigator.canShare({ files })` 为真时渲染：不支持分享文件的浏览器只显示导出按钮；Chromium 桌面（Windows / ChromeOS）本身支持 Web Share，因此桌面也可能出现两个按钮
+- `services/report.ts` 拆出 `buildReportBlob()` / `downloadBlob()`，`exportReportPng()` 行为与输出不变；新增 `services/reportShare.ts`（`canShareFiles()` / `canShareReportPng()` / `shareOrDownloadReport()`），导出与分享共用同一份报告内容
+- 新增 i18n key：`stats.shareReport`（分享儿保报告图片）与 `stats.report.shared`（✓ 已分享儿保报告图片），两端文案同步
+
+### 单测
+
+- 两端新增 `services/reportShare.spec.ts`（同一份，12 例）：无 `canShare` 环境返回 false、`canShare` 抛错不向上抛、不支持分享直接下载、分享时传 PNG File 与标题文案、未传 title/text 不带多余字段、用户取消返回 `cancelled` 且不回退下载、分享报错回退下载、默认实现读 `navigator.canShare` / `navigator.share`
+- 冒烟脚本新增 1 项（48 → 49）：分享按钮按 Web Share 能力渲染（页面内实际计算 `navigator.canShare`，与按钮数量比对，不写死环境）
+
 ## [1.12.9] - 2026-11-02
 
 ### 变更

@@ -477,6 +477,22 @@ async function main() {
     isPng && reportWidth === 1440 && reportHeight > 720,
     isPng ? `${reportWidth}×${reportHeight} · ${Math.round(reportBuf.length / 1024)} KB` : '非 PNG',
   )
+  // 分享按钮按 Web Share 能力渲染（Chromium 桌面也支持 canShare，因此不能写死「不渲染」）
+  const shareBtn = page.getByRole('button', { name: /分享儿保报告图片/ })
+  const shareCapable = await page.evaluate(() => {
+    try {
+      if (typeof navigator.canShare !== 'function') return false
+      return navigator.canShare({ files: [new File([new Blob()], 'r.png', { type: 'image/png' })] })
+    } catch {
+      return false
+    }
+  })
+  const shareBtnCount = await shareBtn.count()
+  check(
+    '分享按钮按 Web Share 能力渲染',
+    shareBtnCount === (shareCapable ? 1 : 0),
+    `canShare=${shareCapable} · 按钮 ${shareBtnCount}`,
+  )
 
   // 备份提醒可关闭且不立刻重现（1.11.0 回归点）：关闭后静默 1 天，设置页可永久关闭
   await page.evaluate(() => {
