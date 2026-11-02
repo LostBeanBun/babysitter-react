@@ -3,6 +3,18 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.12.8] - 2026-11-02
+
+### 修复
+
+- Vue 端 `useTheme` 读取 localStorage 时校验取值：损坏值（如 `purple`）回退 `system`，此前会直接把非法值当成 `themeMode`，导致设置页无选中项且系统主题变化不再生效（React 端 `readSavedMode()` 已是此行为，本次对齐）
+
+### 单测
+
+- 新增 Vue `composables/useTheme.spec.ts`（6 例，对齐 React `stores/theme.spec.ts`）：`setTheme('dark')` 写 localStorage / `data-theme` / meta theme-color、`light` 覆盖系统深色、损坏值回退 system、system 跟随 `matchMedia` 变化、toggle 双向切换并持久化、`initTheme` 仅 system 模式响应系统变化
+- 新增 Vue `composables/useToast.spec.ts`（7 例，对齐 React `stores/toast.spec.ts` 的覆盖点）：默认 3000ms、到期自动移除、自定义时长、`duration:0` 常驻、`dismissToast` 幂等、`actionLabel`/`onAction` 透传与自增 id、移除一项不影响其他
+- 新增 Vue `i18n/index.spec.ts`（2 例，对齐 React 同名用例）：单花括号 `{n}` 插值、多变量文案不含未替换占位符
+
 ## [1.12.7] - 2026-11-02
 
 ### 变更
