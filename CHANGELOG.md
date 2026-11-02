@@ -3,6 +3,18 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.12.7] - 2026-11-02
+
+### 变更
+
+- React 端新增 `utils/age.ts`（与 Vue 端同一份）：`ageInMonths()` / `AGE_BUCKET_BOUNDS` / `bucketIndexByMonths()`；月龄计算从 `constants/whoGrowth.ts` 移出，`GrowthCurveCharts` / `StatsView` / `carePlan` / `dailyGuides` / `feedingGuide` 统一从 `@/utils/age` 引用
+- React 端删除两处重复的月龄分桶：`services/carePlan.ts` 的私有 `bucketIndexByMonths()`、`utils/dailyGuides.ts` 的 `guideIndex()`；`utils/feedingGuide.ts` 的 if 阶梯改为 `INTERVAL_HOURS[bucketIndexByMonths(months)]`，与 Vue 端实现一致
+
+### 单测
+
+- React 端复用 Vue 的 `utils/age.spec.ts`（8 例，两端同一份）：同日 0 月龄、30.44 天 1 月龄、半年分数月龄、未来出生为负、非法日期 NaN；分桶 0/1/3/6/9/12 边界 12 组、负数与 NaN 兜底到第 0 段、分段数 = 边界数 + 1
+- 原先 `whoGrowth.spec.ts` 里的 5 例 `ageInMonths` 用例随之迁移，避免同一函数两处测试
+
 ## [1.12.6] - 2026-11-02
 
 ### 变更

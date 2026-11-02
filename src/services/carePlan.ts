@@ -1,6 +1,6 @@
 import type { Baby, DiaperChange, Feeding, Medication, Sleep, Vaccination } from '@/types'
 import { MS_PER_DAY, MS_PER_HOUR } from '@/constants'
-import { ageInMonths } from '@/constants/whoGrowth'
+import { ageInMonths, bucketIndexByMonths } from '@/utils/age'
 import { recommendedIntervalMs } from '@/utils/feedingGuide'
 import { startOfDay } from '@/utils/format'
 
@@ -19,16 +19,6 @@ const VACCINE_WINDOW_DAYS = 14
 
 /** 换尿布默认参考间隔（小时）：与提醒系统 DEFAULT_REMINDERS.diaper.intervalHours 保持一致 */
 const DIAPER_DEFAULT_INTERVAL_HOURS = 3
-
-/** 按月龄分段：0-1 / 1-3 / 3-6 / 6-9 / 9-12 / 12+ */
-function bucketIndexByMonths(months: number): number {
-  if (months < 1) return 0
-  if (months < 3) return 1
-  if (months < 6) return 2
-  if (months < 9) return 3
-  if (months < 12) return 4
-  return 5
-}
 
 export interface CarePlanInput {
   baby?: Baby

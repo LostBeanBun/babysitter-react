@@ -79,12 +79,6 @@ export function whoData(gender?: BabyGender): WhoPoint[] {
   return gender === 'boy' ? WHO_BOY : WHO_GIRL
 }
 
-/** 按出生日期计算月龄（允许分数月龄，用于插值） */
-export function ageInMonths(birthDate: string, date: number): number {
-  const birth = new Date(birthDate + 'T00:00:00').getTime()
-  return (date - birth) / (30.44 * 24 * 3600_000)
-}
-
 export type WhoField = 'weight' | 'length' | 'hc'
 export type WhoPercentileKey = keyof WhoPoint['weight']
 

@@ -23,7 +23,8 @@ import { formatDuration, formatPercentChange, formatAmount, startOfDay, formatDa
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { buildRangeInsight, type InsightItem } from '@/services/insights'
 import { exportReportPng, type ReportGrowthRow, type ReportMetric } from '@/services/report'
-import { whoData, ageInMonths, type WhoField } from '@/constants/whoGrowth'
+import { whoData, type WhoField } from '@/constants/whoGrowth'
+import { ageInMonths } from '@/utils/age'
 import { estimatePercentile, percentileBand } from '@/utils/growthPercentile'
 import { toast } from '@/stores/toast'
 import type {

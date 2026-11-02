@@ -1,26 +1,24 @@
 import type { Baby } from '@/types'
-import { ageInMonths } from '@/constants/whoGrowth'
+import { ageInMonths, bucketIndexByMonths } from '@/utils/age'
+import { MS_PER_HOUR } from '@/constants'
 import i18n from '@/i18n'
 
 const t = (key: string, options?: Record<string, unknown>): string =>
   String(i18n.t(key, options as never))
 
+/** 各月龄段推荐喂奶间隔（小时），按 bucketIndexByMonths 分段 */
+const INTERVAL_HOURS = [2.5, 3, 3.5, 4, 4.5, 5]
+
 /** 按月龄返回推荐喂奶间隔（毫秒），参考常见育儿指南 */
 export function recommendedIntervalMs(baby?: Baby, at = Date.now()): number {
   const months = baby?.birthDate ? ageInMonths(baby.birthDate, at) : 0
-  // 出生日期无法解析时按新生儿兜底（与 Vue 端 bucketIndexByMonths 的 NaN → 0 一致）
-  if (!Number.isFinite(months) || months < 1) return 2.5 * 3600_000
-  if (months < 3) return 3 * 3600_000
-  if (months < 6) return 3.5 * 3600_000
-  if (months < 9) return 4 * 3600_000
-  if (months < 12) return 4.5 * 3600_000
-  return 5 * 3600_000
+  return INTERVAL_HOURS[bucketIndexByMonths(months)] * MS_PER_HOUR
 }
 
 /** 推荐间隔的人类可读文案（如「约 3 小时」） */
 export function recommendedIntervalLabel(baby?: Baby, at = Date.now()): string {
   const ms = recommendedIntervalMs(baby, at)
-  const h = ms / 3600_000
+  const h = ms / MS_PER_HOUR
   return t('feed.aboutHours', { h })
 }
 
