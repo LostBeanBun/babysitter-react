@@ -3,6 +3,18 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.12.6] - 2026-11-02
+
+### 变更
+
+- React 端新增 `services/chartOptions.ts`，与 Vue 端同名同签名：`ChartThemeColors` / `trendTooltip()` / `trendAxes()` / `areaLineSeries()`；`StatsView.tsx` 的 5 张趋势图（奶量 / 睡眠 / 尿布 / 吸奶 / 体温）不再各自重复 `grid` + `xAxis` + `yAxis`，改为 `...trendAxes({ theme, xLabels, yFormatter })`，两条渐变折线改用 `areaLineSeries()`
+- 冒烟脚本 `e2e/smoke.mjs` 在统计「趋势」截图前多等 1200ms，等 ECharts 入场动画（默认 1000ms）结束，使图表截图可逐字节比对（此前同一份代码连跑两次截图也不同）
+
+### 单测
+
+- React 端复用 Vue 的 `services/chartOptions.spec.ts`（6 例，两端同一份）：tooltip 日期/系列值/全空返回空串、轴线主题色与 `yFormatter` 注入、无 formatter 不注入、渐变面积折线的类型/数据/色标/`symbolSize` 覆盖
+- 回归证据：改造前后冒烟导出的 `light-stats.png` / `dark-stats.png` 字节完全一致，5 张图表渲染未变
+
 ## [1.12.5] - 2026-10-31
 
 ### 变更

@@ -18,6 +18,7 @@ import {
   type ComparisonResult,
 } from '@/services/stats'
 import { CHART_COLORS, MS_PER_DAY } from '@/constants'
+import { trendTooltip, trendAxes, areaLineSeries, type ChartThemeColors } from '@/services/chartOptions'
 import { formatDuration, formatPercentChange, formatAmount, startOfDay, formatDate } from '@/utils/format'
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { buildRangeInsight, type InsightItem } from '@/services/insights'
@@ -169,83 +170,33 @@ export default function StatsView() {
   const xLabels = useMemo(() => days.map((d) => d.date.slice(5).replace('-', '/')), [days])
   const yFormatter = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))
 
-  /** 趋势图 tooltip：显示日期 + 各系列数值（无数据日显示 -），触摸/悬停均可查看 */
-  const trendTooltip = (fmt: (v: number) => string) => ({
-    trigger: 'axis' as const,
-    formatter: (params: unknown) => {
-      const list = params as Array<{ seriesName: string; marker: string; value?: number | null; axisValue?: string }>
-      const first = list.find((p) => typeof p.value === 'number' && !Number.isNaN(p.value))
-      if (!first) return ''
-      const dateStr = first.axisValue ?? ''
-      const lines = list.map((p) => {
-        const v = typeof p.value === 'number' ? p.value : null
-        return `${p.marker}${p.seriesName}: ${v != null ? fmt(v) : '-'}`
-      })
-      return `<b>${dateStr}</b><br/>${lines.join('<br/>')}`
-    },
-  })
+  /** 图表主题色：与 useChartTheme 同源，供 chartOptions 复用 */
+  const chartTheme = useMemo<ChartThemeColors>(
+    () => ({ axisColor, axisLineColor, splitLineColor }),
+    [axisColor, axisLineColor, splitLineColor],
+  )
 
   // —— 趋势图配置 ——
   const milkOption = useMemo<EChartsOption>(
     () => ({
       tooltip: trendTooltip((v) => `${Math.round(v)} ml`),
-      grid: { left: 44, right: 16, top: 12, bottom: 28 },
-      xAxis: {
-        type: 'category',
-        data: xLabels,
-        axisLabel: { color: axisColor, fontSize: 10, hideOverlap: true },
-        axisLine: { lineStyle: { color: axisLineColor } },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { color: axisColor, fontSize: 10, formatter: yFormatter, hideOverlap: true },
-        splitLine: { lineStyle: { color: splitLineColor } },
-      },
+      ...trendAxes({ theme: chartTheme, xLabels, yFormatter }),
       series: [
-        {
+        areaLineSeries({
           name: t('stats.series.milk'),
-          type: 'line',
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 5,
           data: days.map((d) => d.totalMilkAmount),
-          lineStyle: { width: 2.5, color: CHART_COLORS.feedAmount },
-          itemStyle: { color: CHART_COLORS.feedAmount },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(255,107,53,0.25)' },
-                { offset: 1, color: 'rgba(255,107,53,0.02)' },
-              ],
-            },
-          },
-        },
+          color: CHART_COLORS.feedAmount,
+          area: ['rgba(255,107,53,0.25)', 'rgba(255,107,53,0.02)'],
+        }),
       ],
     }),
-     
-    [xLabels, axisColor, axisLineColor, splitLineColor, days, t],
+    [chartTheme, xLabels, days, t],
   )
 
   const sleepOption = useMemo<EChartsOption>(
     () => ({
       tooltip: trendTooltip((v) => `${v} h`),
-      grid: { left: 44, right: 16, top: 12, bottom: 28 },
-      xAxis: {
-        type: 'category',
-        data: xLabels,
-        axisLabel: { color: axisColor, fontSize: 10, hideOverlap: true },
-        axisLine: { lineStyle: { color: axisLineColor } },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { color: axisColor, fontSize: 10, hideOverlap: true },
-        splitLine: { lineStyle: { color: splitLineColor } },
-      },
+      ...trendAxes({ theme: chartTheme, xLabels }),
       series: [
         {
           name: t('stats.series.sleep'),
@@ -256,25 +207,13 @@ export default function StatsView() {
         },
       ],
     }),
-     
-    [xLabels, axisColor, axisLineColor, splitLineColor, days, t],
+    [chartTheme, xLabels, days, t],
   )
 
   const diaperOption = useMemo<EChartsOption>(
     () => ({
       tooltip: trendTooltip((v) => t('common.times', { n: Math.round(v) })),
-      grid: { left: 44, right: 16, top: 12, bottom: 28 },
-      xAxis: {
-        type: 'category',
-        data: xLabels,
-        axisLabel: { color: axisColor, fontSize: 10, hideOverlap: true },
-        axisLine: { lineStyle: { color: axisLineColor } },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { color: axisColor, fontSize: 10, hideOverlap: true },
-        splitLine: { lineStyle: { color: splitLineColor } },
-      },
+      ...trendAxes({ theme: chartTheme, xLabels }),
       series: [
         {
           name: t('stats.series.wet'),
@@ -294,72 +233,29 @@ export default function StatsView() {
         },
       ],
     }),
-     
-    [xLabels, axisColor, axisLineColor, splitLineColor, days, t],
+    [chartTheme, xLabels, days, t],
   )
 
   const pumpOption = useMemo<EChartsOption>(
     () => ({
       tooltip: trendTooltip((v) => `${Math.round(v)} ml`),
-      grid: { left: 44, right: 16, top: 12, bottom: 28 },
-      xAxis: {
-        type: 'category',
-        data: xLabels,
-        axisLabel: { color: axisColor, fontSize: 10, hideOverlap: true },
-        axisLine: { lineStyle: { color: axisLineColor } },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { color: axisColor, fontSize: 10, formatter: yFormatter, hideOverlap: true },
-        splitLine: { lineStyle: { color: splitLineColor } },
-      },
+      ...trendAxes({ theme: chartTheme, xLabels, yFormatter }),
       series: [
-        {
+        areaLineSeries({
           name: t('stats.series.pump'),
-          type: 'line',
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 5,
           data: days.map((d) => d.pumpAmount),
-          lineStyle: { width: 2.5, color: CHART_COLORS.pump },
-          itemStyle: { color: CHART_COLORS.pump },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(216,168,200,0.25)' },
-                { offset: 1, color: 'rgba(216,168,200,0.02)' },
-              ],
-            },
-          },
-        },
+          color: CHART_COLORS.pump,
+          area: ['rgba(216,168,200,0.25)', 'rgba(216,168,200,0.02)'],
+        }),
       ],
     }),
-     
-    [xLabels, axisColor, axisLineColor, splitLineColor, days, t],
+    [chartTheme, xLabels, days, t],
   )
 
   const temperatureOption = useMemo<EChartsOption>(
     () => ({
       tooltip: trendTooltip((v) => `${v} ℃`),
-      grid: { left: 44, right: 16, top: 12, bottom: 28 },
-      xAxis: {
-        type: 'category',
-        data: xLabels,
-        axisLabel: { color: axisColor, fontSize: 10, hideOverlap: true },
-        axisLine: { lineStyle: { color: axisLineColor } },
-      },
-      yAxis: {
-        type: 'value',
-        min: 35,
-        max: 40,
-        axisLabel: { color: axisColor, fontSize: 10, formatter: (v: number) => `${v}℃`, hideOverlap: true },
-        splitLine: { lineStyle: { color: splitLineColor } },
-      },
+      ...trendAxes({ theme: chartTheme, xLabels, yFormatter: (v) => `${v}℃`, yMin: 35, yMax: 40 }),
       series: [
         {
           name: t('stats.series.temperature'),
@@ -381,8 +277,7 @@ export default function StatsView() {
         },
       ],
     }),
-     
-    [xLabels, axisColor, axisLineColor, splitLineColor, days, t],
+    [chartTheme, xLabels, days, t],
   )
 
   // 对比面板格式化

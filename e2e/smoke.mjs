@@ -294,6 +294,8 @@ async function sweep(page, theme) {
 
       // 回到「趋势」，让主截图继续记录图表状态
       await clickTab(page, TABS.trend)
+      // 图表有入场动画（默认 1000ms）：等动画结束再截图，截图才可逐字节比对
+      await page.waitForTimeout(1200)
       tabs = {
         trendSelected,
         compareSelected,
