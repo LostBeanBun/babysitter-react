@@ -564,6 +564,85 @@ async function main() {
   await page.screenshot({ path: join(OUT_DIR, 'reduce-home.png'), fullPage: true })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
 
+  // 备份导入（1.12.9 回归点）：合法备份可恢复；非本应用 JSON 被拒且不改动数据
+  const backupFixture = {
+    meta: { app: 'babysitter', version: 4, exportedAt: new Date().toISOString() },
+    babies: [
+      {
+        id: 1,
+        name: '导入宝宝',
+        gender: 'girl',
+        birthDate: '2026-09-03',
+        avatar: '👶',
+        avatarColor: '#F2A28C',
+        createdAt: Date.now(),
+      },
+    ],
+    feedings: [
+      {
+        id: 1,
+        babyId: 1,
+        type: 'bottle_formula',
+        startTime: Date.now() - 3600_000,
+        amount: 137,
+        createdAt: Date.now(),
+      },
+    ],
+    diapers: [],
+    pumpings: [],
+    sleeps: [],
+    growths: [],
+    solidFoods: [],
+    medications: [],
+    vaccinations: [],
+    temperatures: [],
+    milestones: [],
+  }
+  const backupPath = join(OUT_DIR, 'backup-fixture.json')
+  writeFileSync(backupPath, JSON.stringify(backupFixture, null, 2))
+  const jsonInput = page.locator('input[accept=".json,application/json"]')
+  const confirmRestore = page.getByRole('button', { name: '确认恢复' })
+
+  await page.goto(`${BASE_URL}${ROUTES.settings}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  await jsonInput.setInputFiles(backupPath)
+  await confirmRestore.waitFor({ state: 'visible', timeout: 8000 })
+  await confirmRestore.click()
+  const restoreOk = page.getByText('恢复成功，已还原 1 个宝宝及全部记录').first()
+  await restoreOk.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+  check('备份恢复成功提示', await restoreOk.isVisible())
+
+  // 恢复后重载，确认数据已落库（不只是内存态）
+  await page.reload({ waitUntil: 'networkidle' })
+  await settle(page)
+  await page.goto(`${BASE_URL}${ROUTES.log}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  const restoredLog = await page.evaluate(() => document.body.innerText)
+  check(
+    '备份恢复后记录页显示导入数据',
+    restoredLog.includes('导入宝宝') && restoredLog.includes('137 ml'),
+    restoredLog.slice(0, 60).replace(/\s+/g, ' '),
+  )
+
+  // 非本应用 JSON：拒绝且不改动已有数据
+  await page.goto(`${BASE_URL}${ROUTES.settings}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  const badBackupPath = join(OUT_DIR, 'backup-not-ours.json')
+  writeFileSync(badBackupPath, JSON.stringify({ meta: { app: 'other', version: 1 }, babies: [] }))
+  await jsonInput.setInputFiles(badBackupPath)
+  await confirmRestore.waitFor({ state: 'visible', timeout: 8000 })
+  await confirmRestore.click()
+  const restoreRejected = page.getByText('这不是宝宝日记的备份文件').first()
+  await restoreRejected.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+  check('非本应用备份被拒绝', await restoreRejected.isVisible())
+
+  await page.reload({ waitUntil: 'networkidle' })
+  await settle(page)
+  await page.goto(`${BASE_URL}${ROUTES.log}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  const afterRejectLog = await page.evaluate(() => document.body.innerText)
+  check('备份被拒后数据未被改动', afterRejectLog.includes('137 ml'))
+
   check('全程无 console / pageerror', errors.length === 0, errors.slice(0, 3).join(' | '))
 
   await browser.close()
