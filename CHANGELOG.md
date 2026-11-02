@@ -3,6 +3,23 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.13.1] - 2026-11-02
+
+### 变更
+
+- 记录弹窗与删除逻辑抽成公共层：Vue 端 `RecordFormModal.vue` / `useRecordModal` 已是共用实现，React 端补齐同一结构——新增 `hooks/useRecordModal.ts`（新增/编辑状态、删除确认、3 秒撤销、悬浮球联动）与 `components/common/RecordFormModal.tsx`（按 kind 渲染 10 个表单），`DashboardView` / `LogView` 不再各自维护一份弹窗与删除分发逻辑
+- 新增两端同一份 `services/recordForm.ts`（`buildRecordEditPayload()`）：编辑回填直接透传原始记录，id 以时间轴条目为准，避免逐字段挑选时漏字段；`RecordFormModal` 两端共用该 helper
+- 疫苗提醒直接编辑改为按 id 从当前记录取最新数据构造时间轴条目（React 端对齐 Vue），记录已被删除时回退为新增
+
+### 修复
+
+- React 端编辑成长记录会丢失头围：此前编辑回填逐字段挑选时漏了 `headCircumference`，保存后头围被清空；改为透传原始记录后不再丢失
+
+### 单测
+
+- 两端新增 `services/recordForm.spec.ts`（同一份，4 例）：无编辑条目返回 `undefined`、成长记录完整透传（头围回归）、id 以条目为准、未设置的可选字段不凭空补值
+- 冒烟脚本新增 1 项（49 → 50）：写入含头围的成长记录后从记录页打开编辑弹窗，校验标题为「编辑记录」且头围输入框回填 `39.5`
+
 ## [1.13.0] - 2026-11-02
 
 ### 新增

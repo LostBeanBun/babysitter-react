@@ -4,25 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
-import { toast } from '@/stores/toast'
-import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import PageHeader from '@/components/common/PageHeader'
 import TimelineList, { type TimelineEntry, type TimelineKind } from '@/components/timeline/TimelineList'
 import BaseModal from '@/components/common/BaseModal'
-import FeedingForm from '@/components/forms/FeedingForm'
-import DiaperForm from '@/components/forms/DiaperForm'
-import PumpingForm from '@/components/forms/PumpingForm'
-import SleepForm from '@/components/forms/SleepForm'
-import GrowthForm from '@/components/forms/GrowthForm'
-import SolidFoodForm from '@/components/forms/SolidFoodForm'
-import MedicationForm from '@/components/forms/MedicationForm'
-import VaccinationForm from '@/components/forms/VaccinationForm'
-import TemperatureForm from '@/components/forms/TemperatureForm'
-import MilestoneForm from '@/components/forms/MilestoneForm'
+import RecordFormModal from '@/components/common/RecordFormModal'
 import { formatTime, startOfDay } from '@/utils/format'
 import { useDeleteUndo } from '@/hooks/useDeleteUndo'
-import { useSleepModal } from '@/hooks/useSleepModal'
+import { useRecordModal } from '@/hooks/useRecordModal'
 import type {
   Feeding,
   DiaperChange,
@@ -34,67 +23,10 @@ import type {
   Vaccination,
   Temperature,
   Milestone,
-  FeedType,
-  BreastSide,
-  DiaperType,
-  DiaperColor,
-  DiaperAmount,
-  PumpSide,
-  VaccinationStatus,
-  TemperatureMethod,
-  MilestoneType,
 } from '@/types'
 import s from './LogView.module.css'
 
 type EntryKind = Exclude<TimelineKind, never>
-
-type FeedingFormProps = {
-  id: number
-  type: FeedType
-  side?: BreastSide
-  startTime: number
-  endTime?: number
-  duration?: number
-  amount?: number
-  notes?: string
-}
-type DiaperFormProps = {
-  id: number
-  type: DiaperType
-  time: number
-  color?: DiaperColor
-  amount?: DiaperAmount
-  notes?: string
-}
-type PumpingFormProps = {
-  id: number
-  side: PumpSide
-  startTime: number
-  endTime?: number
-  duration?: number
-  amount?: number
-  notes?: string
-}
-type SleepFormProps = { id: number; startTime: number; endTime: number; notes?: string }
-type GrowthFormProps = { id: number; date: number; weight?: number; height?: number; notes?: string }
-type SolidFoodFormProps = { id: number; time: number; food: string; amount?: string; notes?: string }
-type MedicationFormProps = { id: number; time: number; name: string; dose?: string; notes?: string }
-type VaccinationFormProps = {
-  id: number
-  date: number
-  name: string
-  dose?: string
-  status: VaccinationStatus
-  notes?: string
-}
-type TemperatureFormProps = {
-  id: number
-  time: number
-  value: number
-  method?: TemperatureMethod
-  notes?: string
-}
-type MilestoneFormProps = { id: number; time: number; type: MilestoneType; notes?: string }
 
 const filters = [
   { key: 'all' as const, labelKey: 'log.filters.all' },
@@ -115,8 +47,20 @@ type FilterKey = (typeof filters)[number]['key']
 export default function LogView() {
   const { t } = useTranslation()
   const { activeBabyId } = useBabies()
-  const { isPending, scheduleDelete } = useDeleteUndo()
-  const sleepModal = useSleepModal()
+  const { isPending } = useDeleteUndo()
+  const {
+    modalState,
+    confirmDelete,
+    openAdd,
+    onEdit: openEdit,
+    onDelete: openDelete,
+    onStartRecord,
+    onSaved,
+    onCancelled,
+    confirmDeleteAction,
+    closeForm,
+    closeDelete,
+  } = useRecordModal()
   const router = useRouter()
 
   useEffect(() => {
@@ -318,13 +262,17 @@ export default function LogView() {
       filteredMilestones.length >
     0
 
-  // 弹窗
-  const [modalState, setModalState] = useState<{ kind: EntryKind; editing?: TimelineEntry } | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<TimelineEntry | null>(null)
-
-  /** 列表高亮：点行编辑与点 × 删除都会切到当前记录；交互结束后保留 1s 便于用户看清是哪一条 */
+  /**
+   * 列表高亮：点行编辑与点 × 删除都会切到当前记录；交互结束后保留 1s 便于用户看清是哪一条
+   * （React 的 set-state-in-effect 规则不允许在 effect 体内同步 setState，故在事件回调里切换）
+   */
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const selectedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  function selectEntry(entry: TimelineEntry) {
+    clearTimeout(selectedTimer.current)
+    setSelectedKey(entry.kind + '-' + entry.id)
+  }
 
   // 关闭表单/删除确认 1s 后取消高亮（计时在回调里 setState，不打断渲染链路）
   useEffect(() => {
@@ -333,17 +281,15 @@ export default function LogView() {
     return () => clearTimeout(selectedTimer.current)
   }, [modalState, confirmDelete])
 
-  function selectEntry(entry: TimelineEntry) {
-    clearTimeout(selectedTimer.current)
-    setSelectedKey(entry.kind + '-' + entry.id)
+  function onEdit(entry: TimelineEntry) {
+    selectEntry(entry)
+    openEdit(entry)
   }
 
-  // 表单弹窗打开时隐藏悬浮球
-  useEffect(() => {
-    if (modalState !== null) sleepModal.openModal()
-    else sleepModal.closeModal()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalState])
+  function onDelete(entry: TimelineEntry) {
+    selectEntry(entry)
+    openDelete(entry)
+  }
 
   // 悬浮球导航过来时自动打开对应表单（挂载后读 query，避免 useSearchParams 触发 CSR bailout / 水合竞态）
   const lastTimerKindRef = useRef('')
@@ -351,10 +297,10 @@ export default function LogView() {
     const timerParam = new URLSearchParams(window.location.search).get('timer')
     if (timerParam && timerParam !== lastTimerKindRef.current) {
       lastTimerKindRef.current = timerParam
-      setModalState({ kind: timerParam as EntryKind })
+      openAdd(timerParam as EntryKind)
       router.replace('/log')
     }
-  }, [router])
+  }, [openAdd, router])
 
   // 从疫苗提醒条「全部」入口进入时预设筛选（=疫苗列表，可逐条修改计划）
   const lastFilterParamRef = useRef('')
@@ -367,116 +313,7 @@ export default function LogView() {
     }
   }, [router])
 
-  function onEdit(entry: TimelineEntry) {
-    selectEntry(entry)
-    setModalState({ kind: entry.kind, editing: entry })
-  }
-
-  function openAdd(kind: EntryKind) {
-    setModalState({ kind })
-  }
-
-  function onDelete(entry: TimelineEntry) {
-    selectEntry(entry)
-    setConfirmDelete(entry)
-  }
-
-  async function removeEntry(e: TimelineEntry) {
-    if (e.kind === 'feeding') await db.feedings.delete(e.id)
-    else if (e.kind === 'diaper') await db.diapers.delete(e.id)
-    else if (e.kind === 'pumping') await db.pumpings.delete(e.id)
-    else if (e.kind === 'sleep') await db.sleeps.delete(e.id)
-    else if (e.kind === 'growth') await db.growths.delete(e.id)
-    else if (e.kind === 'solidFood') await db.solidFoods.delete(e.id)
-    else if (e.kind === 'medication') await db.medications.delete(e.id)
-    else if (e.kind === 'vaccination') await db.vaccinations.delete(e.id)
-    else if (e.kind === 'temperature') await db.temperatures.delete(e.id)
-    else await db.milestones.delete(e.id)
-  }
-
-  async function confirmDeleteAction() {
-    const e = confirmDelete
-    if (!e) return
-    scheduleDelete(e, () => removeEntry(e), t('common.deletedToast'), t('common.undo'))
-    setConfirmDelete(null)
-  }
-
-  function onStartRecord() {
-    setModalState(null)
-    toast(t('common.recordStarted'))
-  }
-
-  function onSaved() {
-    setModalState(null)
-    toast(t('common.recordSaved'))
-  }
-
-  function onCancelled() {
-    setModalState(null)
-  }
-
-  const editPayload = useMemo(() => {
-    const e = modalState?.editing
-    if (!e) return undefined
-    if (e.kind === 'feeding') {
-      const f = e.raw as Feeding
-      return {
-        id: e.id,
-        type: f.type,
-        side: f.side,
-        startTime: f.startTime,
-        endTime: f.endTime,
-        duration: f.duration,
-        amount: f.amount,
-        notes: f.notes,
-      }
-    }
-    if (e.kind === 'diaper') {
-      const d = e.raw as DiaperChange
-      return { id: e.id, type: d.type, time: d.time, color: d.color, amount: d.amount, notes: d.notes }
-    }
-    if (e.kind === 'pumping') {
-      const p = e.raw as Pumping
-      return {
-        id: e.id,
-        side: p.side,
-        startTime: p.startTime,
-        endTime: p.endTime,
-        duration: p.duration,
-        amount: p.amount,
-        notes: p.notes,
-      }
-    }
-    if (e.kind === 'sleep') {
-      const sl = e.raw as Sleep
-      return { id: e.id, type: sl.type, startTime: sl.startTime, endTime: sl.endTime ?? sl.startTime, notes: sl.notes }
-    }
-    if (e.kind === 'growth') {
-      const g = e.raw as GrowthRecord
-      return { id: e.id, date: g.date, weight: g.weight, height: g.height, notes: g.notes }
-    }
-    if (e.kind === 'solidFood') {
-      const sf = e.raw as SolidFood
-      return { id: e.id, time: sf.time, food: sf.food, amount: sf.amount, notes: sf.notes }
-    }
-    if (e.kind === 'medication') {
-      const m = e.raw as Medication
-      return { id: e.id, time: m.time, name: m.name, dose: m.dose, notes: m.notes }
-    }
-    if (e.kind === 'vaccination') {
-      const v = e.raw as Vaccination
-      return { id: e.id, date: v.date, name: v.name, dose: v.dose, status: v.status, notes: v.notes }
-    }
-    if (e.kind === 'temperature') {
-      const tmp = e.raw as Temperature
-      return { id: e.id, time: tmp.time, value: tmp.value, method: tmp.method, notes: tmp.notes }
-    }
-    const ms = e.raw as Milestone
-    return { id: e.id, time: ms.time, type: ms.type, notes: ms.notes }
-  }, [modalState])
-
   const currentFilterLabel = t(filters.find((f) => f.key === filter)?.labelKey ?? 'log.filters.all')
-  const isEditing = Boolean(modalState?.editing)
 
   const emptyContent = (
     <div className={s['empty-inline']}>
@@ -587,83 +424,15 @@ export default function LogView() {
         )}
       </div>
 
-      <BaseModal show={modalState !== null} title={isEditing ? t('log.editTitle') : t('log.addTitle')} onClose={() => setModalState(null)}>
-        {modalState?.kind === 'feeding' && (
-          <FeedingForm
-            editing={modalState.editing ? (editPayload as FeedingFormProps) : undefined}
-            onStartRecord={onStartRecord}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'diaper' && (
-          <DiaperForm
-            editing={modalState.editing ? (editPayload as DiaperFormProps) : undefined}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'pumping' && (
-          <PumpingForm
-            editing={modalState.editing ? (editPayload as PumpingFormProps) : undefined}
-            onStartRecord={onStartRecord}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'sleep' && (
-          <SleepForm
-            editing={modalState.editing ? (editPayload as SleepFormProps) : undefined}
-            onStartRecord={onStartRecord}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'growth' && (
-          <GrowthForm
-            editing={modalState.editing ? (editPayload as GrowthFormProps) : undefined}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'solidFood' && (
-          <SolidFoodForm
-            editing={modalState.editing ? (editPayload as SolidFoodFormProps) : undefined}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'medication' && (
-          <MedicationForm
-            editing={modalState.editing ? (editPayload as MedicationFormProps) : undefined}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'vaccination' && (
-          <VaccinationForm
-            editing={modalState.editing ? (editPayload as VaccinationFormProps) : undefined}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'temperature' && (
-          <TemperatureForm
-            editing={modalState.editing ? (editPayload as TemperatureFormProps) : undefined}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-        {modalState?.kind === 'milestone' && (
-          <MilestoneForm
-            editing={modalState.editing ? (editPayload as MilestoneFormProps) : undefined}
-            onSaved={onSaved}
-            onCancelled={onCancelled}
-          />
-        )}
-      </BaseModal>
+      <RecordFormModal
+        state={modalState}
+        onClose={closeForm}
+        onSaved={onSaved}
+        onCancelled={onCancelled}
+        onStartRecord={onStartRecord}
+      />
 
-      <BaseModal show={confirmDelete !== null} title={t('common.deleteRecord')} onClose={() => setConfirmDelete(null)}>
+      <BaseModal show={confirmDelete !== null} title={t('common.deleteRecord')} onClose={closeDelete}>
         <p className={s['confirm-text']}>{t('log.deleteSimple')}</p>
         {confirmDelete && (
           <div className={s['confirm-record']}>
@@ -678,7 +447,7 @@ export default function LogView() {
           </div>
         )}
         <div className={s['confirm-actions']}>
-          <button className="btn btn-outline" onClick={() => setConfirmDelete(null)}>
+          <button className="btn btn-outline" onClick={closeDelete}>
             {t('common.cancel')}
           </button>
           <button className="btn btn-danger-soft" onClick={confirmDeleteAction}>

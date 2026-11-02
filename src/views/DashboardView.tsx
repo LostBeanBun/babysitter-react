@@ -3,44 +3,25 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
-import { toast } from '@/stores/toast'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import PageHeader from '@/components/common/PageHeader'
 import BaseModal from '@/components/common/BaseModal'
+import RecordFormModal from '@/components/common/RecordFormModal'
 import OnboardingModal from '@/components/dashboard/OnboardingModal'
 import TodayOverview from '@/components/dashboard/TodayOverview'
 import CarePlanCard from '@/components/dashboard/CarePlanCard'
-import FeedingForm from '@/components/forms/FeedingForm'
-import DiaperForm from '@/components/forms/DiaperForm'
-import PumpingForm from '@/components/forms/PumpingForm'
-import SleepForm from '@/components/forms/SleepForm'
-import GrowthForm from '@/components/forms/GrowthForm'
-import SolidFoodForm from '@/components/forms/SolidFoodForm'
-import MedicationForm from '@/components/forms/MedicationForm'
-import VaccinationForm from '@/components/forms/VaccinationForm'
-import TemperatureForm from '@/components/forms/TemperatureForm'
-import MilestoneForm from '@/components/forms/MilestoneForm'
-import { toDateTimeLocal, fromDateTimeLocal } from '@/utils/format'
+import { toDateTimeLocal, fromDateTimeLocal, formatDate } from '@/utils/format'
 import { FEED_TYPE_LABELS } from '@/constants'
 import { useActiveTimer } from '@/hooks/useActiveTimer'
-import { useSleepModal } from '@/hooks/useSleepModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
-import type { FeedType, Vaccination } from '@/types'
+import { useRecordModal } from '@/hooks/useRecordModal'
+import { useRecordsLive } from '@/hooks/useRecordsLive'
+import { KIND_COLORS } from '@/services/timeline'
+import type { TimelineEntry } from '@/services/timeline'
+import type { FeedType, RecordKind, Vaccination } from '@/types'
 import s from './DashboardView.module.css'
-
-type EntryKind =
-  | 'feeding'
-  | 'diaper'
-  | 'pumping'
-  | 'sleep'
-  | 'growth'
-  | 'solidFood'
-  | 'medication'
-  | 'vaccination'
-  | 'temperature'
-  | 'milestone'
 
 const FEED_TYPE_CHOICES = Object.entries(FEED_TYPE_LABELS).map(([value, label]) => ({
   value: value as FeedType,
@@ -51,7 +32,6 @@ export default function DashboardView() {
   const { t } = useTranslation()
   const { babies, activeBabyId } = useBabies()
   const activeTimer = useActiveTimer()
-  const sleepModal = useSleepModal()
 
   const hasBaby = babies.length > 0
 
@@ -134,48 +114,40 @@ export default function DashboardView() {
 
   const { formRef, onSubmit: onSleepFeedSubmit } = useFormSubmit(saveSleepFeed)
 
-  // 记录弹窗状态
-  const [modalKind, setModalKind] = useState<EntryKind | null>(null)
-  /** 疫苗提醒直接编辑：打开对应计划记录的编辑弹窗 */
-  const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
+  // 记录弹窗（与 Vue 端一致：useRecordModal 统一管理新增/编辑/删除）
+  const {
+    modalState,
+    openAdd,
+    onEdit,
+    onStartRecord,
+    onSaved,
+    onCancelled,
+    closeForm,
+  } = useRecordModal()
 
-  // 表单弹窗打开时隐藏悬浮球
-  useEffect(() => {
-    if (modalKind !== null) sleepModal.openModal()
-    else sleepModal.closeModal()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalKind])
+  /** 疫苗计划记录：点击提醒条时按 id 取最新记录，已删除则回退为新增 */
+  const vaccinations = useRecordsLive('vaccinations', activeBabyId)
 
-  function openAdd(kind: EntryKind) {
-    setEditingVaccination(null)
-    setModalKind(kind)
-  }
-
-  /** 点击疫苗提醒：打开对应计划记录编辑 */
   function onEditVaccination(v: Vaccination) {
-    setEditingVaccination(v)
-    setModalKind('vaccination')
+    const current = vaccinations?.find((x) => x.id === v.id)
+    if (!current) {
+      openAdd('vaccination')
+      return
+    }
+    const entry: TimelineEntry = {
+      id: current.id!,
+      kind: 'vaccination',
+      time: current.date,
+      icon: '💉',
+      color: current.status === 'done' ? '#6AB0D8' : '#D8A45A',
+      kindColor: KIND_COLORS.vaccination,
+      title: current.name,
+      detail: current.dose ?? '',
+      timeLabel: formatDate(current.date),
+      raw: current,
+    }
+    onEdit(entry)
   }
-
-  /** 开始记录：保存开始时间，关闭弹窗，悬浮球出现 */
-  function onStartRecord() {
-    setModalKind(null)
-    toast(t('common.recordStarted'))
-  }
-
-  /** 结束记录 / 编辑保存：关闭弹窗 */
-  function onSaved() {
-    setModalKind(null)
-    setEditingVaccination(null)
-    toast(t('common.recordSaved'))
-  }
-
-  function onCancelled() {
-    setModalKind(null)
-    setEditingVaccination(null)
-  }
-
-  const modalTitle = editingVaccination ? t('log.editTitle') : t('log.addTitle')
 
   return (
     <div className="page dashboard">
@@ -248,37 +220,13 @@ export default function DashboardView() {
           </button>
 
           {/* 记录弹窗 */}
-          <BaseModal
-            show={modalKind !== null}
-            title={modalTitle}
-            onClose={() => {
-              setModalKind(null)
-              setEditingVaccination(null)
-            }}
-          >
-            {modalKind === 'feeding' && (
-              <FeedingForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />
-            )}
-            {modalKind === 'diaper' && <DiaperForm onSaved={onSaved} onCancelled={onCancelled} />}
-            {modalKind === 'pumping' && (
-              <PumpingForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />
-            )}
-            {modalKind === 'sleep' && (
-              <SleepForm onStartRecord={onStartRecord} onSaved={onSaved} onCancelled={onCancelled} />
-            )}
-            {modalKind === 'growth' && <GrowthForm onSaved={onSaved} onCancelled={onCancelled} />}
-            {modalKind === 'solidFood' && <SolidFoodForm onSaved={onSaved} onCancelled={onCancelled} />}
-            {modalKind === 'medication' && <MedicationForm onSaved={onSaved} onCancelled={onCancelled} />}
-            {modalKind === 'vaccination' && (
-              <VaccinationForm
-                editing={editingVaccination?.id != null ? { ...editingVaccination, id: editingVaccination.id } : undefined}
-                onSaved={onSaved}
-                onCancelled={onCancelled}
-              />
-            )}
-            {modalKind === 'temperature' && <TemperatureForm onSaved={onSaved} onCancelled={onCancelled} />}
-            {modalKind === 'milestone' && <MilestoneForm onSaved={onSaved} onCancelled={onCancelled} />}
-          </BaseModal>
+          <RecordFormModal
+            state={modalState}
+            onClose={closeForm}
+            onSaved={onSaved}
+            onCancelled={onCancelled}
+            onStartRecord={onStartRecord}
+          />
         </>
       )}
 

@@ -494,6 +494,59 @@ async function main() {
     `canShare=${shareCapable} · 按钮 ${shareBtnCount}`,
   )
 
+  // 编辑成长记录回填（1.13.1 回归点）：头围必须回填，保存后不被清空
+  await page.goto(`${BASE_URL}${ROUTES.log}`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+  const growthDay = new Date(now)
+  growthDay.setHours(0, 0, 0, 0)
+  const growthDate = growthDay.getTime() - 10 * 86400_000
+  await page.evaluate(async (date) => {
+    const open = () =>
+      new Promise((resolve, reject) => {
+        const req = indexedDB.open('babysitter')
+        req.onsuccess = () => resolve(req.result)
+        req.onerror = () => reject(req.error)
+      })
+    const db = await open()
+    const tx = db.transaction('growths', 'readwrite')
+    tx.objectStore('growths').put({
+      id: 1,
+      babyId: 1,
+      date,
+      weight: 5.4,
+      height: 59,
+      headCircumference: 39.5,
+      notes: '儿保体检',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  }, growthDate)
+  // 原生 IDB 写入不会被 Dexie liveQuery 感知，刷新一次让页面按库内容重建
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+  const growthItem = page.locator('[class*="tl-item"]').filter({ hasText: '头围 39.5' }).first()
+  await growthItem.waitFor({ state: 'visible', timeout: 20000 })
+  check('记录页显示含头围的成长记录', true)
+  await growthItem.click()
+  const editDialog = page.locator('[role="dialog"]').filter({ hasText: '编辑记录' }).first()
+  await editDialog.waitFor({ state: 'visible', timeout: 10000 })
+  const editTitle = (await editDialog.locator('[class*="modal-title"]').innerText()).trim()
+  check('成长记录打开的是编辑弹窗', editTitle === '编辑记录', editTitle)
+  const headValue = await editDialog
+    .locator('.form-field')
+    .filter({ hasText: '头围' })
+    .locator('input')
+    .inputValue()
+  check('编辑成长记录回填头围', headValue === '39.5', `头围=${headValue || '空'}`)
+  await page.screenshot({ path: join(OUT_DIR, 'light-log-growth-edit.png'), fullPage: true })
+  await editDialog.getByRole('button', { name: '取消' }).click()
+  await page.waitForTimeout(400)
+
   // 备份提醒可关闭且不立刻重现（1.11.0 回归点）：关闭后静默 1 天，设置页可永久关闭
   await page.evaluate(() => {
     localStorage.removeItem('babysitter.backupSnoozeUntil')
