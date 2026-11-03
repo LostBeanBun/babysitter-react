@@ -547,6 +547,39 @@ async function main() {
   await editDialog.getByRole('button', { name: '取消' }).click()
   await page.waitForTimeout(400)
 
+  // 新增 → 删除 → 撤销（1.13.2 回归点）：删除分发与 3 秒撤销窗口的 UI 级链路
+  await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  await page.locator('[class*="quick-actions"]').getByRole('button', { name: /体温/ }).click()
+  const addDialog = page.locator('[role="dialog"]').filter({ hasText: '添加记录' }).first()
+  await addDialog.waitFor({ state: 'visible', timeout: 10000 })
+  await addDialog.locator('input[type="number"]').fill('37.6')
+  await addDialog.getByRole('button', { name: '保存记录' }).click()
+  await addDialog.waitFor({ state: 'hidden', timeout: 10000 })
+
+  await page.goto(`${BASE_URL}${ROUTES.log}`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(1000)
+  const tempItem = page.locator('[class*="tl-item"]').filter({ hasText: '37.6℃' }).first()
+  await tempItem.waitFor({ state: 'visible', timeout: 20000 })
+  check('新增体温记录出现在记录页', true)
+
+  await tempItem.locator('[class*="tl-delete"]').click()
+  const deleteDialog = page.locator('[role="dialog"]').filter({ hasText: '删除记录' }).first()
+  await deleteDialog.waitFor({ state: 'visible', timeout: 10000 })
+  await deleteDialog.getByRole('button', { name: '确认删除' }).click()
+  await page.waitForTimeout(300)
+  const undoBtn = page.getByRole('button', { name: '撤销' }).first()
+  check('删除后进入 3 秒撤销窗口', (await undoBtn.count()) === 1 && (await tempItem.count()) === 0)
+  await undoBtn.click()
+  await page.waitForTimeout(300)
+  check('撤销后记录恢复', await tempItem.isVisible())
+
+  await tempItem.locator('[class*="tl-delete"]').click()
+  await deleteDialog.waitFor({ state: 'visible', timeout: 10000 })
+  await deleteDialog.getByRole('button', { name: '确认删除' }).click()
+  await page.waitForTimeout(3600)
+  check('撤销窗口结束后真实删除', (await tempItem.count()) === 0)
+
   // 备份提醒可关闭且不立刻重现（1.11.0 回归点）：关闭后静默 1 天，设置页可永久关闭
   await page.evaluate(() => {
     localStorage.removeItem('babysitter.backupSnoozeUntil')
