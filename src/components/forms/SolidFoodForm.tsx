@@ -6,6 +6,7 @@ import { toDateTimeLocal, fromDateTimeLocal } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useRecordForm } from '@/hooks/useRecordForm'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -26,41 +27,37 @@ export default function SolidFoodForm({ editing, onSaved, onCancelled }: SolidFo
   const [time, setTime] = useState(() => toDateTimeLocal(editing?.time ?? Date.now()))
   const [notes, setNotes] = useState(editing?.notes ?? '')
 
-  async function submit() {
-    err.clearAll()
-    if (!food.trim()) {
-      err.set('food', t('solidFood.invalidFood'))
-      return
-    }
-    const ts = fromDateTimeLocal(time)
-    if (ts == null || isNaN(ts)) {
-      err.set('time', t('solidFood.invalidTime'))
-      return
-    }
-    if (editing) {
-      await db.solidFoods.update(editing.id, {
-        time: ts,
-        food: food.trim(),
-        amount: amount || undefined,
-        notes: notes || undefined,
-        updatedAt: Date.now(),
-      })
-    } else {
+  interface Payload {
+    time: number
+    food: string
+    amount?: string
+    notes?: string
+  }
+
+  const { submit } = useRecordForm<Payload>({
+    err,
+    editing,
+    validate: () => {
+      if (!food.trim()) {
+        err.set('food', t('solidFood.invalidFood'))
+        return null
+      }
+      const ts = fromDateTimeLocal(time)
+      if (ts == null || isNaN(ts)) {
+        err.set('time', t('solidFood.invalidTime'))
+        return null
+      }
+      return { time: ts, food: food.trim(), amount: amount || undefined, notes: notes || undefined }
+    },
+    add: async (p) => {
       if (activeBabyId == null) throw new Error(t('errors.noBaby'))
       const now = Date.now()
-      const id = await db.solidFoods.add({
-        babyId: activeBabyId,
-        time: ts,
-        food: food.trim(),
-        amount: amount || undefined,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
+      const id = await db.solidFoods.add({ babyId: activeBabyId, ...p, createdAt: now, updatedAt: now })
       if (id == null) throw new Error(t('errors.addRecordFail'))
-    }
-    onSaved?.()
-  }
+    },
+    update: (id, p) => db.solidFoods.update(id, { ...p, updatedAt: Date.now() }),
+    onSaved,
+  })
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 

@@ -16,6 +16,7 @@ import {
 } from '@/constants/vaccinePlan'
 import BaseModal from '@/components/common/BaseModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useRecordForm } from '@/hooks/useRecordForm'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -75,43 +76,38 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
     setPlanOpen(false)
   }
 
-  async function submit() {
-    err.clearAll()
-    if (!name.trim()) {
-      err.set('name', t('vaccination.invalidName'))
-      return
-    }
-    const d = fromDateTimeLocal(date + 'T00:00:00')
-    if (d == null || isNaN(d)) {
-      err.set('date', t('vaccination.invalidDate'))
-      return
-    }
-    if (editing) {
-      await db.vaccinations.update(editing.id, {
-        date: d,
-        name: name.trim(),
-        dose: dose || undefined,
-        status,
-        notes: notes || undefined,
-        updatedAt: Date.now(),
-      })
-    } else {
+  interface Payload {
+    date: number
+    name: string
+    dose?: string
+    status: VaccinationStatus
+    notes?: string
+  }
+
+  const { submit } = useRecordForm<Payload>({
+    err,
+    editing,
+    validate: () => {
+      if (!name.trim()) {
+        err.set('name', t('vaccination.invalidName'))
+        return null
+      }
+      const d = fromDateTimeLocal(date + 'T00:00:00')
+      if (d == null || isNaN(d)) {
+        err.set('date', t('vaccination.invalidDate'))
+        return null
+      }
+      return { date: d, name: name.trim(), dose: dose || undefined, status, notes: notes || undefined }
+    },
+    add: async (p) => {
       if (activeBabyId == null) throw new Error(t('errors.noBaby'))
       const now = Date.now()
-      const id = await db.vaccinations.add({
-        babyId: activeBabyId,
-        date: d,
-        name: name.trim(),
-        dose: dose || undefined,
-        status,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
+      const id = await db.vaccinations.add({ babyId: activeBabyId, ...p, createdAt: now, updatedAt: now })
       if (id == null) throw new Error(t('errors.addRecordFail'))
-    }
-    onSaved?.()
-  }
+    },
+    update: (id, p) => db.vaccinations.update(id, { ...p, updatedAt: Date.now() }),
+    onSaved,
+  })
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 

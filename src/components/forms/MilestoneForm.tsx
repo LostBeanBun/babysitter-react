@@ -7,6 +7,7 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { MILESTONE_TYPE_LIST } from '@/constants'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useRecordForm } from '@/hooks/useRecordForm'
 import { MILESTONE_GUIDE, milestoneGuideRange } from '@/constants/milestoneGuide'
 import type { MilestoneType } from '@/types'
 import FormNotes from '@/components/common/FormNotes'
@@ -30,35 +31,32 @@ export default function MilestoneForm({ editing, onSaved, onCancelled }: Milesto
   const [notes, setNotes] = useState(editing?.notes ?? '')
   const [guideOpen, setGuideOpen] = useState(false)
 
-  async function submit() {
-    err.clearAll()
-    const ts = fromDateTimeLocal(time)
-    if (ts == null || isNaN(ts)) {
-      err.set('time', t('milestone.invalidTime'))
-      return
-    }
-    if (editing) {
-      await db.milestones.update(editing.id, {
-        time: ts,
-        type,
-        notes: notes || undefined,
-        updatedAt: Date.now(),
-      })
-    } else {
+  interface Payload {
+    time: number
+    type: MilestoneType
+    notes?: string
+  }
+
+  const { submit } = useRecordForm<Payload>({
+    err,
+    editing,
+    validate: () => {
+      const ts = fromDateTimeLocal(time)
+      if (ts == null || isNaN(ts)) {
+        err.set('time', t('milestone.invalidTime'))
+        return null
+      }
+      return { time: ts, type, notes: notes || undefined }
+    },
+    add: async (p) => {
       if (activeBabyId == null) throw new Error(t('errors.noBaby'))
       const now = Date.now()
-      const id = await db.milestones.add({
-        babyId: activeBabyId,
-        time: ts,
-        type,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
+      const id = await db.milestones.add({ babyId: activeBabyId, ...p, createdAt: now, updatedAt: now })
       if (id == null) throw new Error(t('errors.addRecordFail'))
-    }
-    onSaved?.()
-  }
+    },
+    update: (id, p) => db.milestones.update(id, { ...p, updatedAt: Date.now() }),
+    onSaved,
+  })
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 

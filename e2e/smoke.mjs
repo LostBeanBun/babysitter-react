@@ -62,6 +62,13 @@ const localDate = (ts) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+/** 时间戳 → datetime-local 输入值（含秒，与表单 step=1 对齐） */
+const localDateTime = (ts) => {
+  const d = new Date(ts)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${localDate(ts)}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 /** 种入一份可复现的数据：2 月龄宝宝 + 4h 前喂养 / 2h 前睡眠 / 4h 前尿布 + 跨零点睡眠（昨 20:00 → 今 01:00） */
 async function seed(page, now) {
   await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
@@ -579,6 +586,37 @@ async function main() {
   await deleteDialog.getByRole('button', { name: '确认删除' }).click()
   await page.waitForTimeout(3600)
   check('撤销窗口结束后真实删除', (await tempItem.count()) === 0)
+
+  // 计时表单回归（1.13.3）：开始计时 → 悬浮球 → 结束记录，时长写入时间轴
+  await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
+  await settle(page)
+  await page.locator('[class*="quick-actions"]').getByRole('button', { name: /吸奶/ }).click()
+  const pumpDialog = page.locator('[role="dialog"]').filter({ hasText: '添加记录' }).first()
+  await pumpDialog.waitFor({ state: 'visible', timeout: 10000 })
+  await pumpDialog.getByRole('button', { name: /开始记录/ }).click()
+  await pumpDialog.waitFor({ state: 'hidden', timeout: 10000 })
+  const ball = page.locator('[class*="floating-ball"]').first()
+  await ball.waitFor({ state: 'visible', timeout: 10000 })
+  check('开始吸奶计时后出现悬浮球', true)
+
+  await ball.click()
+  const timerDialog = page.locator('[role="dialog"]').filter({ hasText: '添加记录' }).first()
+  await timerDialog.waitFor({ state: 'visible', timeout: 10000 })
+  const timerInputs = timerDialog.locator('input[type="datetime-local"]')
+  const timerStart = await timerInputs.first().inputValue()
+  await timerInputs.nth(1).fill(localDateTime(new Date(timerStart).getTime() + 30 * 60_000))
+  await timerDialog.getByRole('button', { name: /结束记录/ }).click()
+  await timerDialog.waitFor({ state: 'hidden', timeout: 10000 })
+  await page.waitForTimeout(800)
+
+  const pumpItem = page.locator('[class*="tl-item"]').filter({ hasText: '30分钟' }).first()
+  const pumpText = await pumpItem.innerText().catch(() => '')
+  check('结束计时后记录写入 30 分钟时长', pumpText.includes('吸奶') && pumpText.includes('30分钟'), pumpText.replace(/\s+/g, ' '))
+  const ballGone = await ball
+    .waitFor({ state: 'detached', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false)
+  check('结束记录后悬浮球消失', ballGone)
 
   // 备份提醒可关闭且不立刻重现（1.11.0 回归点）：关闭后静默 1 天，设置页可永久关闭
   await page.evaluate(() => {

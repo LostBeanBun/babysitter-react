@@ -8,6 +8,7 @@ import { toDateTimeLocal, fromDateTimeLocal } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useRecordForm } from '@/hooks/useRecordForm'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -29,42 +30,38 @@ export default function TemperatureForm({ editing, onSaved, onCancelled }: Tempe
   const [time, setTime] = useState(() => toDateTimeLocal(editing?.time ?? Date.now()))
   const [notes, setNotes] = useState(editing?.notes ?? '')
 
-  async function submit() {
-    err.clearAll()
-    const v = Number(value)
-    if (value === '' || isNaN(v) || v < 35 || v > 43) {
-      err.set('value', t('temperature.invalidValue'))
-      return
-    }
-    const ts = fromDateTimeLocal(time)
-    if (ts == null || isNaN(ts)) {
-      err.set('time', t('temperature.invalidTime'))
-      return
-    }
-    if (editing) {
-      await db.temperatures.update(editing.id, {
-        time: ts,
-        value: v,
-        method: method || undefined,
-        notes: notes || undefined,
-        updatedAt: Date.now(),
-      })
-    } else {
+  interface Payload {
+    time: number
+    value: number
+    method?: TemperatureMethod
+    notes?: string
+  }
+
+  const { submit } = useRecordForm<Payload>({
+    err,
+    editing,
+    validate: () => {
+      const v = Number(value)
+      if (value === '' || isNaN(v) || v < 35 || v > 43) {
+        err.set('value', t('temperature.invalidValue'))
+        return null
+      }
+      const ts = fromDateTimeLocal(time)
+      if (ts == null || isNaN(ts)) {
+        err.set('time', t('temperature.invalidTime'))
+        return null
+      }
+      return { time: ts, value: v, method: method || undefined, notes: notes || undefined }
+    },
+    add: async (p) => {
       if (activeBabyId == null) throw new Error(t('errors.noBaby'))
       const now = Date.now()
-      const id = await db.temperatures.add({
-        babyId: activeBabyId,
-        time: ts,
-        value: v,
-        method: method || undefined,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
+      const id = await db.temperatures.add({ babyId: activeBabyId, ...p, createdAt: now, updatedAt: now })
       if (id == null) throw new Error(t('errors.addRecordFail'))
-    }
-    onSaved?.()
-  }
+    },
+    update: (id, p) => db.temperatures.update(id, { ...p, updatedAt: Date.now() }),
+    onSaved,
+  })
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 

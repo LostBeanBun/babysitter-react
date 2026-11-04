@@ -1,13 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toDateTimeLocal, fromDateTimeLocal, formatDuration } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
-import { toast } from '@/stores/toast'
-import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useTimedRecord } from '@/hooks/useTimedRecord'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -20,127 +18,94 @@ export interface SleepFormProps {
   onStartRecord?: () => void
 }
 
+interface Fields {
+  notes?: string
+}
+
 export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord }: SleepFormProps) {
   const { t } = useTranslation()
   const { activeBabyId } = useBabies()
-  const { getByKind, start: startTimer, reset: resetTimer } = useActiveTimer()
   const err = useFormErrors()
 
   const [notes, setNotes] = useState(editing?.notes ?? '')
-  const [startTime, setStartTime] = useState(() => toDateTimeLocal(editing?.startTime ?? Date.now()))
-  const [endTime, setEndTime] = useState(editing?.endTime ? toDateTimeLocal(editing.endTime) : '')
 
-  const activeEntry = getByKind('sleep')
-  const isRecording = !!activeEntry
-  const isEditing = !!editing && !isRecording
-
-  const durStart = fromDateTimeLocal(startTime)
-  const durEnd = endTime ? fromDateTimeLocal(endTime) : undefined
-  const durationText = durStart && durEnd && durEnd > durStart ? formatDuration(durEnd - durStart) : null
-
-  const submitLabel = isEditing ? t('common.saveEdit') : isRecording ? t('sleep.endRecord') : t('sleep.startRecord')
-
-  useEffect(() => {
-    const entry = getByKind('sleep')
-    if (!entry) return
-    let stale = false
-    void db.sleeps.get(entry.recordId).then((record) => {
-      if (!record || stale) return
-      setNotes(record.notes ?? '')
-      setStartTime(toDateTimeLocal(record.startTime))
-      setEndTime('')
-    })
-    return () => {
-      stale = true
-    }
-  }, [getByKind])
-
-  async function submit() {
-    err.clearAll()
-    try {
-      const start = fromDateTimeLocal(startTime)
-      if (start == null) {
-        err.set('startTime', t('sleep.invalidStart'))
-        return
-      }
-      const end = endTime ? fromDateTimeLocal(endTime) : undefined
-
-      // 计时中：结束记录，结束时间写回（空则取当前时间）
-      if (isRecording && activeEntry) {
-        const endTs = end ?? Date.now()
-        if (endTs <= start) {
-          err.set('endTime', t('sleep.invalidOrder'))
-          return
-        }
-        await db.sleeps.update(activeEntry.recordId, {
-          endTime: endTs,
-          duration: endTs - start,
-          updatedAt: Date.now(),
-        })
-        resetTimer(activeEntry.id)
-        onSaved?.()
-        return
-      }
-
-      if (isEditing && editing) {
-        if (end == null) {
-          err.set('endTime', t('sleep.invalidRange'))
-          return
-        }
-        if (end <= start) {
-          err.set('endTime', t('sleep.invalidOrder'))
-          return
-        }
-        await db.sleeps.update(editing.id, {
+  const { startTime, setStartTime, endTime, setEndTime, isRecording, isEditing, durationText, submit } =
+    useTimedRecord<Fields>({
+      kind: 'sleep',
+      editing,
+      err,
+      invalidStart: () => t('sleep.invalidStart'),
+      invalidOrder: () => t('sleep.invalidOrder'),
+      // 睡眠类型不再区分：统一按「小睡」保存（历史 night 记录编辑保存后也会归一到 nap）
+      buildFields: () => ({ notes: notes || undefined }),
+      loadRecord: (recordId) => db.sleeps.get(recordId),
+      hydrate: (record) => {
+        setNotes(record.notes ?? '')
+      },
+      add: async (fields, start) => {
+        if (activeBabyId == null) throw new Error(t('errors.noBaby'))
+        const now = Date.now()
+        const id = await db.sleeps.add({
+          babyId: activeBabyId,
           type: 'nap',
           startTime: start,
-          endTime: end,
-          notes: notes || undefined,
-          updatedAt: Date.now(),
+          endTime: undefined,
+          duration: undefined,
+          notes: fields.notes,
+          createdAt: now,
+          updatedAt: now,
         })
-        onSaved?.()
-        return
-      }
-
-      if (activeBabyId == null) throw new Error(t('errors.noBaby'))
-      const now = Date.now()
-      // 新记录：结束时间已填 → 直接保存；空 → 从输入开始时间启动计时
-      if (end != null) {
-        if (end <= start) {
-          err.set('endTime', t('sleep.invalidOrder'))
-          return
-        }
-        const savedId = await db.sleeps.add({
+        if (id == null) throw new Error(t('errors.addSleepFail'))
+        return id
+      },
+      addRange: async (fields, start, end) => {
+        if (activeBabyId == null) throw new Error(t('errors.noBaby'))
+        const now = Date.now()
+        const id = await db.sleeps.add({
           babyId: activeBabyId,
           type: 'nap',
           startTime: start,
           endTime: end,
           duration: end - start,
-          notes: notes || undefined,
+          notes: fields.notes,
           createdAt: now,
           updatedAt: now,
         })
-        if (savedId == null) throw new Error(t('errors.addSleepFail'))
-        onSaved?.()
-        return
-      }
-      const id = await db.sleeps.add({
-        babyId: activeBabyId,
-        type: 'nap',
-        startTime: start,
-        endTime: undefined,
-        duration: undefined,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
-      if (id == null) throw new Error(t('errors.addSleepFail'))
-      startTimer('sleep', id, start)
-      onStartRecord?.()
-    } catch {
-      toast(t('errors.generic'))
-    }
-  }
+        if (id == null) throw new Error(t('errors.addSleepFail'))
+      },
+      update: async (id, fields, start, end) => {
+        await db.sleeps.update(id, {
+          type: 'nap',
+          startTime: start,
+          endTime: end!,
+          notes: fields.notes,
+          updatedAt: Date.now(),
+        })
+      },
+      // 编辑必须有完整区间
+      validateEdit: (start, end) => {
+        if (end == null) {
+          err.set('endTime', t('sleep.invalidRange'))
+          return false
+        }
+        if (end <= start) {
+          err.set('endTime', t('sleep.invalidOrder'))
+          return false
+        }
+        return true
+      },
+      finishRecording: async (recordId, endTs, _fields, start) => {
+        await db.sleeps.update(recordId, {
+          endTime: endTs,
+          duration: endTs - start,
+          updatedAt: Date.now(),
+        })
+      },
+      onSaved,
+      onStartRecord,
+    })
+
+  const submitLabel = isEditing ? t('common.saveEdit') : isRecording ? t('sleep.endRecord') : t('sleep.startRecord')
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 

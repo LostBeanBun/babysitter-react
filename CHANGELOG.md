@@ -3,6 +3,17 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.13.3] - 2026-11-04
+
+### 变更
+
+- 新增两端同一份 `services/timedRecord.ts`（`planTimedSubmit()`）：把带开始/结束时间表单的「计时中 / 编辑 / 新建」分支判定与校验顺序抽成纯函数，Vue `useTimedRecord` 与 React 新增的 `hooks/useTimedRecord` 共用，保证两端分支逐字一致
+- React 新增 `hooks/useRecordForm.ts`（对齐 Vue 同名 composable）：7 个单时间点表单（纸尿裤 / 成长 / 辅食 / 用药 / 疫苗 / 体温 / 里程碑）的 `clearAll → validate → update/add → onSaved` 流程不再各自复制
+- React `FeedingForm` / `PumpingForm` / `SleepForm` 改用 `useTimedRecord`，表单组件只保留字段构建与落库回调，三个文件合计净减约 100 行；行为不变（含瓶喂不启动计时、睡眠编辑必须有完整区间）
+- 新增两端同一份 `services/timedRecord.spec.ts`（14 例）：覆盖开始时间非法、计时中结束、编辑区间校验、新建区间 / 启动计时、字段错误优先等分支
+- React 10 个表单合计净减约 130 行（不含新增的两个 hook），行为不变
+- 冒烟补「开始计时 → 悬浮球 → 结束记录」链路（56 → 59）：今日页快捷吸奶开始计时 → 悬浮球出现 → 点击悬浮球在记录页结束 → 时间轴写入 30 分钟时长 → 悬浮球消失
+
 ## [1.13.2] - 2026-11-03
 
 ### 变更

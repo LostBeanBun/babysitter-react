@@ -6,6 +6,7 @@ import { toDateTimeLocal, fromDateTimeLocal } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useRecordForm } from '@/hooks/useRecordForm'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -26,41 +27,37 @@ export default function MedicationForm({ editing, onSaved, onCancelled }: Medica
   const [time, setTime] = useState(() => toDateTimeLocal(editing?.time ?? Date.now()))
   const [notes, setNotes] = useState(editing?.notes ?? '')
 
-  async function submit() {
-    err.clearAll()
-    if (!name.trim()) {
-      err.set('name', t('medication.invalidName'))
-      return
-    }
-    const ts = fromDateTimeLocal(time)
-    if (ts == null || isNaN(ts)) {
-      err.set('time', t('medication.invalidTime'))
-      return
-    }
-    if (editing) {
-      await db.medications.update(editing.id, {
-        time: ts,
-        name: name.trim(),
-        dose: dose || undefined,
-        notes: notes || undefined,
-        updatedAt: Date.now(),
-      })
-    } else {
+  interface Payload {
+    time: number
+    name: string
+    dose?: string
+    notes?: string
+  }
+
+  const { submit } = useRecordForm<Payload>({
+    err,
+    editing,
+    validate: () => {
+      if (!name.trim()) {
+        err.set('name', t('medication.invalidName'))
+        return null
+      }
+      const ts = fromDateTimeLocal(time)
+      if (ts == null || isNaN(ts)) {
+        err.set('time', t('medication.invalidTime'))
+        return null
+      }
+      return { time: ts, name: name.trim(), dose: dose || undefined, notes: notes || undefined }
+    },
+    add: async (p) => {
       if (activeBabyId == null) throw new Error(t('errors.noBaby'))
       const now = Date.now()
-      const id = await db.medications.add({
-        babyId: activeBabyId,
-        time: ts,
-        name: name.trim(),
-        dose: dose || undefined,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
+      const id = await db.medications.add({ babyId: activeBabyId, ...p, createdAt: now, updatedAt: now })
       if (id == null) throw new Error(t('errors.addRecordFail'))
-    }
-    onSaved?.()
-  }
+    },
+    update: (id, p) => db.medications.update(id, { ...p, updatedAt: Date.now() }),
+    onSaved,
+  })
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 

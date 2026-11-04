@@ -1,15 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PumpSide } from '@/types'
 import { PUMP_SIDE_LIST } from '@/constants'
-import { toDateTimeLocal, fromDateTimeLocal, formatDuration } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
-import { toast } from '@/stores/toast'
-import { useActiveTimer } from '@/hooks/useActiveTimer'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useTimedRecord } from '@/hooks/useTimedRecord'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -30,137 +28,116 @@ export interface PumpingFormProps {
   onStartRecord?: () => void
 }
 
+interface Fields {
+  side: PumpSide
+  amount?: number
+  notes?: string
+}
+
 export default function PumpingForm({ editing, onSaved, onCancelled, onStartRecord }: PumpingFormProps) {
   const { t } = useTranslation()
   const { activeBabyId } = useBabies()
-  const { getByKind, start: startTimer, reset: resetTimer } = useActiveTimer()
   const err = useFormErrors()
 
   const [side, setSide] = useState<PumpSide>(editing?.side ?? 'both')
   const [amount, setAmount] = useState(editing?.amount != null ? String(editing.amount) : '')
   const [notes, setNotes] = useState(editing?.notes ?? '')
-  const [startTime, setStartTime] = useState(() => toDateTimeLocal(editing?.startTime ?? Date.now()))
-  const [endTime, setEndTime] = useState(editing?.endTime ? toDateTimeLocal(editing.endTime) : '')
 
-  const activeEntry = getByKind('pumping')
-  const isRecording = !!activeEntry
-  const isEditing = !!editing && !isRecording
-
-  const durStart = fromDateTimeLocal(startTime)
-  const durEnd = endTime ? fromDateTimeLocal(endTime) : undefined
-  const durationText = durStart && durEnd && durEnd > durStart ? formatDuration(durEnd - durStart) : null
-
-  const submitLabel = isEditing ? t('common.saveEdit') : isRecording ? t('pump.endRecord') : t('pump.startRecord')
-
-  useEffect(() => {
-    const entry = getByKind('pumping')
-    if (!entry) return
-    let stale = false
-    void db.pumpings.get(entry.recordId).then((record) => {
-      if (!record || stale) return
-      setSide(record.side)
-      setAmount(record.amount != null ? String(record.amount) : '')
-      setNotes(record.notes ?? '')
-      setStartTime(toDateTimeLocal(record.startTime))
-      setEndTime('')
-    })
-    return () => {
-      stale = true
+  /** 可选奶量：合法返回数值，非法标记字段错误返回 undefined */
+  function parseAmount(): number | undefined {
+    if (!amount) return undefined
+    const amt = Number(amount)
+    if (isNaN(amt) || amt <= 0) {
+      err.set('amount', t('pump.invalidAmount'))
+      return undefined
     }
-  }, [getByKind])
+    return amt
+  }
 
-  async function submit() {
-    err.clearAll()
-    try {
-      const start = fromDateTimeLocal(startTime)
-      if (start == null) {
-        err.set('startTime', t('pump.invalidStart'))
-        return
-      }
-      const end = endTime ? fromDateTimeLocal(endTime) : undefined
-      const amt = amount ? Number(amount) : undefined
-      if (amount && (isNaN(amt as number) || (amt as number) <= 0)) {
-        err.set('amount', t('pump.invalidAmount'))
-        return
-      }
+  function buildFields(): Fields | null {
+    const amt = parseAmount()
+    if (amount && amt === undefined) return null
+    return { side, amount: amt, notes: notes || undefined }
+  }
 
-      // 计时中：结束记录，结束时间写回（空则取当前时间）
-      if (isRecording && activeEntry) {
-        const endTs = end ?? Date.now()
-        if (endTs <= start) {
-          err.set('endTime', t('pump.invalidOrder'))
-          return
-        }
-        await db.pumpings.update(activeEntry.recordId, {
-          endTime: endTs,
-          duration: endTs - start,
-          amount: amt,
-          updatedAt: Date.now(),
-        })
-        resetTimer(activeEntry.id)
-        onSaved?.()
-        return
-      }
-
-      if (isEditing && editing) {
-        if (end != null && end <= start) {
-          err.set('endTime', t('pump.invalidOrder'))
-          return
-        }
-        await db.pumpings.update(editing.id, {
-          side,
-          startTime: start,
-          endTime: end,
-          duration: end && end > start ? end - start : undefined,
-          amount: amt,
-          notes: notes || undefined,
-          updatedAt: Date.now(),
-        })
-        onSaved?.()
-        return
-      }
-
-      if (activeBabyId == null) throw new Error(t('errors.noBaby'))
-      const now = Date.now()
-      // 新记录：结束时间已填 → 直接保存；空 → 从输入开始时间启动计时
-      if (end != null) {
-        if (end <= start) {
-          err.set('endTime', t('pump.invalidOrder'))
-          return
-        }
-        const savedId = await db.pumpings.add({
+  const { startTime, setStartTime, endTime, setEndTime, isRecording, isEditing, durationText, submit } =
+    useTimedRecord<Fields>({
+      kind: 'pumping',
+      editing,
+      err,
+      invalidStart: () => t('pump.invalidStart'),
+      invalidOrder: () => t('pump.invalidOrder'),
+      buildFields,
+      loadRecord: (recordId) => db.pumpings.get(recordId),
+      hydrate: (record) => {
+        setSide(record.side)
+        setAmount(record.amount != null ? String(record.amount) : '')
+        setNotes(record.notes ?? '')
+      },
+      add: async (f, start) => {
+        if (activeBabyId == null) throw new Error(t('errors.noBaby'))
+        const now = Date.now()
+        const id = await db.pumpings.add({
           babyId: activeBabyId,
-          side,
+          side: f.side,
           startTime: start,
-          endTime: end,
-          duration: end - start,
-          amount: amt,
-          notes: notes || undefined,
+          endTime: undefined,
+          duration: undefined,
+          amount: f.amount,
+          notes: f.notes,
           createdAt: now,
           updatedAt: now,
         })
-        if (savedId == null) throw new Error(t('errors.addPumpFail'))
-        onSaved?.()
-        return
-      }
-      const id = await db.pumpings.add({
-        babyId: activeBabyId,
-        side,
-        startTime: start,
-        endTime: undefined,
-        duration: undefined,
-        amount: amt,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
-      if (id == null) throw new Error(t('errors.addPumpFail'))
-      startTimer('pumping', id, start)
-      onStartRecord?.()
-    } catch {
-      toast(t('errors.generic'))
-    }
-  }
+        if (id == null) throw new Error(t('errors.addPumpFail'))
+        return id
+      },
+      addRange: async (f, start, end) => {
+        if (activeBabyId == null) throw new Error(t('errors.noBaby'))
+        const now = Date.now()
+        const id = await db.pumpings.add({
+          babyId: activeBabyId,
+          side: f.side,
+          startTime: start,
+          endTime: end,
+          duration: end - start,
+          amount: f.amount,
+          notes: f.notes,
+          createdAt: now,
+          updatedAt: now,
+        })
+        if (id == null) throw new Error(t('errors.addPumpFail'))
+      },
+      update: async (id, f, start, end) => {
+        await db.pumpings.update(id, {
+          side: f.side,
+          startTime: start,
+          endTime: end,
+          duration: end && end > start ? end - start : undefined,
+          amount: f.amount,
+          notes: f.notes,
+          updatedAt: Date.now(),
+        })
+      },
+      validateEdit: (start, end) => {
+        if (end != null && end <= start) {
+          err.set('endTime', t('pump.invalidOrder'))
+          return false
+        }
+        return true
+      },
+      finishRecording: async (recordId, endTs, f, start) => {
+        await db.pumpings.update(recordId, {
+          endTime: endTs,
+          duration: endTs - start,
+          amount: f.amount,
+          updatedAt: Date.now(),
+        })
+      },
+      onSaved,
+      onStartRecord,
+    })
+
+  const submitLabel = isEditing ? t('common.saveEdit') : isRecording ? t('pump.endRecord') : t('pump.startRecord')
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 

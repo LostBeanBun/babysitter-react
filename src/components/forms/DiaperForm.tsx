@@ -8,6 +8,7 @@ import { toDateTimeLocal, fromDateTimeLocal } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useRecordForm } from '@/hooks/useRecordForm'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -40,39 +41,34 @@ export default function DiaperForm({ editing, onSaved, onCancelled }: DiaperForm
   const colorEntries = Object.entries(DIAPER_COLOR_LABELS) as [DiaperColor, string][]
   const amountEntries = Object.entries(DIAPER_AMOUNT_LABELS) as [DiaperAmount, string][]
 
-  async function submit() {
-    err.clearAll()
-    const ts = fromDateTimeLocal(time)
-    if (ts == null) {
-      err.set('time', t('diaper.invalidTime'))
-      return
-    }
-    if (editing) {
-      await db.diapers.update(editing.id, {
-        type,
-        time: ts,
-        color: color || undefined,
-        amount: amount || undefined,
-        notes: notes || undefined,
-        updatedAt: Date.now(),
-      })
-    } else {
+  interface Payload {
+    type: DiaperType
+    time: number
+    color?: DiaperColor
+    amount?: DiaperAmount
+    notes?: string
+  }
+
+  const { submit } = useRecordForm<Payload>({
+    err,
+    editing,
+    validate: () => {
+      const ts = fromDateTimeLocal(time)
+      if (ts == null) {
+        err.set('time', t('diaper.invalidTime'))
+        return null
+      }
+      return { type, time: ts, color: color || undefined, amount: amount || undefined, notes: notes || undefined }
+    },
+    add: async (p) => {
       if (activeBabyId == null) throw new Error(t('errors.noBaby'))
       const now = Date.now()
-      const id = await db.diapers.add({
-        babyId: activeBabyId,
-        type,
-        time: ts,
-        color: color || undefined,
-        amount: amount || undefined,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
+      const id = await db.diapers.add({ babyId: activeBabyId, ...p, createdAt: now, updatedAt: now })
       if (id == null) throw new Error(t('errors.addDiaperFail'))
-    }
-    onSaved?.()
-  }
+    },
+    update: (id, p) => db.diapers.update(id, { ...p, updatedAt: Date.now() }),
+    onSaved,
+  })
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 

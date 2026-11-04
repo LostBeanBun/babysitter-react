@@ -6,6 +6,7 @@ import { toDateTimeLocal, fromDateTimeLocal } from '@/utils/format'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
+import { useRecordForm } from '@/hooks/useRecordForm'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -36,59 +37,53 @@ export default function GrowthForm({ editing, onSaved, onCancelled }: GrowthForm
   )
   const [notes, setNotes] = useState(editing?.notes ?? '')
 
-  async function submit() {
-    err.clearAll()
-    const d = fromDateTimeLocal(date + 'T00:00:00')
-    if (d == null || isNaN(d)) {
-      err.set('date', t('growth.invalidDate'))
-      return
-    }
-    const w = weight ? Number(weight) : undefined
-    const h = height ? Number(height) : undefined
-    const hc = headCircumference ? Number(headCircumference) : undefined
-    if (w !== undefined && (isNaN(w) || w <= 0)) {
-      err.set('weight', t('growth.invalidWeight'))
-      return
-    }
-    if (h !== undefined && (isNaN(h) || h <= 0)) {
-      err.set('height', t('growth.invalidHeight'))
-      return
-    }
-    if (hc !== undefined && (isNaN(hc) || hc <= 0)) {
-      err.set('head', t('growth.invalidHead'))
-      return
-    }
-    if (w === undefined && h === undefined && hc === undefined) {
-      err.setFormError(t('growth.invalidEmpty'))
-      return
-    }
+  interface Payload {
+    date: number
+    weight?: number
+    height?: number
+    headCircumference?: number
+    notes?: string
+  }
 
-    if (editing) {
-      await db.growths.update(editing.id, {
-        date: d,
-        weight: w,
-        height: h,
-        headCircumference: hc,
-        notes: notes || undefined,
-        updatedAt: Date.now(),
-      })
-    } else {
+  const { submit } = useRecordForm<Payload>({
+    err,
+    editing,
+    validate: () => {
+      const d = fromDateTimeLocal(date + 'T00:00:00')
+      if (d == null || isNaN(d)) {
+        err.set('date', t('growth.invalidDate'))
+        return null
+      }
+      const w = weight ? Number(weight) : undefined
+      const h = height ? Number(height) : undefined
+      const hc = headCircumference ? Number(headCircumference) : undefined
+      if (w !== undefined && (isNaN(w) || w <= 0)) {
+        err.set('weight', t('growth.invalidWeight'))
+        return null
+      }
+      if (h !== undefined && (isNaN(h) || h <= 0)) {
+        err.set('height', t('growth.invalidHeight'))
+        return null
+      }
+      if (hc !== undefined && (isNaN(hc) || hc <= 0)) {
+        err.set('head', t('growth.invalidHead'))
+        return null
+      }
+      if (w === undefined && h === undefined && hc === undefined) {
+        err.setFormError(t('growth.invalidEmpty'))
+        return null
+      }
+      return { date: d, weight: w, height: h, headCircumference: hc, notes: notes || undefined }
+    },
+    add: async (p) => {
       if (activeBabyId == null) throw new Error(t('errors.noBaby'))
       const now = Date.now()
-      const id = await db.growths.add({
-        babyId: activeBabyId,
-        date: d,
-        weight: w,
-        height: h,
-        headCircumference: hc,
-        notes: notes || undefined,
-        createdAt: now,
-        updatedAt: now,
-      })
+      const id = await db.growths.add({ babyId: activeBabyId, ...p, createdAt: now, updatedAt: now })
       if (id == null) throw new Error(t('errors.addGrowthFail'))
-    }
-    onSaved?.()
-  }
+    },
+    update: (id, p) => db.growths.update(id, { ...p, updatedAt: Date.now() }),
+    onSaved,
+  })
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 
