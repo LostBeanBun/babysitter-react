@@ -8,6 +8,8 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useTimedRecord } from '@/hooks/useTimedRecord'
+import ChoiceGrid from '@/components/common/ChoiceGrid'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -175,26 +177,12 @@ export default function FeedingForm({ editing, onSaved, onCancelled, onStartReco
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 
+  const typeOptions = FEED_TYPE_LIST.map((opt) => ({ ...opt, label: t(opt.label) }))
+
   return (
     <form ref={formRef} className="feeding-form" onSubmit={onSubmit}>
       <p className="form-label">{t('feed.typeLabel')}</p>
-      <div className={s['type-grid']}>
-        {FEED_TYPE_LIST.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            className={type === opt.value ? `${s['type-btn']} ${s.selected}` : s['type-btn']}
-            style={
-              type === opt.value ? { background: opt.color + '22', borderColor: opt.color, color: opt.color } : undefined
-            }
-            disabled={isRecording}
-            onClick={() => setType(opt.value)}
-          >
-            <span className={s['type-icon']}>{opt.icon}</span>
-            <span className={s['type-label']}>{t(opt.label)}</span>
-          </button>
-        ))}
-      </div>
+      <ChoiceGrid options={typeOptions} value={type} onChange={(v) => setType(v as FeedType)} disabled={isRecording} />
 
       {isBreast && (
         <div className={s['side-row']}>
@@ -214,76 +202,56 @@ export default function FeedingForm({ editing, onSaved, onCancelled, onStartReco
       )}
 
       {!isBreast && (
-        <div className={`form-field${err.has('amount') ? ' has-error' : ''}`}>
-          <label className="form-label">{t('feed.amountLabel')}</label>
-          <input
-            value={amount}
-            type="number"
-            min={0}
-            step={5}
-            placeholder={t('feed.amountPlaceholder')}
-            className="form-input"
-            inputMode="decimal"
-            disabled={isRecording}
-            onChange={(e) => {
-              setAmount(e.target.value)
-              err.clear('amount')
-            }}
-          />
-          {err.get('amount') && <p className="field-error">{err.get('amount')}</p>}
-        </div>
+        <TextField
+          value={amount}
+          onChange={setAmount}
+          type="number"
+          min={0}
+          step={5}
+          label={t('feed.amountLabel')}
+          errors={err}
+          errorKey="amount"
+          placeholder={t('feed.amountPlaceholder')}
+          inputMode="decimal"
+          disabled={isRecording}
+        />
       )}
 
       {showTimePair ? (
         <div className={s['time-row']}>
-          <div className={`form-field${err.has('startTime') ? ' has-error' : ''}`}>
-            <label className="form-label">{t('feed.startLabel')}</label>
-            <input
-              value={startTime}
-              type="datetime-local"
-              step="1"
-              placeholder={t('common.selectDateTime')}
-              className="form-input"
-              disabled={isRecording}
-              onChange={(e) => {
-                setStartTime(e.target.value)
-                err.clear('startTime')
-              }}
-            />
-            {err.get('startTime') && <p className="field-error">{err.get('startTime')}</p>}
-          </div>
-          <div className={`form-field${err.has('endTime') ? ' has-error' : ''}`}>
-            <label className="form-label">{t('feed.endLabel')}</label>
-            <input
-              value={endTime}
-              type="datetime-local"
-              step="1"
-              placeholder={t('common.selectDateTime')}
-              className="form-input"
-              onChange={(e) => {
-                setEndTime(e.target.value)
-                err.clear('endTime')
-              }}
-            />
-            {err.get('endTime') && <p className="field-error">{err.get('endTime')}</p>}
-          </div>
-        </div>
-      ) : (
-        <div className={`form-field${err.has('startTime') ? ' has-error' : ''}`}>
-          <label className="form-label">{t('feed.timeLabel')}</label>
-          <input
+          <TextField
             value={startTime}
+            onChange={setStartTime}
             type="datetime-local"
             step="1"
+            label={t('feed.startLabel')}
+            errors={err}
+            errorKey="startTime"
             placeholder={t('common.selectDateTime')}
-            className="form-input"
-            onChange={(e) => {
-              setStartTime(e.target.value)
-              err.clear('startTime')
-            }}
+            disabled={isRecording}
           />
-          {err.get('startTime') && <p className="field-error">{err.get('startTime')}</p>}
+          <TextField
+            value={endTime}
+            onChange={setEndTime}
+            type="datetime-local"
+            step="1"
+            label={t('feed.endLabel')}
+            errors={err}
+            errorKey="endTime"
+            placeholder={t('common.selectDateTime')}
+          />
         </div>
+      ) : (
+        <TextField
+          value={startTime}
+          onChange={setStartTime}
+          type="datetime-local"
+          step="1"
+          label={t('feed.timeLabel')}
+          errors={err}
+          errorKey="startTime"
+          placeholder={t('common.selectDateTime')}
+        />
       )}
 
       {showTimePair && durationText && <p className={s['duration-hint']}>{durationText}</p>}

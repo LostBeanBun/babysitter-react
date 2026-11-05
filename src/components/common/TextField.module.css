@@ -1,0 +1,28 @@
+.text-input-row {
+  position: relative;
+}
+
+/* 带右侧附加内容时为输入预留空间 */
+.text-input-row.has-append {
+  display: flex;
+  gap: 8px;
+}
+
+.text-input-row.has-append :global(.form-input) {
+  flex: 1;
+  min-width: 0;
+}
+
+.text-input-row:has(.text-input-unit) :global(.form-input) {
+  padding-right: 34px;
+}
+
+.text-input-unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--fs-14);
+  color: var(--text-muted);
+  pointer-events: none;
+}

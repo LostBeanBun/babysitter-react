@@ -7,6 +7,7 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useRecordForm } from '@/hooks/useRecordForm'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -63,47 +64,32 @@ export default function MedicationForm({ editing, onSaved, onCancelled }: Medica
 
   return (
     <form ref={formRef} className="medication-form" onSubmit={onSubmit}>
-      <div className={`form-field${err.has('name') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('medication.nameLabel')}</label>
-        <input
-          value={name}
-          type="text"
-          placeholder={t('medication.namePlaceholder')}
-          className="form-input"
-          onChange={(e) => {
-            setName(e.target.value)
-            err.clear('name')
-          }}
-        />
-        {err.get('name') && <p className="field-error">{err.get('name')}</p>}
-      </div>
+      <TextField
+        value={name}
+        onChange={setName}
+        label={t('medication.nameLabel')}
+        errors={err}
+        errorKey="name"
+        placeholder={t('medication.namePlaceholder')}
+      />
 
-      <div className="form-field">
-        <label className="form-label">{t('medication.doseLabel')}</label>
-        <input
-          value={dose}
-          type="text"
-          placeholder={t('medication.dosePlaceholder')}
-          className="form-input"
-          onChange={(e) => setDose(e.target.value)}
-        />
-      </div>
+      <TextField
+        value={dose}
+        onChange={setDose}
+        label={t('medication.doseLabel')}
+        placeholder={t('medication.dosePlaceholder')}
+      />
 
-      <div className={`form-field${err.has('time') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('medication.timeLabel')}</label>
-        <input
-          value={time}
-          type="datetime-local"
-          step="1"
-          placeholder={t('common.selectDateTime')}
-          className="form-input"
-          onChange={(e) => {
-            setTime(e.target.value)
-            err.clear('time')
-          }}
-        />
-        {err.get('time') && <p className="field-error">{err.get('time')}</p>}
-      </div>
+      <TextField
+        value={time}
+        onChange={setTime}
+        type="datetime-local"
+        step="1"
+        label={t('medication.timeLabel')}
+        errors={err}
+        errorKey="time"
+        placeholder={t('common.selectDateTime')}
+      />
 
       <FormNotes value={notes} label={t('medication.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 

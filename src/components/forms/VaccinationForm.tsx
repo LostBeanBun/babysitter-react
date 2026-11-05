@@ -17,6 +17,8 @@ import {
 import BaseModal from '@/components/common/BaseModal'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useRecordForm } from '@/hooks/useRecordForm'
+import ChoiceGrid from '@/components/common/ChoiceGrid'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -111,73 +113,43 @@ export default function VaccinationForm({ editing, onSaved, onCancelled }: Vacci
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 
+  const statusOptions = STATUS_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))
+
   return (
     <form ref={formRef} className="vaccination-form" onSubmit={onSubmit}>
-      <div className={`form-field${err.has('name') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('vaccination.nameLabel')}</label>
-        <div className={s['name-row']}>
-          <input
-            value={name}
-            type="text"
-            placeholder={t('vaccination.namePlaceholder')}
-            className="form-input"
-            onChange={(e) => {
-              setName(e.target.value)
-              err.clear('name')
-            }}
-          />
+      <TextField
+        value={name}
+        onChange={setName}
+        label={t('vaccination.nameLabel')}
+        errors={err}
+        errorKey="name"
+        placeholder={t('vaccination.namePlaceholder')}
+        append={
           <button type="button" className={`btn btn-outline ${s['plan-btn']}`} onClick={() => setPlanOpen(true)}>
             📋 {t('vaccination.planPicker')}
           </button>
-        </div>
-        {err.get('name') && <p className="field-error">{err.get('name')}</p>}
-      </div>
+        }
+      />
 
-      <div className="form-field">
-        <label className="form-label">{t('vaccination.doseLabel')}</label>
-        <input
-          value={dose}
-          type="text"
-          placeholder={t('vaccination.dosePlaceholder')}
-          className="form-input"
-          onChange={(e) => setDose(e.target.value)}
-        />
-      </div>
+      <TextField
+        value={dose}
+        onChange={setDose}
+        label={t('vaccination.doseLabel')}
+        placeholder={t('vaccination.dosePlaceholder')}
+      />
 
-      <div className={`form-field${err.has('date') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('vaccination.dateLabel')}</label>
-        <input
-          value={date}
-          type="date"
-          placeholder={t('common.selectDate')}
-          className="form-input"
-          onChange={(e) => {
-            setDate(e.target.value)
-            err.clear('date')
-          }}
-        />
-        {err.get('date') && <p className="field-error">{err.get('date')}</p>}
-      </div>
+      <TextField
+        value={date}
+        onChange={setDate}
+        type="date"
+        label={t('vaccination.dateLabel')}
+        errors={err}
+        errorKey="date"
+        placeholder={t('common.selectDate')}
+      />
 
       <p className="form-label">{t('vaccination.statusLabel')}</p>
-      <div className={s['status-grid']}>
-        {STATUS_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            className={status === opt.value ? `${s['status-btn']} ${s.selected}` : s['status-btn']}
-            style={
-              status === opt.value
-                ? { background: opt.color + '22', borderColor: opt.color, color: opt.color }
-                : undefined
-            }
-            onClick={() => setStatus(opt.value)}
-          >
-            <span className={s['status-icon']}>{opt.icon}</span>
-            <span className={s['status-label']}>{t(opt.label)}</span>
-          </button>
-        ))}
-      </div>
+      <ChoiceGrid options={statusOptions} value={status} onChange={(v) => setStatus(v as VaccinationStatus)} columns={2} />
 
       <FormNotes value={notes} label={t('vaccination.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 

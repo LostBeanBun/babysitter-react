@@ -6,6 +6,7 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useTimedRecord } from '@/hooks/useTimedRecord'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -112,37 +113,27 @@ export default function SleepForm({ editing, onSaved, onCancelled, onStartRecord
   return (
     <form ref={formRef} className="sleep-form" onSubmit={onSubmit}>
       <div className={s['time-row']}>
-        <div className={`form-field${err.has('startTime') ? ' has-error' : ''}`}>
-          <label className="form-label">{t('sleep.startLabel')}</label>
-          <input
-            value={startTime}
-            type="datetime-local"
-            step="1"
-            placeholder={t('common.selectDateTime')}
-            className="form-input"
-            disabled={isRecording}
-            onChange={(e) => {
-              setStartTime(e.target.value)
-              err.clear('startTime')
-            }}
-          />
-          {err.get('startTime') && <p className="field-error">{err.get('startTime')}</p>}
-        </div>
-        <div className={`form-field${err.has('endTime') ? ' has-error' : ''}`}>
-          <label className="form-label">{t('sleep.endLabel')}</label>
-          <input
-            value={endTime}
-            type="datetime-local"
-            step="1"
-            placeholder={t('common.selectDateTime')}
-            className="form-input"
-            onChange={(e) => {
-              setEndTime(e.target.value)
-              err.clear('endTime')
-            }}
-          />
-          {err.get('endTime') && <p className="field-error">{err.get('endTime')}</p>}
-        </div>
+        <TextField
+          value={startTime}
+          onChange={setStartTime}
+          type="datetime-local"
+          step="1"
+          label={t('sleep.startLabel')}
+          errors={err}
+          errorKey="startTime"
+          placeholder={t('common.selectDateTime')}
+          disabled={isRecording}
+        />
+        <TextField
+          value={endTime}
+          onChange={setEndTime}
+          type="datetime-local"
+          step="1"
+          label={t('sleep.endLabel')}
+          errors={err}
+          errorKey="endTime"
+          placeholder={t('common.selectDateTime')}
+        />
       </div>
 
       {durationText && <p className={s['duration-hint']}>{durationText}</p>}

@@ -1,13 +1,3 @@
-.name-row {
-  display: flex;
-  gap: 8px;
-}
-
-.name-row :global(.form-input) {
-  flex: 1;
-  min-width: 0;
-}
-
 .plan-btn {
   flex-shrink: 0;
   white-space: nowrap;
@@ -106,41 +96,5 @@
   background: rgba(106, 184, 106, 0.12);
   padding: 1px 6px;
   border-radius: var(--radius-2xs);
-  white-space: nowrap;
-}
-
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: var(--space-4);
-}
-
-.status-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-height: 44px;
-  padding: var(--space-3) 6px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--glass-border);
-  background: var(--surface);
-  transition: background-color var(--dur-slow) var(--spring), border-color var(--dur-slow) var(--spring), color var(--dur-slow) var(--spring),
-    box-shadow var(--dur-slow) var(--spring), transform var(--dur-slow) var(--spring), opacity var(--dur-slow) var(--spring);
-}
-
-.status-btn.selected {
-  border-width: 1.5px;
-}
-
-.status-icon {
-  font-size: var(--fs-lg);
-}
-
-.status-label {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
   white-space: nowrap;
 }

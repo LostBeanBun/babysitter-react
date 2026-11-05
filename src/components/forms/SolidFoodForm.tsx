@@ -7,6 +7,7 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useRecordForm } from '@/hooks/useRecordForm'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -63,47 +64,32 @@ export default function SolidFoodForm({ editing, onSaved, onCancelled }: SolidFo
 
   return (
     <form ref={formRef} className="solid-food-form" onSubmit={onSubmit}>
-      <div className={`form-field${err.has('food') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('solidFood.foodLabel')}</label>
-        <input
-          value={food}
-          type="text"
-          placeholder={t('solidFood.foodPlaceholder')}
-          className="form-input"
-          onChange={(e) => {
-            setFood(e.target.value)
-            err.clear('food')
-          }}
-        />
-        {err.get('food') && <p className="field-error">{err.get('food')}</p>}
-      </div>
+      <TextField
+        value={food}
+        onChange={setFood}
+        label={t('solidFood.foodLabel')}
+        errors={err}
+        errorKey="food"
+        placeholder={t('solidFood.foodPlaceholder')}
+      />
 
-      <div className="form-field">
-        <label className="form-label">{t('solidFood.amountLabel')}</label>
-        <input
-          value={amount}
-          type="text"
-          placeholder={t('solidFood.amountPlaceholder')}
-          className="form-input"
-          onChange={(e) => setAmount(e.target.value)}
-        />
-      </div>
+      <TextField
+        value={amount}
+        onChange={setAmount}
+        label={t('solidFood.amountLabel')}
+        placeholder={t('solidFood.amountPlaceholder')}
+      />
 
-      <div className={`form-field${err.has('time') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('solidFood.timeLabel')}</label>
-        <input
-          value={time}
-          type="datetime-local"
-          step="1"
-          placeholder={t('common.selectDateTime')}
-          className="form-input"
-          onChange={(e) => {
-            setTime(e.target.value)
-            err.clear('time')
-          }}
-        />
-        {err.get('time') && <p className="field-error">{err.get('time')}</p>}
-      </div>
+      <TextField
+        value={time}
+        onChange={setTime}
+        type="datetime-local"
+        step="1"
+        label={t('solidFood.timeLabel')}
+        errors={err}
+        errorKey="time"
+        placeholder={t('common.selectDateTime')}
+      />
 
       <FormNotes value={notes} label={t('solidFood.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 

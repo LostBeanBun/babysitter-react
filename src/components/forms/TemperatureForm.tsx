@@ -9,10 +9,11 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useRecordForm } from '@/hooks/useRecordForm'
+import ChoiceGrid from '@/components/common/ChoiceGrid'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
-import s from './TemperatureForm.module.css'
 
 export interface TemperatureFormProps {
   editing?: { id: number; time: number; value: number; method?: TemperatureMethod; notes?: string }
@@ -65,60 +66,44 @@ export default function TemperatureForm({ editing, onSaved, onCancelled }: Tempe
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 
+  const methodOptions = TEMP_METHOD_LIST.map((opt) => ({ ...opt, label: t(opt.label) }))
+
   return (
     <form ref={formRef} className="temperature-form" onSubmit={onSubmit}>
-      <div className={`form-field${err.has('value') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('temperature.valueLabel')}</label>
-        <div className={s['value-wrap']}>
-          <input
-            value={value}
-            type="number"
-            min={35}
-            max={43}
-            step={0.1}
-            placeholder={t('temperature.valuePlaceholder')}
-            className="form-input"
-            inputMode="decimal"
-            onChange={(e) => {
-              setValue(e.target.value)
-              err.clear('value')
-            }}
-          />
-          <span className={s['value-unit']}>°C</span>
-        </div>
-        {err.get('value') && <p className="field-error">{err.get('value')}</p>}
-      </div>
+      <TextField
+        value={value}
+        onChange={setValue}
+        type="number"
+        min={35}
+        max={43}
+        step={0.1}
+        label={t('temperature.valueLabel')}
+        errors={err}
+        errorKey="value"
+        placeholder={t('temperature.valuePlaceholder')}
+        inputMode="decimal"
+        suffix="°C"
+      />
 
       <p className="form-label">{t('temperature.methodLabel')}</p>
-      <div className={s['method-grid']}>
-        {TEMP_METHOD_LIST.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            className={method === opt.value ? `${s['method-btn']} ${s.selected}` : s['method-btn']}
-            onClick={() => setMethod(method === opt.value ? '' : opt.value)}
-          >
-            <span className={s['method-icon']}>{opt.icon}</span>
-            <span className={s['method-label']}>{t(opt.label)}</span>
-          </button>
-        ))}
-      </div>
+      <ChoiceGrid
+        options={methodOptions}
+        value={method}
+        onChange={(v) => setMethod(v as TemperatureMethod | '')}
+        columns={4}
+        clearable
+      />
 
-      <div className={`form-field${err.has('time') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('temperature.timeLabel')}</label>
-        <input
-          value={time}
-          type="datetime-local"
-          step="1"
-          placeholder={t('common.selectDateTime')}
-          className="form-input"
-          onChange={(e) => {
-            setTime(e.target.value)
-            err.clear('time')
-          }}
-        />
-        {err.get('time') && <p className="field-error">{err.get('time')}</p>}
-      </div>
+      <TextField
+        value={time}
+        onChange={setTime}
+        type="datetime-local"
+        step="1"
+        label={t('temperature.timeLabel')}
+        errors={err}
+        errorKey="time"
+        placeholder={t('common.selectDateTime')}
+      />
 
       <FormNotes
         value={notes}

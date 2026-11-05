@@ -8,6 +8,8 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useTimedRecord } from '@/hooks/useTimedRecord'
+import ChoiceGrid from '@/components/common/ChoiceGrid'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -141,74 +143,48 @@ export default function PumpingForm({ editing, onSaved, onCancelled, onStartReco
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 
+  const sideOptions = PUMP_SIDE_LIST.map((opt) => ({ ...opt, label: t(opt.label) }))
+
   return (
     <form ref={formRef} className="pump-form" onSubmit={onSubmit}>
       <p className="form-label">{t('pump.sideLabel')}</p>
-      <div className={s['type-grid']}>
-        {PUMP_SIDE_LIST.map((sd) => (
-          <button
-            key={sd.value}
-            type="button"
-            className={side === sd.value ? `${s['type-btn']} ${s.selected}` : s['type-btn']}
-            disabled={isRecording}
-            onClick={() => setSide(sd.value)}
-          >
-            <span className={s['type-icon']}>{sd.icon}</span>
-            <span className={s['type-label']}>{t(sd.label)}</span>
-          </button>
-        ))}
-      </div>
+      <ChoiceGrid options={sideOptions} value={side} onChange={(v) => setSide(v as PumpSide)} disabled={isRecording} />
 
-      <div className={`form-field${err.has('amount') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('pump.amountLabel')}</label>
-        <input
-          value={amount}
-          type="number"
-          min={0}
-          step={5}
-          placeholder={t('pump.amountPlaceholder')}
-          className="form-input"
-          inputMode="decimal"
-          onChange={(e) => {
-            setAmount(e.target.value)
-            err.clear('amount')
-          }}
-        />
-        {err.get('amount') && <p className="field-error">{err.get('amount')}</p>}
-      </div>
+      <TextField
+        value={amount}
+        onChange={setAmount}
+        type="number"
+        min={0}
+        step={5}
+        label={t('pump.amountLabel')}
+        errors={err}
+        errorKey="amount"
+        placeholder={t('pump.amountPlaceholder')}
+        inputMode="decimal"
+      />
 
       <div className={s['time-row']}>
-        <div className={`form-field${err.has('startTime') ? ' has-error' : ''}`}>
-          <label className="form-label">{t('pump.startLabel')}</label>
-          <input
-            value={startTime}
-            type="datetime-local"
-            step="1"
-            placeholder={t('common.selectDateTime')}
-            className="form-input"
-            disabled={isRecording}
-            onChange={(e) => {
-              setStartTime(e.target.value)
-              err.clear('startTime')
-            }}
-          />
-          {err.get('startTime') && <p className="field-error">{err.get('startTime')}</p>}
-        </div>
-        <div className={`form-field${err.has('endTime') ? ' has-error' : ''}`}>
-          <label className="form-label">{t('pump.endLabel')}</label>
-          <input
-            value={endTime}
-            type="datetime-local"
-            step="1"
-            placeholder={t('common.selectDateTime')}
-            className="form-input"
-            onChange={(e) => {
-              setEndTime(e.target.value)
-              err.clear('endTime')
-            }}
-          />
-          {err.get('endTime') && <p className="field-error">{err.get('endTime')}</p>}
-        </div>
+        <TextField
+          value={startTime}
+          onChange={setStartTime}
+          type="datetime-local"
+          step="1"
+          label={t('pump.startLabel')}
+          errors={err}
+          errorKey="startTime"
+          placeholder={t('common.selectDateTime')}
+          disabled={isRecording}
+        />
+        <TextField
+          value={endTime}
+          onChange={setEndTime}
+          type="datetime-local"
+          step="1"
+          label={t('pump.endLabel')}
+          errors={err}
+          errorKey="endTime"
+          placeholder={t('common.selectDateTime')}
+        />
       </div>
 
       {durationText && <p className={s['duration-hint']}>{durationText}</p>}

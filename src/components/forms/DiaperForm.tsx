@@ -9,6 +9,9 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useRecordForm } from '@/hooks/useRecordForm'
+import ChoiceGrid from '@/components/common/ChoiceGrid'
+import FormField from '@/components/common/FormField'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -72,28 +75,14 @@ export default function DiaperForm({ editing, onSaved, onCancelled }: DiaperForm
 
   const { formRef, onSubmit } = useFormSubmit(submit)
 
+  const typeOptions = DIAPER_TYPE_LIST.map((opt) => ({ ...opt, label: t(opt.label) }))
+
   return (
     <form ref={formRef} className="diaper-form" onSubmit={onSubmit}>
       <p className="form-label">{t('diaper.typeLabel')}</p>
-      <div className={s['type-grid']}>
-        {DIAPER_TYPE_LIST.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            className={type === opt.value ? `${s['type-btn']} ${s.selected}` : s['type-btn']}
-            style={
-              type === opt.value ? { background: opt.color + '22', borderColor: opt.color, color: opt.color } : undefined
-            }
-            onClick={() => setType(opt.value)}
-          >
-            <span className={s['type-icon']}>{opt.icon}</span>
-            <span className={s['type-label']}>{t(opt.label)}</span>
-          </button>
-        ))}
-      </div>
+      <ChoiceGrid options={typeOptions} value={type} onChange={(v) => setType(v as DiaperType)} />
 
-      <div className="form-field">
-        <label className="form-label">{t('diaper.colorLabel')}</label>
+      <FormField label={t('diaper.colorLabel')} tag="p">
         <div className={s['color-row']}>
           {colorEntries.map(([key, label]) => (
             <button
@@ -107,10 +96,9 @@ export default function DiaperForm({ editing, onSaved, onCancelled }: DiaperForm
             </button>
           ))}
         </div>
-      </div>
+      </FormField>
 
-      <div className="form-field">
-        <label className="form-label">{t('diaper.amountLabel')}</label>
+      <FormField label={t('diaper.amountLabel')} tag="p">
         <div className={s['amount-row']}>
           {amountEntries.map(([key, label]) => (
             <button
@@ -123,23 +111,18 @@ export default function DiaperForm({ editing, onSaved, onCancelled }: DiaperForm
             </button>
           ))}
         </div>
-      </div>
+      </FormField>
 
-      <div className={`form-field${err.has('time') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('diaper.timeLabel')}</label>
-        <input
-          value={time}
-          type="datetime-local"
-          step="1"
-          placeholder={t('common.selectDateTime')}
-          className="form-input"
-          onChange={(e) => {
-            setTime(e.target.value)
-            err.clear('time')
-          }}
-        />
-        {err.get('time') && <p className="field-error">{err.get('time')}</p>}
-      </div>
+      <TextField
+        value={time}
+        onChange={setTime}
+        type="datetime-local"
+        step="1"
+        label={t('diaper.timeLabel')}
+        errors={err}
+        errorKey="time"
+        placeholder={t('common.selectDateTime')}
+      />
 
       <FormNotes value={notes} label={t('diaper.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 

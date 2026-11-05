@@ -10,6 +10,7 @@ import { useFormErrors } from '@/hooks/useFormErrors'
 import { useRecordForm } from '@/hooks/useRecordForm'
 import { MILESTONE_GUIDE, milestoneGuideRange } from '@/constants/milestoneGuide'
 import type { MilestoneType } from '@/types'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -99,21 +100,16 @@ export default function MilestoneForm({ editing, onSaved, onCancelled }: Milesto
         )}
       </div>
 
-      <div className={`form-field${err.has('time') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('milestone.timeLabel')}</label>
-        <input
-          value={time}
-          type="datetime-local"
-          step="1"
-          placeholder={t('common.selectDateTime')}
-          className="form-input"
-          onChange={(e) => {
-            setTime(e.target.value)
-            err.clear('time')
-          }}
-        />
-        {err.get('time') && <p className="field-error">{err.get('time')}</p>}
-      </div>
+      <TextField
+        value={time}
+        onChange={setTime}
+        type="datetime-local"
+        step="1"
+        label={t('milestone.timeLabel')}
+        errors={err}
+        errorKey="time"
+        placeholder={t('common.selectDateTime')}
+      />
 
       <FormNotes value={notes} label={t('milestone.notesLabel')} placeholder={t('common.optional')} onChange={setNotes} />
 

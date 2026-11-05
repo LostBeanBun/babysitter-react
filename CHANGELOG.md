@@ -3,6 +3,24 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.13.4] - 2026-11-04
+
+### 新增
+
+- 
+
+### 修复
+
+- 
+
+## [1.13.4] - 2026-11-04
+
+### 变更
+
+- React 新增 `components/common/FormField` / `TextField` / `ChoiceGrid`（对齐 Vue 同名组件）：表单的 label + 内联错误、输入框（含 `°C` 等单位后缀与右侧附加按钮）、图标选项网格统一由公共组件渲染，输入时自动清除字段错误
+- React 10 个表单全部改用上述组件（纸尿裤 / 喂养 / 吸奶 / 睡眠 / 成长 / 用药 / 辅食 / 疫苗 / 体温 / 里程碑）：各表单内重复的 `form-field` 包裹与 `type-grid` / `method-grid` / `status-grid` 样式删除，选中态、禁用态、疫苗「计划库」按钮位置与 Vue 一致
+- 删除 React `TemperatureForm.module.css`（样式已并入 `TextField` / `ChoiceGrid`）
+
 ## [1.13.3] - 2026-11-04
 
 ### 变更

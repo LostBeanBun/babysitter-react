@@ -7,6 +7,7 @@ import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useRecordForm } from '@/hooks/useRecordForm'
+import TextField from '@/components/common/TextField'
 import FormNotes from '@/components/common/FormNotes'
 import FormActions from '@/components/common/FormActions'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
@@ -89,74 +90,54 @@ export default function GrowthForm({ editing, onSaved, onCancelled }: GrowthForm
 
   return (
     <form ref={formRef} className="growth-form" onSubmit={onSubmit}>
-      <div className={`form-field${err.has('date') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('growth.dateLabel')}</label>
-        <input
-          value={date}
-          type="date"
-          placeholder={t('common.selectDate')}
-          className="form-input"
-          onChange={(e) => {
-            setDate(e.target.value)
-            err.clear('date')
-          }}
-        />
-        {err.get('date') && <p className="field-error">{err.get('date')}</p>}
-      </div>
+      <TextField
+        value={date}
+        onChange={setDate}
+        type="date"
+        label={t('growth.dateLabel')}
+        errors={err}
+        errorKey="date"
+        placeholder={t('common.selectDate')}
+      />
 
-      <div className={`form-field${err.has('weight') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('growth.weightLabel')}</label>
-        <input
-          value={weight}
-          type="number"
-          min={0}
-          step={0.1}
-          placeholder={t('growth.weightPlaceholder')}
-          className="form-input"
-          inputMode="decimal"
-          onChange={(e) => {
-            setWeight(e.target.value)
-            err.clear('weight')
-          }}
-        />
-        {err.get('weight') && <p className="field-error">{err.get('weight')}</p>}
-      </div>
+      <TextField
+        value={weight}
+        onChange={setWeight}
+        type="number"
+        min={0}
+        step={0.1}
+        label={t('growth.weightLabel')}
+        errors={err}
+        errorKey="weight"
+        placeholder={t('growth.weightPlaceholder')}
+        inputMode="decimal"
+      />
 
-      <div className={`form-field${err.has('height') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('growth.heightLabel')}</label>
-        <input
-          value={height}
-          type="number"
-          min={0}
-          step={0.5}
-          placeholder={t('growth.heightPlaceholder')}
-          className="form-input"
-          inputMode="decimal"
-          onChange={(e) => {
-            setHeight(e.target.value)
-            err.clear('height')
-          }}
-        />
-        {err.get('height') && <p className="field-error">{err.get('height')}</p>}
-      </div>
+      <TextField
+        value={height}
+        onChange={setHeight}
+        type="number"
+        min={0}
+        step={0.5}
+        label={t('growth.heightLabel')}
+        errors={err}
+        errorKey="height"
+        placeholder={t('growth.heightPlaceholder')}
+        inputMode="decimal"
+      />
 
-      <div className={`form-field${err.has('head') ? ' has-error' : ''}`}>
-        <label className="form-label">{t('growth.headLabel')}</label>
-        <input
-          value={headCircumference}
-          type="number"
-          min={0}
-          step={0.1}
-          placeholder={t('growth.headPlaceholder')}
-          className="form-input"
-          inputMode="decimal"
-          onChange={(e) => {
-            setHeadCircumference(e.target.value)
-            err.clear('head')
-          }}
-        />
-        {err.get('head') && <p className="field-error">{err.get('head')}</p>}
-      </div>
+      <TextField
+        value={headCircumference}
+        onChange={setHeadCircumference}
+        type="number"
+        min={0}
+        step={0.1}
+        label={t('growth.headLabel')}
+        errors={err}
+        errorKey="head"
+        placeholder={t('growth.headPlaceholder')}
+        inputMode="decimal"
+      />
 
       {err.formError && <p className="form-error">{err.formError}</p>}
 
