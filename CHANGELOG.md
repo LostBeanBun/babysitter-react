@@ -3,15 +3,14 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
-## [1.13.4] - 2026-11-04
+## [1.13.5] - 2026-11-05
 
-### 新增
+### 变更
 
-- 
-
-### 修复
-
-- 
+- React PWA 更新策略对齐 Vue（prompt）：`public/sw.js` 不再在 install 阶段直接 `skipWaiting()`，改为收到页面 `{ type: 'SKIP_WAITING' }` 消息后才激活
+- React 注册 Service Worker 时监听 `updatefound`：新版本安装完成后弹常驻 Toast「发现新版本，点击刷新即可更新」+「刷新」，用户确认后才激活新 SW 并刷新页面，避免静默更新打断正在填写的表单；打开页面时若已有等待中的新版本同样提示
+- 首次安装成功提示「已可离线使用」，与 Vue 版 `registerSW({ onNeedRefresh, onOfflineReady })` 行为一致
+- 修正 1.13.4 条目重复：删除升版脚本留下的空 `1.13.4` 占位段
 
 ## [1.13.4] - 2026-11-04
 

@@ -14,7 +14,11 @@ self.addEventListener('install', (event) => {
       .then((cache) => cache.addAll(SHELL))
       .catch(() => undefined),
   )
-  self.skipWaiting()
+})
+
+// 新版本由页面提示用户确认后，通过 postMessage 触发激活（对齐 Vue 版 prompt 策略）
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
