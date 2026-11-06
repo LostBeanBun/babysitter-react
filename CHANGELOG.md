@@ -3,6 +3,19 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.14.0] - 2026-11-06
+
+### 新增
+
+- 移动端提醒推送（两端同一份 `services/notification.ts`）：优先 `ServiceWorkerRegistration.showNotification()`（移动端 Chrome / Android WebView 不允许 `new Notification()`），无可用 SW 时回退构造函数，失败静默处理，不影响记录与页面内提醒条
+- 通知点击统一由 Service Worker `notificationclick` 处理：聚焦同源窗口并回到首页，无窗口时新开；目标地址按 `registration.scope` 解析，兼容子路径部署
+- Vue 新增 `public/push-sw.js` 并由 `vite-plugin-pwa` 的 `workbox.importScripts` 注入；React 在 `public/sw.js` 内置相同处理
+- 新增两端同一份 `notification.spec.ts`（6 例）：未授权 / 不支持、SW 优先、无 SW 回退、`showNotification` 失败回退、SW 与构造函数均不可用时不抛错
+
+### 变更
+
+- 两端 `useReminderLoop` 改用 `canNotify()` + `showReminderNotification()`；React 删除不再需要的 `usePathname` / `useRouter` / `routerRef` / `pathnameRef`
+
 ## [1.13.5] - 2026-11-05
 
 ### 变更

@@ -21,6 +21,36 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })
 
+/* 提醒通知点击：聚焦已打开的窗口并回到首页；没有窗口则新开 */
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  // 相对应用根路径解析，兼容部署在子路径
+  const scope = new URL(self.registration.scope)
+  const target = new URL(event.notification.data?.url || './', scope).href
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
+      const client = clients.find((c) => {
+        const url = new URL(c.url)
+        return url.origin === scope.origin && url.pathname.startsWith(scope.pathname)
+      })
+      if (!client) return self.clients.openWindow(target)
+
+      await client.focus()
+      const url = new URL(client.url)
+      const isHome = url.pathname === scope.pathname && (url.hash === '' || url.hash === '#/')
+      if (!isHome) {
+        try {
+          await client.navigate(target)
+        } catch {
+          // 部分浏览器不允许 navigate，聚焦即可
+        }
+      }
+      return undefined
+    }),
+  )
+})
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),

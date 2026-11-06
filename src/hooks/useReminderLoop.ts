@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import { db } from '@/db'
 import { useBabies } from '@/stores/baby'
 import { checkReminders } from '@/utils/reminderScheduler'
+import { canNotify, showReminderNotification } from '@/services/notification'
 
 const CHECK_INTERVAL = 60_000
 
@@ -16,22 +16,12 @@ let timer: number | null = null
  */
 export function useReminderLoop() {
   const { activeBabyId } = useBabies()
-  const pathname = usePathname()
-  const router = useRouter()
-
-  // 通知点击回调脱离 React 渲染上下文，经 ref 取最新 router（ref 写入放在 effect 中）
-  const routerRef = useRef(router)
-  const pathnameRef = useRef(pathname)
-  useEffect(() => {
-    routerRef.current = router
-    pathnameRef.current = pathname
-  })
 
   useEffect(() => {
     if (timer != null) return
 
     async function sendNotifications() {
-      if (!('Notification' in window) || Notification.permission !== 'granted') return
+      if (!canNotify()) return
       if (activeBabyId == null) return
       const [baby, feedings, medications, vaccinations, diapers, sleeps] = await Promise.all([
         db.babies.get(activeBabyId),
@@ -65,15 +55,8 @@ export function useReminderLoop() {
         diapers,
         sleeps,
       })
-      for (const h of hits) {
-        const notification = new Notification(h.title, { body: h.body, tag: h.tag })
-        // 点击通知时聚焦窗口，并回到首页查看详情
-        notification.onclick = () => {
-          window.focus()
-          if (pathnameRef.current !== '/') routerRef.current.push('/')
-          notification.close()
-        }
-      }
+      // 移动端必须走 Service Worker 通知，点击行为由 SW 的 notificationclick 处理
+      for (const h of hits) void showReminderNotification(h)
     }
 
     // 首次进入页面即检查一次，随后每分钟轮询
