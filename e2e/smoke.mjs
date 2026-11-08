@@ -664,6 +664,22 @@ async function main() {
   await page.waitForTimeout(300)
   const remindOn = await page.evaluate(() => localStorage.getItem('babysitter.backupRemindEnabled'))
   check('重新打开开关后恢复提醒', remindOn === '1', String(remindOn))
+
+  // 通知权限状态行（1.14.1 回归点）：按 Notification.permission 展示，拒绝时给出可操作提示
+  const notifyStatus = page.locator('[class*="notify-status"]').first()
+  check('设置页显示通知权限状态', (await notifyStatus.count()) === 1)
+  const statusClass = (await notifyStatus.getAttribute('class')) ?? ''
+  check('通知状态行带色调类', /notify-status--(ok|warn|danger|muted)/.test(statusClass), statusClass)
+  await page.evaluate(() => {
+    Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'denied' })
+    document.dispatchEvent(new Event('visibilitychange'))
+  })
+  await page.waitForTimeout(300)
+  const deniedClass = (await notifyStatus.getAttribute('class')) ?? ''
+  const deniedText = (await notifyStatus.innerText()).trim()
+  check('通知权限被拒绝时状态行变红', /notify-status--danger/.test(deniedClass), deniedClass)
+  check('通知权限被拒绝时提示去浏览器设置', deniedText.includes('浏览器设置'), deniedText)
+
   await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
   await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
   await settle(page)

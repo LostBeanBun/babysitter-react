@@ -29,6 +29,7 @@ import { toast } from '@/stores/toast'
 import { useFormErrors } from '@/hooks/useFormErrors'
 import { useFormSubmit } from '@/hooks/useFormSubmit'
 import { formatDate } from '@/utils/format'
+import { getNotifyStatus, requestNotifyPermission, type NotifyStatus } from '@/services/notification'
 import type { Baby, BabyGender } from '@/types'
 import s from './SettingsView.module.css'
 
@@ -93,6 +94,15 @@ export default function SettingsView() {
     setReminders(loadReminders())
   }, [])
 
+  // —— 通知权限状态（iOS 未添加到主屏幕时无法授权）——
+  const [notifyStatus, setNotifyStatus] = useState<NotifyStatus>('unsupported')
+  useEffect(() => {
+    const refresh = () => setNotifyStatus(getNotifyStatus())
+    refresh()
+    document.addEventListener('visibilitychange', refresh)
+    return () => document.removeEventListener('visibilitychange', refresh)
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     async function loadCounts() {
@@ -139,18 +149,34 @@ export default function SettingsView() {
     window.setTimeout(() => setShareFeedback(null), 3000)
   }
 
-  async function requestNotificationPermission(): Promise<boolean> {
-    if (!('Notification' in window)) return false
-    if (Notification.permission === 'granted') return true
-    if (Notification.permission === 'default') {
-      try {
-        const p = await Notification.requestPermission()
-        return p === 'granted'
-      } catch {
-        return false
-      }
+  /** 通知状态文案与色调（iOS 未安装 / 权限被拒时给出可操作提示） */
+  function notifyStatusLabel(status: NotifyStatus): string {
+    switch (status) {
+      case 'granted':
+        return t('settings.notifyGranted')
+      case 'default':
+        return t('settings.notifyDefault')
+      case 'denied':
+        return t('settings.notifyDenied')
+      case 'ios-install':
+        return t('settings.notifyIosInstall')
+      default:
+        return t('settings.notifyUnsupported')
     }
-    return false
+  }
+
+  function notifyStatusTone(status: NotifyStatus): string {
+    switch (status) {
+      case 'granted':
+        return 'ok'
+      case 'denied':
+        return 'danger'
+      case 'default':
+      case 'ios-install':
+        return 'warn'
+      default:
+        return 'muted'
+    }
   }
 
   async function toggleReminder(type: ReminderType) {
@@ -160,7 +186,13 @@ export default function SettingsView() {
       [type]: { ...reminders[type], enabled: !reminders[type].enabled },
     }
     setReminders(next)
-    if (next[type].enabled) await requestNotificationPermission()
+    if (next[type].enabled) {
+      const status = await requestNotifyPermission()
+      setNotifyStatus(status)
+      if (status === 'denied') toast(t('settings.notifyDeniedToast'))
+      else if (status === 'unsupported') toast(t('settings.notifyUnsupportedToast'))
+      else if (status === 'ios-install') toast(t('settings.notifyIosToast'))
+    }
     saveReminders(next)
   }
 
@@ -489,6 +521,10 @@ export default function SettingsView() {
       <p className="section-title">{t('settings.reminderSectionTitle')}</p>
       <div className="card">
         <p className={s['data-tip']}>{t('settings.reminderTip')}</p>
+        <div className={`${s['notify-status']} ${s[`notify-status--${notifyStatusTone(notifyStatus)}`] ?? ''}`}>
+          <span className={s['notify-dot']} aria-hidden="true" />
+          <span>{notifyStatusLabel(notifyStatus)}</span>
+        </div>
         {reminders &&
           reminderRows.map((r) => (
             <div key={r.type} className={s['reminder-block']}>

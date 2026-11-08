@@ -117,6 +117,49 @@
   line-height: 1.6;
 }
 
+/* 通知权限状态行：颜色区分可用 / 待授权 / 被拒绝 / 不支持 */
+.notify-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: var(--space-3);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.notify-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.notify-status--ok {
+  color: var(--accent-green);
+  background: var(--accent-green-soft);
+}
+
+.notify-status--warn {
+  color: var(--accent-yellow);
+  background: var(--accent-yellow-soft);
+}
+
+.notify-status--danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.notify-status--muted {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
 .reminder-row {
   display: flex;
   align-items: center;
