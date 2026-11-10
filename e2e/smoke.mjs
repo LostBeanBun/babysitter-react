@@ -30,8 +30,8 @@ const HEADED = process.env.HEADED === '1'
 const ROUTES = IS_REACT
   ? { home: '/', log: '/log', stats: '/stats', settings: '/settings' }
   : { home: '/', log: '/#/log', stats: '/#/stats', settings: '/#/settings' }
-/** 统计页三个视图 tab 的可见文案（冒烟固定按中文口径定位） */
-const TABS = { summary: '总览', trend: '趋势', compare: '对比' }
+/** 统计页四个视图 tab 的可见文案（冒烟固定按中文口径定位） */
+const TABS = { summary: '总览', trend: '趋势', compare: '对比', monthly: '月报' }
 /** 与 src/db 的 store 名称保持一致；缺失时会先让应用重建库 */
 const STORES = [
   'babies',
@@ -299,6 +299,67 @@ async function sweep(page, theme) {
       )
       await page.screenshot({ path: join(OUT_DIR, `${theme}-stats-compare.png`), fullPage: true })
 
+      // 月报（1.15.0）：汇总 / 日均环比 / 月份切换 / 打印按钮
+      const monthlySelected = await clickTab(page, TABS.monthly)
+      // 环比行用「上月日均」文本定位，避免 [class*="month-row"] 同时命中 label / daily 等子元素
+      const monthRows = page.locator('[class*="month-row-prev"]')
+      await monthRows
+        .first()
+        .waitFor({ state: 'visible', timeout: 8000 })
+        .catch(() => {})
+      const monthRowTexts = await monthRows.allInnerTexts()
+      const monthSummaryCount = await page.locator('[class*="summary-item"]').count()
+      const monthSub = (
+        await page
+          .locator('[class*="overview-sub"]')
+          .first()
+          .innerText()
+          .catch(() => '')
+      ).trim()
+      const monthLabel = (
+        await page
+          .locator('[class*="month-label"]')
+          .first()
+          .innerText()
+          .catch(() => '')
+      ).trim()
+      const careCount = await page.locator('[class*="care-item"]').count()
+      const printBtnCount = await page.getByRole('button', { name: /打印/ }).count()
+      await page.getByRole('button', { name: '上一个月' }).click()
+      await page.waitForTimeout(400)
+      const prevLabel = (
+        await page
+          .locator('[class*="month-label"]')
+          .first()
+          .innerText()
+          .catch(() => '')
+      ).trim()
+      const backBtn = page.getByRole('button', { name: '回到本月' })
+      const backVisible = await backBtn.isVisible().catch(() => false)
+      if (backVisible) await backBtn.click()
+      await page.waitForTimeout(400)
+      const backLabel = (
+        await page
+          .locator('[class*="month-label"]')
+          .first()
+          .innerText()
+          .catch(() => '')
+      ).trim()
+      // 汇总数字有 600ms 的 CountUp 动画：等它结束再截图，避免截到中间值
+      await page.waitForTimeout(1000)
+      const monthlyTabStyles = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('[role="tab"]')).map((el) => {
+          const style = getComputedStyle(el)
+          return {
+            label: el.textContent?.trim() ?? '',
+            selected: el.getAttribute('aria-selected') === 'true',
+            background: style.backgroundColor,
+            color: style.color,
+          }
+        }),
+      )
+      await page.screenshot({ path: join(OUT_DIR, `${theme}-stats-monthly.png`), fullPage: true })
+
       // 回到「趋势」，让主截图继续记录图表状态
       await clickTab(page, TABS.trend)
       // 图表有入场动画（默认 1000ms）：等动画结束再截图，截图才可逐字节比对
@@ -310,6 +371,17 @@ async function sweep(page, theme) {
         compareTexts,
         compareSub: compareSub.trim(),
         tabStyles,
+        monthlySelected,
+        monthRowTexts,
+        monthSummaryCount,
+        monthSub,
+        monthLabel,
+        prevLabel,
+        backLabel,
+        backVisible,
+        careCount,
+        printBtnCount,
+        monthlyTabStyles,
       }
     }
     const info = await page.evaluate(() => {
@@ -430,6 +502,37 @@ async function main() {
         activeTabs[0].background !== 'rgba(0, 0, 0, 0)',
       activeTabs.map((tab) => `${tab.label} bg=${tab.background} color=${tab.color}`).join(' / ') || '无选中 tab',
     )
+
+    // 月报（1.15.0）
+    check(`${theme}统计「月报」tab 切换生效`, Boolean(tabs?.monthlySelected))
+    check(
+      `${theme}月报汇总项齐全`,
+      (tabs?.monthSummaryCount ?? 0) >= 6,
+      `${tabs?.monthSummaryCount ?? 0} 项 · ${tabs?.monthLabel ?? '无月份'} · ${tabs?.monthSub ?? '无副标题'}`,
+    )
+    check(
+      `${theme}月报环比按日均展示`,
+      (tabs?.monthRowTexts.length ?? 0) >= 6 && tabs.monthRowTexts.every((text) => text.includes('上月日均')),
+      `${tabs?.monthRowTexts.length ?? 0} 行`,
+    )
+    check(`${theme}月报照护洞察非空`, (tabs?.careCount ?? 0) > 0, `${tabs?.careCount ?? 0} 条`)
+    check(`${theme}月报有打印 / 保存 PDF 按钮`, (tabs?.printBtnCount ?? 0) === 1)
+    check(
+      `${theme}月报可切到上月并回到本月`,
+      Boolean(tabs?.backVisible) &&
+        tabs.prevLabel !== tabs.monthLabel &&
+        tabs.backLabel === tabs.monthLabel,
+      `${tabs?.monthLabel ?? '-'} → ${tabs?.prevLabel ?? '-'} → ${tabs?.backLabel ?? '-'}`,
+    )
+    const monthlyActive = tabs?.monthlyTabStyles.filter((tab) => tab.selected) ?? []
+    check(
+      `${theme}月报 tab 高亮生效（计算样式）`,
+      monthlyActive.length === 1 &&
+        monthlyActive[0].label === TABS.monthly &&
+        monthlyActive[0].background !== 'rgba(0, 0, 0, 0)',
+      monthlyActive.map((tab) => `${tab.label} bg=${tab.background} color=${tab.color}`).join(' / ') ||
+        '无选中 tab',
+    )
   }
 
   // 小结跟随时间范围（1.10.0 回归点）：默认近 7 天，切换范围后标题同步变化
@@ -500,6 +603,113 @@ async function main() {
     shareBtnCount === (shareCapable ? 1 : 0),
     `canShare=${shareCapable} · 按钮 ${shareBtnCount}`,
   )
+
+  // 月报成长速度（1.15.0 回归点）：两次成长记录 → g/周 + WHO 百分位
+  await page.evaluate(
+    async ({ latest, earlier }) => {
+      const open = () =>
+        new Promise((resolve, reject) => {
+          const req = indexedDB.open('babysitter')
+          req.onsuccess = () => resolve(req.result)
+          req.onerror = () => reject(req.error)
+        })
+      const db = await open()
+      const tx = db.transaction('growths', 'readwrite')
+      tx.objectStore('growths').put({
+        id: 101,
+        babyId: 1,
+        date: earlier,
+        weight: 5.2,
+        height: 57.5,
+        headCircumference: 38.8,
+        createdAt: earlier,
+        updatedAt: earlier,
+      })
+      tx.objectStore('growths').put({
+        id: 102,
+        babyId: 1,
+        date: latest,
+        weight: 5.8,
+        height: 60,
+        headCircumference: 39.4,
+        createdAt: latest,
+        updatedAt: latest,
+      })
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = resolve
+        tx.onerror = () => reject(tx.error)
+      })
+      db.close()
+    },
+    { latest: now - 4 * 86400_000, earlier: now - 24 * 86400_000 },
+  )
+  await page.goto(`${BASE_URL}${ROUTES.stats}`, { waitUntil: 'networkidle' })
+  // 原生 IDB 写入不会被 Dexie liveQuery 感知，必须整页刷新后成长记录才会进入 store
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(1200)
+  await clickTab(page, TABS.monthly)
+  // 汇总数字有 600ms 的 CountUp 动画：等动画与数据加载都稳定后再截图
+  await page.waitForTimeout(1400)
+  const velocityItems = page.locator('[class*="velocity-item"]')
+  await velocityItems
+    .first()
+    .waitFor({ state: 'visible', timeout: 10000 })
+    .catch(() => {})
+  const velocityTexts = await velocityItems.allInnerTexts()
+  check(
+    '月报成长速度显示体重 g/周 与百分位',
+    velocityTexts.some((text) => text.includes('g/周')) &&
+      velocityTexts.some((text) => text.includes('百分位')),
+    velocityTexts.map((text) => text.replace(/\s+/g, ' ')).join(' | ') || '无成长速度',
+  )
+
+  // 打印 / 保存 PDF（1.15.0 回归点）：按钮调用 window.print()，打印媒体下隐藏导航与控件
+  await page.evaluate(() => {
+    window.__printCalls = 0
+    window.print = () => {
+      window.__printCalls += 1
+    }
+  })
+  await page.getByRole('button', { name: /打印/ }).click()
+  await page.waitForTimeout(200)
+  const printCalls = await page.evaluate(() => window.__printCalls)
+  check('月报打印按钮调用 window.print()', printCalls === 1, `${printCalls} 次`)
+
+  await page.emulateMedia({ media: 'print' })
+  await page.waitForTimeout(300)
+  const printState = await page.evaluate(() => {
+    const hidden = (selector) => {
+      const el = document.querySelector(selector)
+      return !el || getComputedStyle(el).display === 'none'
+    }
+    const card = document.querySelector('.card')
+    return {
+      tabbar: hidden('[class*="tabbar"]'),
+      header: hidden('[class*="page-header"]'),
+      rangeRow: hidden('[class*="range-select-row"]'),
+      tabs: hidden('[class*="overview-tabs"]'),
+      monthLabelVisible: !hidden('[class*="month-label"]'),
+      printBtn: hidden('[class*="report-btn"]'),
+      printHint: hidden('[class*="print-hint"]'),
+      cardBg: card ? getComputedStyle(card).backgroundColor : 'missing',
+    }
+  })
+  await page.screenshot({ path: join(OUT_DIR, 'light-stats-monthly-print.png'), fullPage: true })
+  await page.emulateMedia({ media: 'screen' })
+  check(
+    '打印样式隐藏 TabBar / 页头 / 操作控件，保留月份',
+    printState.tabbar &&
+      printState.header &&
+      printState.rangeRow &&
+      printState.tabs &&
+      printState.monthLabelVisible &&
+      printState.printBtn &&
+      printState.printHint,
+    JSON.stringify(printState),
+  )
+  check('打印样式卡片去底色', printState.cardBg === 'rgb(255, 255, 255)', printState.cardBg)
+
+  await page.screenshot({ path: join(OUT_DIR, 'light-stats-monthly-growth.png'), fullPage: true })
 
   // 编辑成长记录回填（1.13.1 回归点）：头围必须回填，保存后不被清空
   await page.goto(`${BASE_URL}${ROUTES.log}`, { waitUntil: 'networkidle' })

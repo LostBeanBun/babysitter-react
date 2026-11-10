@@ -23,6 +23,13 @@ import { formatDuration, formatPercentChange, formatAmount, startOfDay, formatDa
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { buildRangeInsight, type InsightItem } from '@/services/insights'
 import {
+  buildCareInsights,
+  buildGrowthVelocity,
+  buildMonthlyReport,
+  monthRange,
+  type GrowthVelocityItem,
+} from '@/services/monthlyReport'
+import {
   exportReportPng,
   buildReportBlob,
   type ReportData,
@@ -73,8 +80,10 @@ export default function StatsView() {
   const [rangeKey, setRangeKey] = useState('7d')
   const range = RANGE_PRESETS.find((p) => p.key === rangeKey) ?? RANGE_PRESETS[1]!
 
-  // 概览 tab：对比 / 汇总
-  const [activeView, setActiveView] = useState<'summary' | 'trend' | 'compare'>('summary')
+  // 概览 tab：对比 / 汇总 / 月报
+  const [activeView, setActiveView] = useState<'summary' | 'trend' | 'compare' | 'monthly'>('summary')
+  /** 月报偏移：0 = 本月，-1 = 上月 */
+  const [monthOffset, setMonthOffset] = useState(0)
 
   // —— 数据查询（按当前宝宝，全局表缓存跨视图共享）——
   const feedingsResult = useRecordsLive('feedings', activeBabyId)
@@ -297,17 +306,35 @@ export default function StatsView() {
   )
 
   // 对比面板格式化
-  function formatComparisonValue(c: ComparisonResult, value: number): string {
-    if (c.key === 'sleepMs') return formatDuration(value)
+  function formatMetricValue(key: string, value: number): string {
+    if (key === 'sleepMs') return formatDuration(value)
     if (
-      c.key === 'totalMilkAmount' ||
-      c.key === 'breastMilkAmount' ||
-      c.key === 'formulaAmount' ||
-      c.key === 'pumpAmount'
+      key === 'totalMilkAmount' ||
+      key === 'breastMilkAmount' ||
+      key === 'formulaAmount' ||
+      key === 'pumpAmount'
     ) {
       return `${Math.round(value)} ml`
     }
     return t('common.times', { n: Math.round(value) })
+  }
+
+  function formatComparisonValue(c: ComparisonResult, value: number): string {
+    return formatMetricValue(c.key, value)
+  }
+
+  /** 日均值：次数保留一位小数，避免低频指标被取整成 0（月报环比用） */
+  function formatDailyMetricValue(key: string, value: number): string {
+    if (key === 'sleepMs') return formatDuration(value)
+    if (
+      key === 'totalMilkAmount' ||
+      key === 'breastMilkAmount' ||
+      key === 'formulaAmount' ||
+      key === 'pumpAmount'
+    ) {
+      return formatAmount(value)
+    }
+    return t('common.times', { n: value.toFixed(1) })
   }
 
   /** 对比行文案：上一周期 → 当前周期（睡眠时长等长文本换行展示，title 挂完整文案） */
@@ -335,6 +362,148 @@ export default function StatsView() {
   function insightText(item: InsightItem): string {
     if (item.change == null || item.tone === 'steady') return t(`stats.insights.${item.key}.steady`)
     return t(`stats.insights.${item.key}.${item.tone}`, { percent: Math.abs(Math.round(item.change)) })
+  }
+
+  // —— 月报：自然月汇总 + 上月日均对比 + 照护洞察 + 成长速度 ——
+  const month = useMemo(() => monthRange(now, monthOffset), [now, monthOffset])
+  const monthly = useMemo(
+    () => buildMonthlyReport(datasets, growths, month, now),
+    [datasets, growths, month, now],
+  )
+  const careInsights = useMemo(
+    () => buildCareInsights(datasets, month.start, month.end, now),
+    [datasets, month, now],
+  )
+  const growthVelocity = useMemo(() => buildGrowthVelocity(growths, activeBaby), [growths, activeBaby])
+
+  const monthDays = Math.max(1, monthly.current.dayCount)
+  const isCurrentMonth = monthOffset >= 0
+
+  function monthLabelOf(start: number): string {
+    const d = new Date(start)
+    return t('stats.monthly.label', { year: d.getFullYear(), month: d.getMonth() + 1 })
+  }
+
+  const monthLabel = monthLabelOf(month.start)
+  const previousMonthLabel = monthLabelOf(monthly.previousRange.start)
+
+  const monthSummaryItems = useMemo(() => {
+    const agg = monthly.current
+    const daysCount = monthDays
+    const daily = (value: string) => t('common.daily', { value })
+    const times = (n: number) => t('common.times', { n: Math.round(n) })
+    return [
+      {
+        label: t('stats.summary.totalMilk'),
+        num: agg.totalMilkAmount,
+        format: (n: number) => formatAmount(n),
+        sub: daily(formatAmount(agg.totalMilkAmount / daysCount)),
+      },
+      {
+        label: t('stats.summary.feedCount'),
+        num: agg.feedCount,
+        format: (n: number) => times(n),
+        sub: daily(t('common.times', { n: (agg.feedCount / daysCount).toFixed(1) })),
+      },
+      {
+        label: t('stats.summary.sleepMs'),
+        num: agg.sleepMs,
+        format: (n: number) => formatDuration(n),
+        sub: daily(formatDuration(agg.sleepMs / daysCount)),
+      },
+      {
+        label: t('stats.summary.diaper'),
+        num: agg.diaperCount,
+        format: (n: number) => times(n),
+        sub: daily(t('common.times', { n: (agg.diaperCount / daysCount).toFixed(1) })),
+      },
+      {
+        label: t('stats.summary.pumpAmount'),
+        num: agg.pumpAmount,
+        format: (n: number) => formatAmount(n),
+        sub: daily(formatAmount(agg.pumpAmount / daysCount)),
+      },
+      {
+        label: t('stats.summary.growthRecords'),
+        num: monthly.growthCount,
+        format: (n: number) => t('common.records', { n: Math.round(n) }),
+        sub: monthLabel,
+      },
+    ]
+  }, [monthly, monthDays, monthLabel, t])
+
+  /** 18:00 起的平均分钟数 → HH:MM */
+  function bedtimeText(minutes: number): string {
+    const total = 18 * 60 + minutes
+    const h = Math.floor(total / 60) % 24
+    const m = total % 60
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+
+  const careInsightRows = useMemo(() => {
+    const c = careInsights
+    const rows: { key: string; icon: string; text: string }[] = []
+    if (c.sleep) {
+      rows.push({
+        key: 'sleep',
+        icon: '😴',
+        text: t('stats.monthly.insightSleep', { duration: formatDuration(c.sleep.avgDailyMs) }),
+      })
+      if (c.sleep.avgBedtimeMinutes != null) {
+        rows.push({
+          key: 'bedtime',
+          icon: '🌙',
+          text: t('stats.monthly.insightBedtime', { time: bedtimeText(c.sleep.avgBedtimeMinutes) }),
+        })
+      }
+      if (c.sleep.nightWakes > 0) {
+        rows.push({
+          key: 'wakes',
+          icon: '👀',
+          text: t('stats.monthly.insightNightWakes', { n: c.sleep.nightWakes }),
+        })
+      }
+    }
+    if (c.feed) {
+      if (c.feed.avgIntervalMs != null) {
+        rows.push({
+          key: 'interval',
+          icon: '🍼',
+          text: t('stats.monthly.insightFeedInterval', { duration: formatDuration(c.feed.avgIntervalMs) }),
+        })
+      }
+      rows.push({
+        key: 'amount',
+        icon: '🥛',
+        text: t('stats.monthly.insightFeedAmount', { amount: formatAmount(c.feed.avgDailyAmount) }),
+      })
+    }
+    if (c.diaper) {
+      rows.push({
+        key: 'diaper',
+        icon: '🧷',
+        text: t('stats.monthly.insightDiaper', { n: c.diaper.avgDailyCount.toFixed(1) }),
+      })
+      if (c.diaper.wetShare != null) {
+        rows.push({
+          key: 'wet',
+          icon: '💧',
+          text: t('stats.monthly.insightDiaperWet', { percent: Math.round(c.diaper.wetShare * 100) }),
+        })
+      }
+    }
+    return rows
+  }, [careInsights, t])
+
+  function formatVelocity(v: GrowthVelocityItem): string {
+    if (v.rate == null) return '—'
+    return v.rateUnit === 'g/week'
+      ? t('stats.monthly.rateWeight', { value: Math.round(v.rate) })
+      : t('stats.monthly.rateLength', { value: v.rate.toFixed(1) })
+  }
+
+  function handlePrint() {
+    window.print()
   }
 
   // —— P1-4 儿保报告导出 ——
@@ -589,6 +758,14 @@ export default function StatsView() {
         >
           {t('stats.tabCompare')}
         </button>
+        <button
+          className={activeView === 'monthly' ? `${s['overview-tab']} ${s.active}` : s['overview-tab']}
+          role="tab"
+          aria-selected={activeView === 'monthly'}
+          onClick={() => setActiveView('monthly')}
+        >
+          {t('stats.tabMonthly')}
+        </button>
       </div>
 
       {/* 总览：区间汇总 */}
@@ -703,6 +880,129 @@ export default function StatsView() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* 月报：自然月汇总 + 上月日均对比 + 照护洞察 + 成长速度 */}
+      {activeView === 'monthly' && (
+        <div className={`card ${s['overview-card']} ${s['monthly-card']}`}>
+          <div className={s['month-switch']}>
+            <button
+              className={s['month-nav']}
+              type="button"
+              aria-label={t('stats.monthly.prevMonth')}
+              onClick={() => setMonthOffset((v) => v - 1)}
+            >
+              ‹
+            </button>
+            <span className={s['month-label']}>{monthLabel}</span>
+            <button
+              className={s['month-nav']}
+              type="button"
+              aria-label={t('stats.monthly.nextMonth')}
+              disabled={isCurrentMonth}
+              onClick={() => setMonthOffset((v) => v + 1)}
+            >
+              ›
+            </button>
+            {!isCurrentMonth && (
+              <button className={s['month-back']} type="button" onClick={() => setMonthOffset(0)}>
+                {t('stats.monthly.backToCurrent')}
+              </button>
+            )}
+          </div>
+
+          {monthly.hasData ? (
+            <>
+              <span className={s['overview-sub']}>{t('stats.monthly.sub', { days: monthDays })}</span>
+              <div className={s['summary-grid']}>
+                {monthSummaryItems.map((item) => (
+                  <div key={item.label} className={s['summary-item']}>
+                    <p className={s['summary-label']}>{item.label}</p>
+                    <p className={s['summary-value']}>
+                      <CountUp value={item.num} format={item.format} />
+                    </p>
+                    <p className={s['summary-sub']}>{item.sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              <p className="section-title">
+                {t('stats.monthly.compareTitle', { previous: previousMonthLabel })}
+              </p>
+              <ul className={s['month-rows']}>
+                {monthly.rows.map((row) => (
+                  <li key={row.key} className={s['month-row']}>
+                    <span className={s['month-row-label']}>{t(row.label)}</span>
+                    <span className={s['month-row-daily']}>
+                      {formatDailyMetricValue(row.key, row.currentDaily)}
+                    </span>
+                    <span
+                      className={`${s['month-row-change']} ${
+                        row.change === null ? s.none : row.change >= 0 ? s.up : s.down
+                      }`}
+                    >
+                      {row.change === null ? '—' : formatPercentChange(row.change)}
+                    </span>
+                    <span className={s['month-row-prev']}>
+                      {t('stats.monthly.previousDaily', {
+                        value: formatDailyMetricValue(row.key, row.previousDaily),
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <p className="section-title">{t('stats.monthly.careTitle')}</p>
+              {careInsightRows.length > 0 ? (
+                <ul className={s['care-list']}>
+                  {careInsightRows.map((row) => (
+                    <li key={row.key} className={s['care-item']}>
+                      <span className={s['care-icon']} aria-hidden="true">
+                        {row.icon}
+                      </span>
+                      <span>{row.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={s['note-text']}>{t('stats.monthly.noInsight')}</p>
+              )}
+
+              {growthVelocity.length > 0 && (
+                <>
+                  <p className="section-title">{t('stats.monthly.growthTitle')}</p>
+                  <ul className={s['velocity-list']}>
+                    {growthVelocity.map((v) => (
+                      <li key={v.field} className={s['velocity-item']}>
+                        <span className={s['velocity-label']}>{t(v.labelKey)}</span>
+                        <span className={s['velocity-value']}>{formatVelocity(v)}</span>
+                        <span className={s['velocity-sub']}>
+                          {t('stats.monthly.percentile', {
+                            value: v.percentile == null ? '—' : Math.round(v.percentile),
+                          })}
+                          {v.percentileDelta != null
+                            ? ` ${v.percentileDelta >= 0 ? '+' : ''}${Math.round(v.percentileDelta)}`
+                            : ''}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              <button
+                className={`btn btn-outline btn-block ${s['report-btn']}`}
+                type="button"
+                onClick={handlePrint}
+              >
+                {t('stats.monthly.print')}
+              </button>
+              <p className={`${s['note-text']} ${s['print-hint']}`}>{t('stats.monthly.printHint')}</p>
+            </>
+          ) : (
+            <p className={s['note-text']}>{t('stats.monthly.noData')}</p>
+          )}
         </div>
       )}
     </div>

@@ -324,3 +324,207 @@
   margin: var(--space-3) var(--space-1) var(--space-1);
   line-height: 1.6;
 }
+
+/* —— 月报 —— */
+.month-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.month-nav {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--surface-translucent);
+  color: var(--text);
+  font-size: var(--fs-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.month-nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.month-label {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.month-back {
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 4px 6px;
+  color: var(--primary);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.month-rows {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.month-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    'label daily change'
+    'label prev prev';
+  align-items: center;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-translucent);
+  border: 1px solid var(--glass-border);
+}
+
+.month-row-label {
+  grid-area: label;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.month-row-daily {
+  grid-area: daily;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.month-row-change {
+  grid-area: change;
+  min-width: 52px;
+  text-align: right;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.month-row-change.up {
+  color: var(--primary);
+}
+
+.month-row-change.down {
+  color: var(--accent-green);
+}
+
+.month-row-change.none {
+  color: var(--text-muted);
+}
+
+.month-row-prev {
+  grid-area: prev;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.care-list,
+.velocity-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.care-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-translucent);
+  border: 1px solid var(--glass-border);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.care-icon {
+  flex-shrink: 0;
+  font-size: var(--fs-base);
+}
+
+.velocity-item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-translucent);
+  border: 1px solid var(--glass-border);
+}
+
+.velocity-label {
+  min-width: 52px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.velocity-value {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.velocity-sub {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 打印：隐藏操作控件，卡片去掉玻璃效果（页面外框见 globals.css） */
+@media print {
+  .range-select-row,
+  .overview-tabs,
+  .month-nav,
+  .month-back,
+  .report-btn,
+  .print-hint {
+    display: none !important;
+  }
+
+  .overview-card,
+  .summary-item,
+  .month-row,
+  .care-item,
+  .velocity-item {
+    background: #fff !important;
+    border-color: #d9d9d9 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    break-inside: avoid;
+  }
+
+  .note-text,
+  .summary-sub,
+  .month-row-prev,
+  .velocity-sub {
+    color: #555 !important;
+  }
+}
