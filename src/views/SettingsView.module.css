@@ -117,6 +117,12 @@
   line-height: 1.6;
 }
 
+/* 提醒配置作用域提示：紧跟在说明下方，与权限状态行留出间距 */
+.reminder-scope {
+  margin-top: calc(-1 * var(--space-1));
+  color: var(--text-secondary);
+}
+
 /* 通知权限状态行：颜色区分可用 / 待授权 / 被拒绝 / 不支持 */
 .notify-status {
   display: flex;

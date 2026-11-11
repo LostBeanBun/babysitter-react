@@ -11,6 +11,7 @@ import RecordFormModal from '@/components/common/RecordFormModal'
 import OnboardingModal from '@/components/dashboard/OnboardingModal'
 import TodayOverview from '@/components/dashboard/TodayOverview'
 import CarePlanCard from '@/components/dashboard/CarePlanCard'
+import AnomalyCard from '@/components/dashboard/AnomalyCard'
 import { toDateTimeLocal, fromDateTimeLocal, formatDate } from '@/utils/format'
 import { FEED_TYPE_LABELS } from '@/constants'
 import { useActiveTimer } from '@/hooks/useActiveTimer'
@@ -179,6 +180,9 @@ export default function DashboardView() {
 
           {/* 今日照护卡：今日汇总 + 下一步参考 + 交接摘要 */}
           <CarePlanCard now={now} onAdd={openAdd} />
+
+          {/* 值得留意：近 3 天 vs 前 7 天的记录变化与体温提示（无异常时隐藏） */}
+          <AnomalyCard now={now} />
 
           {/* 快捷记录（喂养 / 睡眠 / 换尿布已并入今日照护，不再重复展示） */}
           <p className="section-title">{t('dashboard.quickRecord')}</p>

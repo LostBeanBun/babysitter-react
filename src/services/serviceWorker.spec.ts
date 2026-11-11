@@ -3,7 +3,7 @@
  *
  * 用 node:vm 载入真实的 SW 源文件（Vue: public/push-sw.js，React: public/sw.js），
  * 只 mock `self` / `clients` / `registration.scope`，验证点击通知后的行为：
- * 聚焦同源窗口、非首页时导航回首页、无窗口时新开、跨源窗口不算命中。
+ * 聚焦同源窗口、按通知 data.url 导航到目标页（缺省首页）、无窗口时新开、跨源窗口不算命中。
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -96,6 +96,35 @@ describe('Service Worker notificationclick', () => {
     const worker = loadWorker([client])
 
     await click(worker)
+
+    expect(client.focus).toHaveBeenCalledTimes(1)
+    expect(client.navigate).not.toHaveBeenCalled()
+  })
+
+  it('通知带落地页时导航到对应页面（hash 路由）', async () => {
+    const client = makeClient('https://example.com/app/')
+    const worker = loadWorker([client])
+
+    await click(worker, { url: './#/log?timer=feeding' })
+
+    expect(client.focus).toHaveBeenCalledTimes(1)
+    expect(client.navigate).toHaveBeenCalledWith('https://example.com/app/#/log?timer=feeding')
+  })
+
+  it('通知带落地页时导航到对应页面（普通路径）', async () => {
+    const client = makeClient('https://example.com/app/#/log')
+    const worker = loadWorker([client])
+
+    await click(worker, { url: './log/?timer=diaper' })
+
+    expect(client.navigate).toHaveBeenCalledWith('https://example.com/app/log/?timer=diaper')
+  })
+
+  it('已停在目标页时不重复导航', async () => {
+    const client = makeClient('https://example.com/app/#/log?timer=feeding')
+    const worker = loadWorker([client])
+
+    await click(worker, { url: './#/log?timer=feeding' })
 
     expect(client.focus).toHaveBeenCalledTimes(1)
     expect(client.navigate).not.toHaveBeenCalled()

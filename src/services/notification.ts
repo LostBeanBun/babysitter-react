@@ -11,6 +11,8 @@ export interface ReminderNotification {
   title: string
   body: string
   tag: string
+  /** 点击通知后要打开的页面（相对应用根路径；缺省回首页） */
+  url?: string
 }
 
 /**
@@ -30,7 +32,7 @@ function notificationOptions(n: ReminderNotification): NotificationOptions {
     icon: ICON,
     badge: ICON,
     // Service Worker 的 notificationclick 读取该地址：相对应用根路径，兼容子路径部署
-    data: { url: './' },
+    data: { url: n.url ?? './' },
   }
 }
 

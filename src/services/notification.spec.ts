@@ -172,6 +172,17 @@ describe('showReminderNotification', () => {
     expect(options.data).toEqual({ url: './' })
   })
 
+  it('带落地页的通知把地址写入 data.url', async () => {
+    stubNotification()
+    const showNotification = vi.fn().mockResolvedValue(undefined)
+    stubServiceWorker({ active: {}, showNotification })
+
+    await showReminderNotification({ ...hit, url: './#/log?timer=feeding' })
+
+    const [, options] = showNotification.mock.calls[0] as [string, NotificationOptions]
+    expect(options.data).toEqual({ url: './#/log?timer=feeding' })
+  })
+
   it('没有 Service Worker 时回退构造函数', async () => {
     stubNotification()
     stubServiceWorker(undefined)

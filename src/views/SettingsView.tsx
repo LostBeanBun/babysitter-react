@@ -87,12 +87,12 @@ export default function SettingsView() {
 
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
 
-  // —— 提醒配置（loadReminders 访问 localStorage，须在客户端 effect 中加载）——
+  // —— 提醒配置（按宝宝隔离；loadReminders 访问 localStorage，须在客户端 effect 中加载）——
   const [reminders, setReminders] = useState<ReminderConfig | null>(null)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 客户端 localStorage 初始化
-    setReminders(loadReminders())
-  }, [])
+    setReminders(loadReminders(activeBabyId))
+  }, [activeBabyId])
 
   // —— 通知权限状态（iOS 未添加到主屏幕时无法授权）——
   const [notifyStatus, setNotifyStatus] = useState<NotifyStatus>('unsupported')
@@ -193,7 +193,7 @@ export default function SettingsView() {
       else if (status === 'unsupported') toast(t('settings.notifyUnsupportedToast'))
       else if (status === 'ios-install') toast(t('settings.notifyIosToast'))
     }
-    saveReminders(next)
+    saveReminders(next, activeBabyId)
   }
 
   /** 间隔提交：组件已钳制边界，此处合并写状态与持久化（React 状态异步，分两步会存旧值） */
@@ -202,7 +202,7 @@ export default function SettingsView() {
     const hours = typeof v === 'number' ? v : Number(v)
     const next = { ...reminders, [type]: { ...reminders[type], intervalHours: hours } }
     setReminders(next)
-    saveReminders(next)
+    saveReminders(next, activeBabyId)
   }
 
   /** 时间提交：同样合并写状态与持久化 */
@@ -210,7 +210,7 @@ export default function SettingsView() {
     if (!reminders) return
     const next = { ...reminders, sleep: { ...reminders.sleep, time: String(v) } }
     setReminders(next)
-    saveReminders(next)
+    saveReminders(next, activeBabyId)
   }
 
   /** 免打扰开关：开启后时间段内不发系统通知 */
@@ -221,7 +221,7 @@ export default function SettingsView() {
       quiet: { ...reminders.quiet, enabled: !reminders.quiet.enabled },
     }
     setReminders(next)
-    saveReminders(next)
+    saveReminders(next, activeBabyId)
   }
 
   /** 免打扰起止时间提交 */
@@ -232,7 +232,7 @@ export default function SettingsView() {
       quiet: { ...reminders.quiet, [which]: String(v) },
     }
     setReminders(next)
-    saveReminders(next)
+    saveReminders(next, activeBabyId)
   }
 
   /** 按月龄推荐喂奶间隔（点击后写入喂奶提醒配置） */
@@ -246,7 +246,7 @@ export default function SettingsView() {
       feed: { ...reminders.feed, intervalHours: clampIntervalHours(hours, 0) },
     }
     setReminders(next)
-    saveReminders(next)
+    saveReminders(next, activeBabyId)
     toast(t('settings.recommendApplied', { hours }))
   }
 
@@ -521,6 +521,9 @@ export default function SettingsView() {
       <p className="section-title">{t('settings.reminderSectionTitle')}</p>
       <div className="card">
         <p className={s['data-tip']}>{t('settings.reminderTip')}</p>
+        <p className={`${s['data-tip']} ${s['reminder-scope']}`}>
+          {activeBaby ? t('settings.reminderScope', { name: activeBaby.name }) : t('settings.reminderScopeNoBaby')}
+        </p>
         <div className={`${s['notify-status']} ${s[`notify-status--${notifyStatusTone(notifyStatus)}`] ?? ''}`}>
           <span className={s['notify-dot']} aria-hidden="true" />
           <span>{notifyStatusLabel(notifyStatus)}</span>

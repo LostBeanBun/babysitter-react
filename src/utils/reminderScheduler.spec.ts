@@ -99,6 +99,77 @@ describe('loadReminders / saveReminders', () => {
   })
 })
 
+describe('按宝宝隔离', () => {
+  it('不同宝宝各自保存配置，互不影响', () => {
+    saveReminders({ ...DEFAULT_REMINDERS, feed: { enabled: true, intervalHours: 4 } }, 1)
+    saveReminders({ ...DEFAULT_REMINDERS, diaper: { enabled: true, intervalHours: 2 } }, 2)
+
+    expect(loadReminders(1).feed.enabled).toBe(true)
+    expect(loadReminders(1).diaper.enabled).toBe(false)
+    expect(loadReminders(2).diaper.enabled).toBe(true)
+    expect(loadReminders(2).feed.enabled).toBe(false)
+  })
+
+  it('未配置过的宝宝使用默认值', () => {
+    saveReminders({ ...DEFAULT_REMINDERS, feed: { enabled: true, intervalHours: 4 } }, 1)
+    expect(loadReminders(3).feed.enabled).toBe(false)
+  })
+
+  it('旧版全局配置迁移给首个读取的宝宝，其余宝宝用默认值', () => {
+    localStorage.setItem(
+      'babysitter.reminders',
+      JSON.stringify({ feed: { enabled: true, intervalHours: 5 } }),
+    )
+
+    expect(loadReminders(1).feed.enabled).toBe(true)
+    expect(loadReminders(1).feed.intervalHours).toBe(5)
+    // 迁移只发生一次：另一个宝宝不会继承同一份配置
+    expect(loadReminders(2).feed.enabled).toBe(false)
+  })
+
+  it('稍后提醒按宝宝隔离', () => {
+    const now = new Date(2026, 0, 1, 12, 0).getTime()
+    snoozeReminder('feed', 15, now, 1)
+
+    expect(isSnoozed('feed', now + 60_000, 1)).toBe(true)
+    expect(isSnoozed('feed', now + 60_000, 2)).toBe(false)
+  })
+
+  it('checkReminders 读取当前宝宝的配置', () => {
+    saveReminders({ ...DEFAULT_REMINDERS, feed: { enabled: true, intervalHours: 3 } }, 1)
+    const now = new Date(2026, 0, 1, 12, 0).getTime()
+    const feedings = [feeding(now - 5 * 3600_000)]
+
+    expect(checkReminders(makeContext({ now, baby: baby(), feedings })).some((h) => h.type === 'feed')).toBe(
+      true,
+    )
+    expect(
+      checkReminders(makeContext({ now, baby: { ...baby(), id: 2 }, feedings })).length,
+    ).toBe(0)
+  })
+})
+
+describe('通知落地页', () => {
+  it('各类提醒携带对应记录页地址', () => {
+    saveReminders({
+      ...DEFAULT_REMINDERS,
+      feed: { enabled: true, intervalHours: 3 },
+      diaper: { enabled: true, intervalHours: 3 },
+    })
+    const now = new Date(2026, 0, 1, 12, 0).getTime()
+    const hits = checkReminders(
+      makeContext({
+        now,
+        feedings: [feeding(now - 5 * 3600_000)],
+        diapers: [diaper(now - 5 * 3600_000)],
+      }),
+    )
+
+    expect(hits.find((h) => h.type === 'feed')?.url).toBe('./log/?timer=feeding')
+    expect(hits.find((h) => h.type === 'diaper')?.url).toBe('./log/?timer=diaper')
+  })
+})
+
 describe('clampIntervalHours - 间隔输入边界', () => {
   it('空串与非法值回退 min', () => {
     expect(clampIntervalHours('', 1)).toBe(1)

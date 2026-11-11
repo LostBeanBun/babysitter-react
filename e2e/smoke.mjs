@@ -4,6 +4,7 @@
  *
  * 覆盖 AGENTS.md「回归核查」要求的固定清单：
  *   今日照护卡布局（标题在图标下方、水平居中、不裁切）· 提醒横幅点击直达弹窗
+ *   提醒配置按宝宝隔离（旧版配置迁移、作用域提示、只写当前宝宝的键）· 首页「值得留意」异常卡
  *   今日 / 记录 / 统计 / 设置 四页浅色 + 深色巡检 · 统计三 tab 切换 · 图表与儿保报告 PNG 导出
  *   prefers-reduced-motion: reduce 下布局与静态兜底 · 全程无 console / pageerror
  *
@@ -159,6 +160,56 @@ async function seed(page, now) {
         updatedAt: now,
       })
       put('diapers', { id: 1, babyId: 1, type: 'wet', time: now - 4 * 3600_000, createdAt: now, updatedAt: now })
+
+      // 1.16.0 异常提示卡数据：近 3 个完整自然日明显少于前 7 个完整自然日（喂养 4→1 次/天、尿布 5→2 次/天）
+      const dayAt = (daysAgo, hour) => {
+        const d = new Date(now)
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate() - daysAgo, hour, 0, 0, 0).getTime()
+      }
+      for (let d = 1; d <= 3; d++) {
+        put('feedings', {
+          id: 200 + d,
+          babyId: 1,
+          type: 'bottle_formula',
+          startTime: dayAt(d, 8),
+          amount: 120,
+          createdAt: now,
+          updatedAt: now,
+        })
+        for (let i = 0; i < 2; i++) {
+          put('diapers', {
+            id: 300 + d * 10 + i,
+            babyId: 1,
+            type: 'wet',
+            time: dayAt(d, 9 + i * 6),
+            createdAt: now,
+            updatedAt: now,
+          })
+        }
+      }
+      for (let d = 4; d <= 10; d++) {
+        for (let i = 0; i < 4; i++) {
+          put('feedings', {
+            id: 400 + d * 10 + i,
+            babyId: 1,
+            type: 'bottle_formula',
+            startTime: dayAt(d, 8 + i * 4),
+            amount: 120,
+            createdAt: now,
+            updatedAt: now,
+          })
+        }
+        for (let i = 0; i < 5; i++) {
+          put('diapers', {
+            id: 500 + d * 10 + i,
+            babyId: 1,
+            type: 'wet',
+            time: dayAt(d, 7 + i * 3),
+            createdAt: now,
+            updatedAt: now,
+          })
+        }
+      }
 
       await new Promise((resolve, reject) => {
         tx.oncomplete = resolve
@@ -420,13 +471,42 @@ async function main() {
   page.on('console', (message) => {
     if (message.type() !== 'error') return
     const text = message.text()
-    if (!NOISE.some((pattern) => pattern.test(text))) errors.push(`console: ${text}`)
+    // 资源加载失败的文案不含地址，补上来源 URL 才能定位（NOISE 也要一并匹配地址，如 favicon）
+    const from = message.location().url
+    const full = from ? `${text} @ ${from}` : text
+    if (NOISE.some((pattern) => pattern.test(full))) return
+    errors.push(`console: ${full}`)
+  })
+  /** 失败请求的 URL：console 里的 404 文案不带地址，定位问题时需要原始地址 */
+  const failedRequests = []
+  context.on('response', (response) => {
+    if (response.status() >= 400) failedRequests.push(`http ${response.status()} ${response.url()}`)
   })
 
   const now = Date.now()
   console.log(`[smoke] ${APP} → ${BASE_URL}`)
 
   await seed(page, now)
+
+  // 提醒配置按宝宝隔离（1.16.0 回归点）：旧版全局配置首次读取时迁移给当前宝宝
+  const reminderStore = await page.evaluate(() => ({
+    scoped: localStorage.getItem('babysitter.reminders.1'),
+    migrated: localStorage.getItem('babysitter.remindersMigrated'),
+  }))
+  let scopedCfg = null
+  try {
+    scopedCfg = reminderStore.scoped ? JSON.parse(reminderStore.scoped) : null
+  } catch {
+    scopedCfg = null
+  }
+  check(
+    '旧版提醒配置迁移到当前宝宝（按 babyId 存储）',
+    scopedCfg?.feed?.enabled === true &&
+      scopedCfg?.diaper?.enabled === true &&
+      reminderStore.migrated === '1',
+    `reminders.1=${reminderStore.scoped ? '有' : '无'} · migrated=${reminderStore.migrated ?? '无'}`,
+  )
+
   const rows = await readCareLayout(page)
   check('照护卡三行齐全', rows.length === 3, `实际 ${rows.length} 行：${rows.map((row) => row.label).join(' / ')}`)
   check('照护卡标题在图标下方', rows.length > 0 && rows.every((row) => row.underIcon))
@@ -456,6 +536,40 @@ async function main() {
     await closeDialog(page)
   }
   check('横幅点击直达表单', bannerCount === 0 || opened > 0, `${opened}/${Math.min(bannerCount, 3)} 条弹出弹窗`)
+
+  // 「值得留意」异常提示卡（1.16.0 回归点）：近 3 天 vs 前 7 天日均对比
+  await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
+  await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
+  await settle(page)
+  const anomalyCard = page.locator('[class*="anomaly-card"]').first()
+  await anomalyCard.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+  const anomalyVisible = await anomalyCard.isVisible().catch(() => false)
+  check('首页「值得留意」异常卡已渲染', anomalyVisible)
+  const anomalyTitle = anomalyVisible
+    ? (await anomalyCard.locator('[class*="anomaly-title"]').first().innerText()).trim()
+    : ''
+  check('异常卡标题为「值得留意」', anomalyTitle === '值得留意', anomalyTitle || '未渲染')
+  const anomalyRows = anomalyVisible ? await anomalyCard.locator('[class*="anomaly-row"]').allInnerTexts() : []
+  check(
+    '异常卡列出喂养 / 尿布下降且带百分比',
+    anomalyRows.some((text) => text.includes('喂养')) &&
+      anomalyRows.some((text) => text.includes('尿布')) &&
+      anomalyRows.every((text) => text.includes('%')),
+    anomalyRows.map((text) => text.replace(/\s+/g, ' ')).join(' | ') || '无提示行',
+  )
+  const anomalyNote = anomalyVisible
+    ? (await anomalyCard.locator('[class*="anomaly-note"]').first().innerText()).trim()
+    : ''
+  check('异常卡注明不构成医疗建议', anomalyNote.includes('不构成医疗建议'), anomalyNote || '无说明')
+  await page.screenshot({ path: join(OUT_DIR, 'light-home-anomaly.png'), fullPage: true })
+
+  if (anomalyVisible) {
+    await anomalyCard.getByRole('button', { name: '查看统计' }).click()
+    await page.waitForTimeout(800)
+    check('异常卡「查看统计」跳到统计页', page.url().includes('stats'), page.url())
+  }
+  await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
+  await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
 
   // 深色
   await page.evaluate(() => localStorage.setItem('babysitter.theme', 'dark'))
@@ -716,7 +830,8 @@ async function main() {
   await page.waitForTimeout(1200)
   const growthDay = new Date(now)
   growthDay.setHours(0, 0, 0, 0)
-  const growthDate = growthDay.getTime() - 10 * 86400_000
+  // 成长记录放在昨天：时间轴首屏只挂载前 10 个日期分组，更早的记录需要滚动才会渲染
+  const growthDate = growthDay.getTime() - 1 * 86400_000
   await page.evaluate(async (date) => {
     const open = () =>
       new Promise((resolve, reject) => {
@@ -875,6 +990,40 @@ async function main() {
   const remindOn = await page.evaluate(() => localStorage.getItem('babysitter.backupRemindEnabled'))
   check('重新打开开关后恢复提醒', remindOn === '1', String(remindOn))
 
+  // 提醒按宝宝隔离（1.16.0 回归点）：设置页说明作用域 + 关闭开关只写当前宝宝的键
+  const scopeTip = page.locator('[class*="reminder-scope"]').first()
+  const scopeText = (await scopeTip.count()) ? (await scopeTip.innerText()).trim() : ''
+  check(
+    '设置页提示提醒配置仅对当前宝宝生效',
+    (await scopeTip.count()) === 1 && scopeText.includes('小糯米'),
+    scopeText || '未渲染',
+  )
+  const feedRow = page.locator('[class*="reminder-block"]').filter({ hasText: '喂奶提醒' }).first()
+  const feedSwitch = feedRow.locator('[role="switch"]').first()
+  check('设置页有「喂奶提醒」开关', (await feedSwitch.count()) === 1)
+  const readReminderKeys = () =>
+    page.evaluate(() => {
+      const parse = (key) => {
+        try {
+          return JSON.parse(localStorage.getItem(key) || 'null')
+        } catch {
+          return null
+        }
+      }
+      return { scoped: parse('babysitter.reminders.1'), legacy: parse('babysitter.reminders') }
+    })
+  const beforeToggle = await readReminderKeys()
+  await feedSwitch.click()
+  await page.waitForTimeout(300)
+  const afterToggle = await readReminderKeys()
+  check(
+    '关闭喂奶提醒只写入当前宝宝配置',
+    beforeToggle.scoped?.feed?.enabled === true &&
+      afterToggle.scoped?.feed?.enabled === false &&
+      afterToggle.legacy?.feed?.enabled === true,
+    `reminders.1 ${beforeToggle.scoped?.feed?.enabled} → ${afterToggle.scoped?.feed?.enabled} · 旧全局键 ${afterToggle.legacy?.feed?.enabled}`,
+  )
+
   // 通知权限状态行（1.14.1 回归点）：按 Notification.permission 展示，拒绝时给出可操作提示
   const notifyStatus = page.locator('[class*="notify-status"]').first()
   check('设置页显示通知权限状态', (await notifyStatus.count()) === 1)
@@ -927,6 +1076,20 @@ async function main() {
     .evaluate((el) => getComputedStyle(el).transitionDuration)
   check('reduce 下照护卡布局不变', reduceRows.length === 3 && reduceRows.every((row) => row.underIcon && row.centered))
   check('reduce 下动画被压缩', /^(0s|0\.0*1m?s|1e-05s)$/.test(transition.replace('0.00001s', '1e-05s')), transition)
+  const reduceAnomaly = page.locator('[class*="anomaly-card"]').first()
+  check('reduce 下异常卡仍显示（静态兜底）', await reduceAnomaly.isVisible().catch(() => false))
+  const reduceLinkTransition = await reduceAnomaly
+    .getByRole('button', { name: '查看统计' })
+    .evaluate((el) => getComputedStyle(el).transitionDuration)
+    .catch(() => 'missing')
+  const reduceLinkMs = reduceLinkTransition.endsWith('ms')
+    ? Number.parseFloat(reduceLinkTransition)
+    : Number.parseFloat(reduceLinkTransition) * 1000
+  check(
+    'reduce 下异常卡按钮过渡被压缩',
+    Number.isFinite(reduceLinkMs) && reduceLinkMs <= 0.01,
+    reduceLinkTransition,
+  )
   await page.screenshot({ path: join(OUT_DIR, 'reduce-home.png'), fullPage: true })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
 
@@ -1009,7 +1172,11 @@ async function main() {
   const afterRejectLog = await page.evaluate(() => document.body.innerText)
   check('备份被拒后数据未被改动', afterRejectLog.includes('137 ml'))
 
-  check('全程无 console / pageerror', errors.length === 0, errors.slice(0, 3).join(' | '))
+  check(
+    '全程无 console / pageerror',
+    errors.length === 0,
+    (errors.length ? [...errors, ...failedRequests] : []).slice(0, 3).join(' | '),
+  )
 
   await browser.close()
 

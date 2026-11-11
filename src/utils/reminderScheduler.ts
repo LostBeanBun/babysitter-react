@@ -55,42 +55,90 @@ const REMINDER_KEY = 'babysitter.reminders'
 const NOTIFIED_KEY = 'babysitter.reminderNotified'
 const SNOOZED_KEY = 'babysitter.reminderSnoozed'
 const LEGACY_FEED_KEY = 'babysitter.feedReminder'
+/** 旧版全局提醒配置的迁移标记：只复制给首个读取配置的宝宝 */
+const MIGRATED_KEY = 'babysitter.remindersMigrated'
 
-/** 读取提醒配置（默认全部关闭；兼容旧版喂奶提醒开关） */
-export function loadReminders(): ReminderConfig {
+/**
+ * 按宝宝隔离的存储键：`babysitter.reminders.<babyId>`。
+ * babyId 为空时退回全局键（无宝宝 / 测试场景），保持旧版行为。
+ */
+function scopedKey(base: string, babyId?: number | null): string {
+  return babyId == null ? base : `${base}.${babyId}`
+}
+
+/** 解析一份提醒配置；键不存在或内容损坏时返回 null */
+function readConfig(key: string): ReminderConfig | null {
   try {
-    const raw = localStorage.getItem(REMINDER_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as Record<
-        string,
-        { enabled?: boolean; intervalHours?: number; time?: string; start?: string; end?: string }
-      >
-      const cfg = cloneDefaults()
-      ;(Object.keys(DEFAULT_REMINDERS) as (keyof ReminderConfig)[]).forEach((k) => {
-        const p = parsed[k]
-        if (p && typeof p === 'object') {
-          const target = cfg[k] as Record<string, unknown>
-          if (typeof p.enabled === 'boolean') target.enabled = p.enabled
-          // 免打扰时段：只有开关与起止时间，没有间隔语义
-          if (k === 'quiet') {
-            if (typeof p.start === 'string') target.start = p.start
-            if (typeof p.end === 'string') target.end = p.end
-            return
-          }
-          if (typeof p.intervalHours === 'number' && k !== 'vaccination') {
-            // 载入清洗：旧版/手改数据可能越界，统一钳回 [min, 24]
-            target.intervalHours = clampIntervalHours(p.intervalHours, INTERVAL_MIN_HOURS[k])
-          }
-          if (typeof p.time === 'string') target.time = p.time
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Record<
+      string,
+      { enabled?: boolean; intervalHours?: number; time?: string; start?: string; end?: string }
+    >
+    const cfg = cloneDefaults()
+    ;(Object.keys(DEFAULT_REMINDERS) as (keyof ReminderConfig)[]).forEach((k) => {
+      const p = parsed[k]
+      if (p && typeof p === 'object') {
+        const target = cfg[k] as Record<string, unknown>
+        if (typeof p.enabled === 'boolean') target.enabled = p.enabled
+        // 免打扰时段：只有开关与起止时间，没有间隔语义
+        if (k === 'quiet') {
+          if (typeof p.start === 'string') target.start = p.start
+          if (typeof p.end === 'string') target.end = p.end
+          return
         }
-      })
-      return cfg
-    }
+        if (typeof p.intervalHours === 'number' && k !== 'vaccination') {
+          // 载入清洗：旧版/手改数据可能越界，统一钳回 [min, 24]
+          target.intervalHours = clampIntervalHours(p.intervalHours, INTERVAL_MIN_HOURS[k])
+        }
+        if (typeof p.time === 'string') target.time = p.time
+      }
+    })
+    return cfg
   } catch {
-    /* 配置损坏时回退默认 */
+    return null
   }
+}
+
+function isMigrated(): boolean {
+  try {
+    return localStorage.getItem(MIGRATED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function markMigrated() {
+  try {
+    localStorage.setItem(MIGRATED_KEY, '1')
+  } catch {
+    /* 存储不可用时忽略 */
+  }
+}
+
+/**
+ * 读取提醒配置（默认全部关闭；兼容旧版喂奶提醒开关）。
+ * 配置按宝宝独立存储；旧版全局配置在首次按宝宝读取时复制给该宝宝，其余宝宝使用默认值。
+ */
+export function loadReminders(babyId?: number | null): ReminderConfig {
+  const own = readConfig(scopedKey(REMINDER_KEY, babyId))
+  if (own) return own
+
+  if (babyId != null && !isMigrated()) {
+    const legacy = readConfig(REMINDER_KEY)
+    markMigrated()
+    if (legacy) {
+      saveReminders(legacy, babyId)
+      return legacy
+    }
+  }
+
   const cfg = cloneDefaults()
-  if (localStorage.getItem(LEGACY_FEED_KEY) === 'on') cfg.feed.enabled = true
+  try {
+    if (localStorage.getItem(LEGACY_FEED_KEY) === 'on') cfg.feed.enabled = true
+  } catch {
+    /* 存储不可用时用默认值 */
+  }
   return cfg
 }
 
@@ -105,26 +153,26 @@ function cloneDefaults(): ReminderConfig {
   }
 }
 
-export function saveReminders(cfg: ReminderConfig) {
-  localStorage.setItem(REMINDER_KEY, JSON.stringify(cfg))
+export function saveReminders(cfg: ReminderConfig, babyId?: number | null) {
+  localStorage.setItem(scopedKey(REMINDER_KEY, babyId), JSON.stringify(cfg))
 }
 
-function loadNotified(): Record<string, number> {
+function loadNotified(babyId?: number | null): Record<string, number> {
   try {
-    return JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '{}')
+    return JSON.parse(localStorage.getItem(scopedKey(NOTIFIED_KEY, babyId)) || '{}')
   } catch {
     return {}
   }
 }
 
-function lastNotified(type: ReminderType): number {
-  return loadNotified()[type] || 0
+function lastNotified(type: ReminderType, babyId?: number | null): number {
+  return loadNotified(babyId)[type] || 0
 }
 
-function markNotified(type: ReminderType, stamp: number) {
-  const map = loadNotified()
+function markNotified(type: ReminderType, stamp: number, babyId?: number | null) {
+  const map = loadNotified(babyId)
   map[type] = stamp
-  localStorage.setItem(NOTIFIED_KEY, JSON.stringify(map))
+  localStorage.setItem(scopedKey(NOTIFIED_KEY, babyId), JSON.stringify(map))
 }
 
 // —— 免打扰时段 ——
@@ -155,24 +203,29 @@ export function isQuietNow(cfg: ReminderConfig, now: number): boolean {
 
 // —— 稍后提醒（snooze）——
 
-function loadSnoozes(): Record<string, number> {
+function loadSnoozes(babyId?: number | null): Record<string, number> {
   try {
-    return JSON.parse(localStorage.getItem(SNOOZED_KEY) || '{}') as Record<string, number>
+    return JSON.parse(localStorage.getItem(scopedKey(SNOOZED_KEY, babyId)) || '{}') as Record<string, number>
   } catch {
     return {}
   }
 }
 
-/** 把某类提醒延后 N 分钟（期间不发送系统通知） */
-export function snoozeReminder(type: ReminderType, minutes: number, now = Date.now()): void {
-  const map = loadSnoozes()
+/** 把某类提醒延后 N 分钟（期间不发送系统通知）；按宝宝隔离 */
+export function snoozeReminder(
+  type: ReminderType,
+  minutes: number,
+  now = Date.now(),
+  babyId?: number | null,
+): void {
+  const map = loadSnoozes(babyId)
   map[type] = now + Math.max(1, minutes) * 60_000
-  localStorage.setItem(SNOOZED_KEY, JSON.stringify(map))
+  localStorage.setItem(scopedKey(SNOOZED_KEY, babyId), JSON.stringify(map))
 }
 
 /** 某类提醒是否仍在稍后窗口内 */
-export function isSnoozed(type: ReminderType, now = Date.now()): boolean {
-  return (loadSnoozes()[type] ?? 0) > now
+export function isSnoozed(type: ReminderType, now = Date.now(), babyId?: number | null): boolean {
+  return (loadSnoozes(babyId)[type] ?? 0) > now
 }
 
 export interface ReminderContext {
@@ -190,14 +243,24 @@ export interface ReminderHit {
   title: string
   body: string
   tag: string
+  /** 点击通知后的落地页：直接打开对应记录表单 / 筛选 */
+  url: string
 }
 
 const THROTTLE_MS = 5 * 60_000
 const MED_THROTTLE_MS = 30 * 60_000
 
+/** 通知落地页（Next 静态导出路径）：相对应用根路径，兼容子路径部署 */
+const LOG_PATH = './log/'
+
+function logUrl(query: string): string {
+  return `${LOG_PATH}?${query}`
+}
+
 /** 检查当前是否触发任何已开启的提醒（调用方负责通知权限判断与发送） */
 export function checkReminders(ctx: ReminderContext): ReminderHit[] {
-  const cfg = loadReminders()
+  const babyId = ctx.baby?.id ?? null
+  const cfg = loadReminders(babyId)
   const hits: ReminderHit[] = []
   const now = ctx.now
 
@@ -205,36 +268,38 @@ export function checkReminders(ctx: ReminderContext): ReminderHit[] {
   if (isQuietNow(cfg, now)) return hits
 
   // 喂奶：距上次喂养超过间隔
-  if (cfg.feed.enabled && !isSnoozed('feed', now) && ctx.feedings.length) {
+  if (cfg.feed.enabled && !isSnoozed('feed', now, babyId) && ctx.feedings.length) {
     const last = [...ctx.feedings].sort((a, b) => b.startTime - a.startTime)[0]
     const since = now - last.startTime
     const threshold =
       cfg.feed.intervalHours > 0 ? cfg.feed.intervalHours * 3600_000 : recommendedIntervalMs(ctx.baby ?? undefined)
-    if (since > threshold && now - lastNotified('feed') > THROTTLE_MS) {
-      markNotified('feed', now)
+    if (since > threshold && now - lastNotified('feed', babyId) > THROTTLE_MS) {
+      markNotified('feed', now, babyId)
       hits.push({
         type: 'feed',
         title: t('reminders.feed.title'),
         body: t('reminders.feed.body', { duration: formatMin(since) }),
         tag: 'reminder-feed',
+        url: logUrl('timer=feeding'),
       })
     }
   }
 
   // 睡眠：到达设置的晚间就寝时间（1 小时窗口内，当天仅一次）或距上次睡眠超过间隔
-  if (cfg.sleep.enabled && !isSnoozed('sleep', now)) {
+  if (cfg.sleep.enabled && !isSnoozed('sleep', now, babyId)) {
     // 固定时间提醒
     if (cfg.sleep.time) {
       const [h, m] = cfg.sleep.time.split(':').map(Number)
       const target = new Date(now)
       target.setHours(h, m, 0, 0)
-      if (now >= target.getTime() && now - target.getTime() <= 3600_000 && lastNotified('sleep') < target.getTime()) {
-        markNotified('sleep', now)
+      if (now >= target.getTime() && now - target.getTime() <= 3600_000 && lastNotified('sleep', babyId) < target.getTime()) {
+        markNotified('sleep', now, babyId)
         hits.push({
           type: 'sleep',
           title: t('reminders.sleep.title'),
           body: t('reminders.sleep.bodyTime', { time: cfg.sleep.time }),
           tag: 'reminder-sleep',
+          url: logUrl('timer=sleep'),
         })
       }
     }
@@ -242,62 +307,66 @@ export function checkReminders(ctx: ReminderContext): ReminderHit[] {
     if (cfg.sleep.intervalHours > 0 && ctx.sleeps.length) {
       const last = [...ctx.sleeps].sort((a, b) => b.startTime - a.startTime)[0]
       const since = now - last.startTime
-      if (since > cfg.sleep.intervalHours * 3600_000 && now - lastNotified('sleep') > THROTTLE_MS) {
-        markNotified('sleep', now)
+      if (since > cfg.sleep.intervalHours * 3600_000 && now - lastNotified('sleep', babyId) > THROTTLE_MS) {
+        markNotified('sleep', now, babyId)
         hits.push({
           type: 'sleep',
           title: t('reminders.sleep.title'),
           body: t('reminders.sleep.body', { duration: formatMin(since) }),
           tag: 'reminder-sleep',
+          url: logUrl('timer=sleep'),
         })
       }
     }
   }
 
   // 用药：距最近用药记录超过设置间隔
-  if (cfg.medication.enabled && !isSnoozed('medication', now) && ctx.medications.length) {
+  if (cfg.medication.enabled && !isSnoozed('medication', now, babyId) && ctx.medications.length) {
     const last = [...ctx.medications].sort((a, b) => b.time - a.time)[0]
     const since = now - last.time
-    if (since > cfg.medication.intervalHours * 3600_000 && now - lastNotified('medication') > MED_THROTTLE_MS) {
-      markNotified('medication', now)
+    if (since > cfg.medication.intervalHours * 3600_000 && now - lastNotified('medication', babyId) > MED_THROTTLE_MS) {
+      markNotified('medication', now, babyId)
       hits.push({
         type: 'medication',
         title: t('reminders.medication.title'),
         body: t('reminders.medication.body', { name: last.name || t('common.baby') }),
         tag: 'reminder-medication',
+        url: logUrl('timer=medication'),
       })
     }
   }
 
   // 疫苗：今天有待接种（planned）疫苗
-  if (cfg.vaccination.enabled && !isSnoozed('vaccination', now) && ctx.vaccinations.length) {
+  if (cfg.vaccination.enabled && !isSnoozed('vaccination', now, babyId) && ctx.vaccinations.length) {
     const today = new Date(now)
     today.setHours(0, 0, 0, 0)
     const due = ctx.vaccinations.find(
       (v) => v.status === 'planned' && v.date >= today.getTime() && v.date < today.getTime() + 86_400_000,
     )
-    if (due && lastNotified('vaccination') < today.getTime()) {
-      markNotified('vaccination', now)
+    if (due && lastNotified('vaccination', babyId) < today.getTime()) {
+      markNotified('vaccination', now, babyId)
       hits.push({
         type: 'vaccination',
         title: t('reminders.vaccination.title'),
         body: t('reminders.vaccination.body', { name: due.name }),
         tag: 'reminder-vaccination',
+        url: logUrl('filter=vaccination'),
       })
     }
   }
 
   // 尿布：距上次更换超过设置间隔
-  if (cfg.diaper.enabled && !isSnoozed('diaper', now) && ctx.diapers.length) {
+  if (cfg.diaper.enabled && !isSnoozed('diaper', now, babyId) && ctx.diapers.length) {
     const last = [...ctx.diapers].sort((a, b) => b.time - a.time)[0]
     const since = now - last.time
-    if (since > cfg.diaper.intervalHours * 3600_000 && now - lastNotified('diaper') > THROTTLE_MS) {
-      markNotified('diaper', now)
+    if (since > cfg.diaper.intervalHours * 3600_000 && now - lastNotified('diaper', babyId) > THROTTLE_MS) {
+      markNotified('diaper', now, babyId)
       hits.push({
         type: 'diaper',
         title: t('reminders.diaper.title'),
         body: t('reminders.diaper.body', { hours: cfg.diaper.intervalHours }),
         tag: 'reminder-diaper',
+        url: logUrl('timer=diaper'),
       })
     }
   }

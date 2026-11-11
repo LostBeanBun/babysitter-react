@@ -102,23 +102,23 @@ export default function TodayOverview({ now, onEdit, onAdd }: TodayOverviewProps
   const [snoozeTick, setSnoozeTick] = useState(0)
   const feedSnoozed = useMemo(() => {
     void snoozeTick
-    return isSnoozed('feed', now)
-  }, [now, snoozeTick])
+    return isSnoozed('feed', now, activeBabyId)
+  }, [now, snoozeTick, activeBabyId])
   function snoozeFeed() {
-    snoozeReminder('feed', 15, now)
+    snoozeReminder('feed', 15, now, activeBabyId)
     setSnoozeTick((n) => n + 1)
   }
   function snoozeSleep() {
-    snoozeReminder('sleep', 15, now)
+    snoozeReminder('sleep', 15, now, activeBabyId)
     setSnoozeTick((n) => n + 1)
   }
   function snoozeDiaper() {
-    snoozeReminder('diaper', 15, now)
+    snoozeReminder('diaper', 15, now, activeBabyId)
     setSnoozeTick((n) => n + 1)
   }
 
   // —— 睡眠提醒条 ——（仅当睡眠提醒开启：就寝时间前 1 小时窗口内 / 距上次睡眠超过设定间隔；正在进行睡眠时不显示）
-  const sleepReminders = loadReminders().sleep
+  const sleepReminders = loadReminders(activeBabyId).sleep
   const lastSleepStart = useMemo(
     () => [...sleeps].sort((a, b) => b.startTime - a.startTime)[0]?.startTime ?? null,
     [sleeps],
@@ -138,8 +138,8 @@ export default function TodayOverview({ now, onEdit, onAdd }: TodayOverviewProps
     sleepSinceMs > sleepReminders.intervalHours * MS_PER_HOUR
   const sleepSnoozed = useMemo(() => {
     void snoozeTick
-    return isSnoozed('sleep', now)
-  }, [now, snoozeTick])
+    return isSnoozed('sleep', now, activeBabyId)
+  }, [now, snoozeTick, activeBabyId])
   const sleepBannerActive =
     sleepReminders.enabled &&
     !activeTimer.hasKind('sleep') &&
@@ -148,7 +148,7 @@ export default function TodayOverview({ now, onEdit, onAdd }: TodayOverviewProps
     (sleepTimeDueMs >= 0 || sleepIntervalDue)
 
   // —— 尿布提醒条 ——（阈值与今日照护共用：距上次换尿布超过提醒设置间隔，默认 3 小时，常显）
-  const diaperReminders = loadReminders().diaper
+  const diaperReminders = loadReminders(activeBabyId).diaper
   const lastDiaperTime = useMemo(
     () => [...diapers].sort((a, b) => b.time - a.time)[0]?.time ?? null,
     [diapers],
@@ -158,8 +158,8 @@ export default function TodayOverview({ now, onEdit, onAdd }: TodayOverviewProps
   const diaperDue = diaperSinceMs != null && diaperSinceMs > diaperThresholdHours * MS_PER_HOUR
   const diaperSnoozed = useMemo(() => {
     void snoozeTick
-    return isSnoozed('diaper', now)
-  }, [now, snoozeTick])
+    return isSnoozed('diaper', now, activeBabyId)
+  }, [now, snoozeTick, activeBabyId])
   const diaperBannerActive = diaperDue && !diaperSnoozed && !dismissed.diaper
 
   // —— 备份提醒：本地数据唯一兜底，超过 7 天未备份时提示（关闭后静默 1 天，设置页可永久关闭）——

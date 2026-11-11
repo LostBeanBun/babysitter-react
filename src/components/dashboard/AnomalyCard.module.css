@@ -1,0 +1,120 @@
+.anomaly-card {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-glass);
+}
+
+.anomaly-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.anomaly-heading {
+  min-width: 0;
+}
+
+.anomaly-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.anomaly-sub {
+  margin: 3px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.anomaly-link {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--dur-base) ease,
+    transform var(--dur-enter) var(--spring);
+}
+
+.anomaly-link:active {
+  transform: scale(var(--tap-scale));
+}
+
+.anomaly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.anomaly-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.anomaly-row--watch {
+  background: var(--danger-soft);
+}
+
+.anomaly-icon {
+  flex-shrink: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.anomaly-text {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.anomaly-row--watch .anomaly-text {
+  color: var(--text);
+}
+
+.anomaly-note {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+@media (hover: hover) {
+  .anomaly-link:hover {
+    background: var(--primary-glow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anomaly-link {
+    transition: none;
+  }
+
+  .anomaly-link:active {
+    transform: none;
+  }
+}

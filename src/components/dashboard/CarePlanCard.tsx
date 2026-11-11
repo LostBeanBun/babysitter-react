@@ -123,7 +123,7 @@ export default function CarePlanCard({ now, onAdd }: CarePlanCardProps) {
   }, [activeTimer.records, sleeps])
 
   /** 换尿布参考间隔（毫秒）：与提醒设置共用同一阈值（随渲染重新读取，设置变更即时生效） */
-  const diaperIntervalMs = loadReminders().diaper.intervalHours * MS_PER_HOUR
+  const diaperIntervalMs = loadReminders(activeBabyId).diaper.intervalHours * MS_PER_HOUR
 
   const plan = useMemo(
     () =>
