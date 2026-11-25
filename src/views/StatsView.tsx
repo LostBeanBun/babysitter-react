@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { EChartsOption } from 'echarts'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
 import PageHeader from '@/components/common/PageHeader'
 import CountUp from '@/components/common/CountUp'
@@ -17,8 +16,15 @@ import {
   type DayAggregate,
   type ComparisonResult,
 } from '@/services/stats'
-import { CHART_COLORS, MS_PER_DAY } from '@/constants'
-import { trendTooltip, trendAxes, areaLineSeries, type ChartThemeColors } from '@/services/chartOptions'
+import { MS_PER_DAY } from '@/constants'
+import {
+  milkTrendOption,
+  sleepTrendOption,
+  diaperTrendOption,
+  pumpTrendOption,
+  temperatureTrendOption,
+  type ChartThemeColors,
+} from '@/services/chartOptions'
 import { formatDuration, formatPercentChange, formatAmount, startOfDay, formatDate } from '@/utils/format'
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { buildRangeInsight, type InsightItem } from '@/services/insights'
@@ -201,109 +207,13 @@ export default function StatsView() {
     [axisColor, axisLineColor, splitLineColor],
   )
 
-  // —— 趋势图配置 ——
-  const milkOption = useMemo<EChartsOption>(
-    () => ({
-      tooltip: trendTooltip((v) => `${Math.round(v)} ml`),
-      ...trendAxes({ theme: chartTheme, xLabels, yFormatter }),
-      series: [
-        areaLineSeries({
-          name: t('stats.series.milk'),
-          data: days.map((d) => d.totalMilkAmount),
-          color: CHART_COLORS.feedAmount,
-          area: ['rgba(255,107,53,0.25)', 'rgba(255,107,53,0.02)'],
-        }),
-      ],
-    }),
-    [chartTheme, xLabels, days, t],
-  )
-
-  const sleepOption = useMemo<EChartsOption>(
-    () => ({
-      tooltip: trendTooltip((v) => `${v} h`),
-      ...trendAxes({ theme: chartTheme, xLabels }),
-      series: [
-        {
-          name: t('stats.series.sleep'),
-          type: 'bar',
-          barMaxWidth: 22,
-          data: days.map((d) => +(d.sleepMs / 3600_000).toFixed(1)),
-          itemStyle: { color: CHART_COLORS.sleep, borderRadius: [4, 4, 0, 0] },
-        },
-      ],
-    }),
-    [chartTheme, xLabels, days, t],
-  )
-
-  const diaperOption = useMemo<EChartsOption>(
-    () => ({
-      tooltip: trendTooltip((v) => t('common.times', { n: Math.round(v) })),
-      ...trendAxes({ theme: chartTheme, xLabels }),
-      series: [
-        {
-          name: t('stats.series.wet'),
-          type: 'bar',
-          stack: 'diaper',
-          barMaxWidth: 22,
-          data: days.map((d) => d.wetCount),
-          itemStyle: { color: '#8FB9D8' },
-        },
-        {
-          name: t('stats.series.dirty'),
-          type: 'bar',
-          stack: 'diaper',
-          barMaxWidth: 22,
-          data: days.map((d) => d.dirtyCount),
-          itemStyle: { color: '#B58B62' },
-        },
-      ],
-    }),
-    [chartTheme, xLabels, days, t],
-  )
-
-  const pumpOption = useMemo<EChartsOption>(
-    () => ({
-      tooltip: trendTooltip((v) => `${Math.round(v)} ml`),
-      ...trendAxes({ theme: chartTheme, xLabels, yFormatter }),
-      series: [
-        areaLineSeries({
-          name: t('stats.series.pump'),
-          data: days.map((d) => d.pumpAmount),
-          color: CHART_COLORS.pump,
-          area: ['rgba(216,168,200,0.25)', 'rgba(216,168,200,0.02)'],
-        }),
-      ],
-    }),
-    [chartTheme, xLabels, days, t],
-  )
-
-  const temperatureOption = useMemo<EChartsOption>(
-    () => ({
-      tooltip: trendTooltip((v) => `${v} ℃`),
-      ...trendAxes({ theme: chartTheme, xLabels, yFormatter: (v) => `${v}℃`, yMin: 35, yMax: 40 }),
-      series: [
-        {
-          name: t('stats.series.temperature'),
-          type: 'line',
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 6,
-          data: days.map((d) => (d.temperatureCount > 0 ? +d.temperatureAvg.toFixed(1) : null)),
-          connectNulls: false,
-          lineStyle: { width: 2.5, color: CHART_COLORS.temperature },
-          itemStyle: { color: CHART_COLORS.temperature },
-          markLine: {
-            silent: true,
-            symbol: 'none',
-            label: { show: false },
-            data: [{ yAxis: 37.3 }],
-            lineStyle: { color: '#ff7a45', type: 'dashed', width: 1 },
-          },
-        },
-      ],
-    }),
-    [chartTheme, xLabels, days, t],
-  )
+  // —— 趋势图配置（builder 已抽至 services/chartOptions，两端共用同一份） ——
+  const trendArgs = { days, xLabels, theme: chartTheme, t, yFormatter }
+  const milkOption = useMemo(() => milkTrendOption(trendArgs), [days, xLabels, chartTheme, t])
+  const sleepOption = useMemo(() => sleepTrendOption(trendArgs), [days, xLabels, chartTheme, t])
+  const diaperOption = useMemo(() => diaperTrendOption(trendArgs), [days, xLabels, chartTheme, t])
+  const pumpOption = useMemo(() => pumpTrendOption(trendArgs), [days, xLabels, chartTheme, t])
+  const temperatureOption = useMemo(() => temperatureTrendOption(trendArgs), [days, xLabels, chartTheme, t])
 
   // 对比面板格式化
   function formatMetricValue(key: string, value: number): string {

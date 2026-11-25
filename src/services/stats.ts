@@ -119,10 +119,14 @@ export function buildDailySeries(
     const next = new Date(d.dayStart)
     return new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1).getTime()
   })
+  // 按起止日直接定位重叠的桶区间，避免 O(睡眠数 × 天数) 的全量扫描
+  const dayIndex = new Map(days.map((d, i) => [d.dayStart, i]))
   for (const s of sleeps) {
     const sleepEnd = endOf(s.startTime, s.endTime, s.duration, now)
     if (sleepEnd <= s.startTime) continue
-    for (let i = 0; i < days.length; i++) {
+    const fromIdx = dayIndex.get(startOfDay(s.startTime)) ?? 0
+    const toIdx = dayIndex.get(startOfDay(sleepEnd)) ?? days.length - 1
+    for (let i = fromIdx; i <= toIdx && i < days.length; i++) {
       if (dayEnds[i] <= s.startTime) continue
       if (days[i].dayStart >= sleepEnd) break
       days[i].sleepMs += overlapMs(s.startTime, sleepEnd, days[i].dayStart, dayEnds[i], now)

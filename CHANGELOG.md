@@ -3,15 +3,21 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
-## [1.16.0] - 2026-11-11
-
-### 新增
-
-- 
+## [1.16.1] - 2026-11-25
 
 ### 修复
 
-- 
+- 夏令时（DST）时区下统计丢数据：补齐与 Vue 端对齐的回归用例（`stats.dst.spec.ts`，America/New_York 回拨 / 拨快 / 跨切换日睡眠分摊 4 例）；本端逐日建桶此前已按日历日进位，本轮补测试防回归
+
+### 新增
+
+- CI 工作流（`.github/workflows/ci.yml`）：push / PR 跑 typecheck、lint、测试（UTC / America/New_York / Asia/Shanghai 三时区矩阵）；部署改为 CI 通过后自动触发
+
+### 变更
+
+- 趋势图配置（奶量 / 睡眠 / 尿布 / 吸奶 / 体温）抽至两端共用的 `services/chartOptions.ts` 纯函数 builder（补 5 例单测），`StatsView` 改用 builder
+- 睡眠跨天分摊按起止日直接定位桶区间，避免 O(睡眠数 × 天数) 全量扫描
+- 数据导入导出按职责拆分 `exportCsv.ts` / `importCsv.ts` / `csvLabels.ts`（`services/export.ts` 保持统一入口，引用方与既有 48 例单测不变）
 
 ## [1.16.0] - 2026-11-11
 
