@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
 import PageHeader from '@/components/common/PageHeader'
+
+/** y 轴刻度缩写（纯函数，组件外定义避免每次渲染产生新引用） */
+const yFormatter = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))
 import CountUp from '@/components/common/CountUp'
 import ChartCard from '@/components/charts/ChartCard'
 import GrowthCurveCharts from '@/components/charts/GrowthCurveCharts'
@@ -199,7 +202,6 @@ export default function StatsView() {
 
   // 格式化轴标签
   const xLabels = useMemo(() => days.map((d) => d.date.slice(5).replace('-', '/')), [days])
-  const yFormatter = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))
 
   /** 图表主题色：与 useChartTheme 同源，供 chartOptions 复用 */
   const chartTheme = useMemo<ChartThemeColors>(
@@ -208,12 +210,12 @@ export default function StatsView() {
   )
 
   // —— 趋势图配置（builder 已抽至 services/chartOptions，两端共用同一份） ——
-  const trendArgs = { days, xLabels, theme: chartTheme, t, yFormatter }
-  const milkOption = useMemo(() => milkTrendOption(trendArgs), [days, xLabels, chartTheme, t])
-  const sleepOption = useMemo(() => sleepTrendOption(trendArgs), [days, xLabels, chartTheme, t])
-  const diaperOption = useMemo(() => diaperTrendOption(trendArgs), [days, xLabels, chartTheme, t])
-  const pumpOption = useMemo(() => pumpTrendOption(trendArgs), [days, xLabels, chartTheme, t])
-  const temperatureOption = useMemo(() => temperatureTrendOption(trendArgs), [days, xLabels, chartTheme, t])
+  const trendArgs = useMemo(() => ({ days, xLabels, theme: chartTheme, t, yFormatter }), [days, xLabels, chartTheme, t])
+  const milkOption = useMemo(() => milkTrendOption(trendArgs), [trendArgs])
+  const sleepOption = useMemo(() => sleepTrendOption(trendArgs), [trendArgs])
+  const diaperOption = useMemo(() => diaperTrendOption(trendArgs), [trendArgs])
+  const pumpOption = useMemo(() => pumpTrendOption(trendArgs), [trendArgs])
+  const temperatureOption = useMemo(() => temperatureTrendOption(trendArgs), [trendArgs])
 
   // 对比面板格式化
   function formatMetricValue(key: string, value: number): string {

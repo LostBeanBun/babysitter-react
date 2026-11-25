@@ -3,6 +3,17 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.16.2] - 2026-11-25
+
+### 修复
+
+- GitHub Pages 部署修复：deploy 工作流曾被手动禁用且 Pages 未启用 workflow 构建类型，导致 CI 通过后从不部署；已在仓库侧启用并验证 workflow_run 链路
+- GitHub Pages 项目页资源 404：`next.config` 支持 `NEXT_PUBLIC_BASE_PATH` 注入 basePath，deploy 构建时注入 `/babysitter-react`（此前部署出的页面白屏）；修正产物目录 `out`（1.16.1 同步时误用 Vue 端的 `dist`）
+
+### 变更
+
+- StatsView 趋势图 `useMemo` 依赖修复：`yFormatter` 提为模块级纯函数、`trendArgs` 缓存，消除 react-hooks/exhaustive-deps 警告
+
 ## [1.16.1] - 2026-11-25
 
 ### 修复

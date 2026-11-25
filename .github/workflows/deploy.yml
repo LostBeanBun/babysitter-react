@@ -28,7 +28,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build
+      # GitHub Pages 项目页部署在子路径（/babysitter-react/），构建时注入 basePath
+      - run: NEXT_PUBLIC_BASE_PATH=/babysitter-react npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
