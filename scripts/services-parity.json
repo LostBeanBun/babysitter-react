@@ -1,0 +1,82 @@
+{
+  "$comment": "双端共享代码清单：identical 必须逐字节一致；allowed 为已登记的框架适配差异（收敛后请移到 identical）",
+  "identical": [
+    "src/services/anomalies.spec.ts",
+    "src/services/anomalies.ts",
+    "src/services/backup.spec.ts",
+    "src/services/carePlan.spec.ts",
+    "src/services/carePlan.ts",
+    "src/services/chartOptions.spec.ts",
+    "src/services/chartOptions.ts",
+    "src/services/export.ts",
+    "src/services/handoff.spec.ts",
+    "src/services/handoff.ts",
+    "src/services/insights.spec.ts",
+    "src/services/monthlyReport.spec.ts",
+    "src/services/notification.spec.ts",
+    "src/services/notification.ts",
+    "src/services/recordForm.spec.ts",
+    "src/services/recordForm.ts",
+    "src/services/reminders.spec.ts",
+    "src/services/reminders.ts",
+    "src/services/report.spec.ts",
+    "src/services/report.ts",
+    "src/services/reportShare.spec.ts",
+    "src/services/reportShare.ts",
+    "src/services/serviceWorker.spec.ts",
+    "src/services/timedRecord.spec.ts",
+    "src/services/timedRecord.ts",
+    "src/services/todayStats.spec.ts",
+    "src/services/todayStats.ts"
+  ],
+  "allowed": [
+    {
+      "file": "src/services/backup.ts",
+      "reason": "React 端用 downloadBlob + 显式表名，Vue 端用 RECORD_TABLES 注册表；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/csvLabels.ts",
+      "reason": "i18n 访问方式不同（vue-i18n global vs i18next）；待 P0.2 经 serviceT 适配后收敛"
+    },
+    {
+      "file": "src/services/export.spec.ts",
+      "reason": "React 端有额外的导入导出往返用例，尚未合并到两端同一份；待 P0.2 合并"
+    },
+    {
+      "file": "src/services/exportCsv.ts",
+      "reason": "i18n / 表注册表访问方式不同，且 Vue 端已做行生成重构；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/importCsv.ts",
+      "reason": "i18n / 表注册表访问方式不同，且 Vue 端已做解析重构；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/insights.ts",
+      "reason": "stats.aggregateRange 签名不同（对象参数 vs 位置参数）；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/monthlyReport.ts",
+      "reason": "stats.aggregateRange 签名不同（对象参数 vs 位置参数）；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/stats.dst.spec.ts",
+      "reason": "调用签名按仓库适配（React 位置参数）；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/stats.spec.ts",
+      "reason": "调用签名按仓库适配（React 位置参数）；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/stats.ts",
+      "reason": "聚合函数签名不同（Vue 对象参数 + sumDays / earliestRecordStart，React 位置参数）；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/timeline.spec.ts",
+      "reason": "t 注入方式不同（React 传参 vs Vue 模块级 i18n）；待 P0.2 收敛"
+    },
+    {
+      "file": "src/services/timeline.ts",
+      "reason": "t 注入方式与 KIND_COLORS 来源不同（React 内联字面量 vs Vue KIND_META）；待 P0.2 收敛"
+    }
+  ]
+}

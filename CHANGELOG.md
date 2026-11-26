@@ -3,6 +3,12 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.16.3] - 2026-11-26
+
+### 新增
+
+- 新增 `npm run services:parity`（已挂入 `npm run lint`）：逐字节校验双端共享代码清单 `scripts/services-parity.json`，`identical` 漂移立即失败；`allowed` 差异必须写明原因，收敛后登记过期也会失败，`src/services/*.ts` 新增文件必须显式分类
+
 ## [1.16.2] - 2026-11-25
 
 ### 修复

@@ -1,6 +1,6 @@
 {
   "name": "babysitter",
-  "version": "1.16.2",
+  "version": "1.16.3",
   "description": "宝宝喂养记录与统计 - 温馨简约的本地优先 PWA 应用",
   "private": true,
   "type": "module",
@@ -10,8 +10,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "eslint . --fix && npm run version:check && npm run i18n:parity",
+    "lint": "eslint . --fix && npm run version:check && npm run i18n:parity && npm run services:parity",
     "i18n:parity": "node scripts/i18n-parity.mjs",
+    "services:parity": "node scripts/services-parity.mjs",
     "smoke": "node e2e/smoke.mjs",
     "version:check": "node scripts/version.mjs check",
     "version:bump": "node scripts/version.mjs bump",
