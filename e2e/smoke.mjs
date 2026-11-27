@@ -565,8 +565,12 @@ async function main() {
 
   if (anomalyVisible) {
     await anomalyCard.getByRole('button', { name: '查看统计' }).click()
-    await page.waitForTimeout(800)
-    check('异常卡「查看统计」跳到统计页', page.url().includes('stats'), page.url())
+    // 等真实跳转完成：CI 冷启动时 Next 首次按需编译 /stats 可能超过 1s
+    const jumped = await page
+      .waitForURL(/stats/, { timeout: 15000 })
+      .then(() => true)
+      .catch(() => false)
+    check('异常卡「查看统计」跳到统计页', jumped, page.url())
   }
   await page.goto(`${BASE_URL}${ROUTES.home}`, { waitUntil: 'networkidle' })
   await page.waitForSelector(CARE_SECTION, { timeout: 20000 })
