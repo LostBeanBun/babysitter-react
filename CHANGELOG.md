@@ -3,6 +3,13 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.16.7] - 2026-11-27
+
+### 变更
+
+- 补 hooks/组件测试：`useDeleteUndo`（3 秒撤销窗口、到期删除、重复确认幂等、多记录独立）、`useRecordModal`（新增/编辑/删除确认分发、10 种记录落表、悬浮球显隐、提示文案）、`RecordFormModal`（按 kind 渲染对应表单、编辑载荷透传、标题与事件透传）
+- 新增极简测试渲染工具 `src/test/render.tsx`（react-dom/client + act，不引入 @testing-library 等额外依赖）；vitest 纳入 `*.spec.tsx`
+
 ## [1.16.6] - 2026-11-27
 
 ### 修复
