@@ -3,6 +3,13 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.16.5] - 2026-11-27
+
+### 变更
+
+- CI 新增 `smoke` job（P0.3）：`checks` 通过后用 playwright-core 安装 Chromium、起 dev server 跑 `npm run smoke`，四页浅/深色、统计图表、儿保报告、`reduce` 兜底与 console 巡检随每次推送自动执行
+- 冒烟失败时 CI 整体失败，GitHub Pages 部署（`workflow_run` 仅 `success` 时构建）自动跳过；截图与 `results.json` 作为 artifact 保留 7 天
+
 ## [1.16.4] - 2026-11-27
 
 ### 变更

@@ -25,3 +25,37 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+
+  # 真实浏览器冒烟：四页浅/深色、统计图表、儿保报告、reduce 兜底、全程无 console 报错
+  smoke:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: |
+          npx playwright-core install --with-deps chromium
+          echo "CHROME_PATH=$(node -p 'require("playwright-core").chromium.executablePath()')" >> "$GITHUB_ENV"
+      - name: Smoke test
+        run: |
+          npm run dev > /tmp/dev.log 2>&1 &
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:3000/ > /dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000/ > /dev/null || { cat /tmp/dev.log; exit 1; }
+          npm run smoke
+        env:
+          APP: react
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-screenshots
+          path: e2e/.artifacts
+          retention-days: 7
