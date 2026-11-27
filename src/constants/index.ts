@@ -7,6 +7,7 @@ import type {
   PumpSide,
   TemperatureMethod,
   MilestoneType,
+  RecordKind,
 } from '@/types'
 
 /** 喂养类型标签（i18n key，配合 t() 使用） */
@@ -126,6 +127,23 @@ export const MILESTONE_TYPE_LIST: { value: MilestoneType; label: string; icon: s
   { value: 'wave', label: 'milestone.types.wave', icon: '👋', color: '#E8B86A' },
   { value: 'other', label: 'milestone.types.other', icon: '🌟', color: '#E8B86A' },
 ]
+
+/** 记录类型元信息（筛选/快捷按钮文案键、静态图标、统一主色） */
+export const KIND_META: Record<RecordKind, { labelKey: string; icon: string; color: string }> = {
+  feeding: { labelKey: 'log.filters.feeding', icon: '🍼', color: '#E8906C' },
+  diaper: { labelKey: 'log.filters.diaper', icon: '🧷', color: '#9A8FC8' },
+  pumping: { labelKey: 'log.filters.pumping', icon: '🎀', color: '#D8A8C8' },
+  sleep: { labelKey: 'log.filters.sleep', icon: '😴', color: '#8FAED8' },
+  growth: { labelKey: 'log.filters.growth', icon: '📏', color: '#8FBF9F' },
+  solidFood: { labelKey: 'log.filters.solidFood', icon: '🍎', color: '#D8905A' },
+  medication: { labelKey: 'log.filters.medication', icon: '💊', color: '#D86A8A' },
+  vaccination: { labelKey: 'log.filters.vaccination', icon: '💉', color: '#6AB0D8' },
+  temperature: { labelKey: 'log.filters.temperature', icon: '🌡️', color: '#E8A45A' },
+  milestone: { labelKey: 'log.filters.milestone', icon: '🌟', color: '#E8B86A' },
+}
+
+/** 全部记录类型（固定顺序） */
+export const RECORD_KINDS = Object.keys(KIND_META) as RecordKind[]
 
 /** 主题色（统计图表统一使用） */
 export const CHART_COLORS = {

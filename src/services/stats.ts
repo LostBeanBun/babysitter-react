@@ -1,7 +1,18 @@
 import type { Feeding, DiaperChange, Pumping, Sleep, SolidFood, Medication, Temperature } from '@/types'
-import { startOfDay, formatDate } from '@/utils/format'
+import { startOfDay, startOfMonth, endOfMonth, formatDate } from '@/utils/format'
 import { overlapMs, endOf } from '@/utils/interval'
 import { MS_PER_DAY } from '@/constants'
+
+/** 统计用的记录数据集 */
+export interface RecordDatasets {
+  feedings: Feeding[]
+  diapers: DiaperChange[]
+  pumpings: Pumping[]
+  sleeps: Sleep[]
+  solidFoods?: SolidFood[]
+  medications?: Medication[]
+  temperatures?: Temperature[]
+}
 
 /** 单日聚合数据 */
 export interface DayAggregate {
@@ -41,32 +52,6 @@ export interface DayAggregate {
   temperatureAvg: number
 }
 
-/** 生成空聚合 */
-export function emptyDay(dayStart: number): DayAggregate {
-  return {
-    date: formatDate(dayStart),
-    dayStart,
-    bottleAmount: 0,
-    breastMilkAmount: 0,
-    formulaAmount: 0,
-    totalMilkAmount: 0,
-    breastCount: 0,
-    bottleCount: 0,
-    feedCount: 0,
-    sleepMs: 0,
-    diaperCount: 0,
-    wetCount: 0,
-    dirtyCount: 0,
-    pumpAmount: 0,
-    pumpCount: 0,
-    pumpMs: 0,
-    solidFoodCount: 0,
-    medicationCount: 0,
-    temperatureCount: 0,
-    temperatureAvg: 0,
-  }
-}
-
 /** 区间聚合（含奶量细分） */
 export interface RangeAggregate {
   dayCount: number
@@ -88,40 +73,81 @@ export interface RangeAggregate {
   temperatureCount: number
 }
 
+/** 区间聚合中按日累加的指标键（汇总/对比的单一来源） */
+const RANGE_METRIC_KEYS = [
+  'totalMilkAmount',
+  'breastMilkAmount',
+  'formulaAmount',
+  'feedCount',
+  'breastCount',
+  'bottleCount',
+  'sleepMs',
+  'diaperCount',
+  'wetCount',
+  'dirtyCount',
+  'pumpAmount',
+  'pumpCount',
+  'pumpMs',
+  'solidFoodCount',
+  'medicationCount',
+  'temperatureCount',
+] as const satisfies readonly (keyof RangeAggregate)[]
+
+type RangeMetrics = Omit<RangeAggregate, 'dayCount'>
+
+function emptyMetrics(): RangeMetrics {
+  const m = {} as RangeMetrics
+  for (const k of RANGE_METRIC_KEYS) m[k] = 0
+  return m
+}
+
+/** 生成空聚合 */
+export function emptyDay(dayStart: number): DayAggregate {
+  return {
+    date: formatDate(dayStart),
+    dayStart,
+    bottleAmount: 0,
+    ...emptyMetrics(),
+    temperatureAvg: 0,
+  }
+}
+
+/** 按日遍历记录并归桶（dayMap 命中才处理） */
+function forEachDay<T>(
+  list: T[],
+  dayMap: Map<number, DayAggregate>,
+  getTime: (item: T) => number,
+  reduce: (day: DayAggregate, item: T) => void,
+): void {
+  for (const item of list) {
+    const d = dayMap.get(startOfDay(getTime(item)))
+    if (d) reduce(d, item)
+  }
+}
+
 /** 生成从 start 到 end（不含）的每日序列 */
 export function buildDailySeries(
-  feedings: Feeding[],
-  diapers: DiaperChange[],
-  pumpings: Pumping[],
-  sleeps: Sleep[],
+  ds: RecordDatasets,
   start: number,
   end: number,
-  solidFoods: SolidFood[] = [],
-  medications: Medication[] = [],
-  temperatures: Temperature[] = [],
   now: number = Date.now(),
 ): DayAggregate[] {
   const days: DayAggregate[] = []
   const startDay = startOfDay(start)
   const endDay = startOfDay(end)
-  // 按日历日进位，避免 +MS_PER_DAY 在 DST 切换后偏离本地 0 点
-  for (let t = startDay; t < endDay; ) {
-    days.push(emptyDay(t))
-    const d = new Date(t)
-    t = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime()
+  // 按自然日推进而非固定 24h 步长：夏令时切换的 23h / 25h 天会让
+  // t += MS_PER_DAY 的桶偏移出本地零点，切换日之后记录 startOfDay 查表落空被静默丢弃
+  for (let d = new Date(startDay); d.getTime() < endDay; d.setDate(d.getDate() + 1)) {
+    days.push(emptyDay(d.getTime()))
   }
   const dayMap = new Map<number, DayAggregate>()
   for (const d of days) dayMap.set(d.dayStart, d)
 
   // 睡眠可能跨天：按与每日窗口的重叠时长分摊（未结束的按 now 截断）
-  const dayEnds = days.map((d, i) => {
-    if (days[i + 1]) return days[i + 1].dayStart
-    const next = new Date(d.dayStart)
-    return new Date(next.getFullYear(), next.getMonth(), next.getDate() + 1).getTime()
-  })
+  const dayEnds = days.map((d, i) => days[i + 1]?.dayStart ?? startOfDay(d.dayStart + MS_PER_DAY))
   // 按起止日直接定位重叠的桶区间，避免 O(睡眠数 × 天数) 的全量扫描
   const dayIndex = new Map(days.map((d, i) => [d.dayStart, i]))
-  for (const s of sleeps) {
+  for (const s of ds.sleeps) {
     const sleepEnd = endOf(s.startTime, s.endTime, s.duration, now)
     if (sleepEnd <= s.startTime) continue
     const fromIdx = dayIndex.get(startOfDay(s.startTime)) ?? 0
@@ -133,9 +159,7 @@ export function buildDailySeries(
     }
   }
 
-  for (const f of feedings) {
-    const d = dayMap.get(startOfDay(f.startTime))
-    if (!d) continue
+  forEachDay(ds.feedings, dayMap, (f) => f.startTime, (d, f) => {
     d.feedCount++
     if (f.type === 'breast') {
       d.breastCount++
@@ -151,43 +175,33 @@ export function buildDailySeries(
       }
       d.totalMilkAmount += amt
     }
-  }
+  })
 
-  for (const p of pumpings) {
-    const d = dayMap.get(startOfDay(p.startTime))
-    if (!d) continue
+  forEachDay(ds.pumpings, dayMap, (p) => p.startTime, (d, p) => {
     d.pumpCount++
     d.pumpAmount += p.amount ?? 0
     d.pumpMs += p.duration ?? 0
-  }
+  })
 
-  for (const dp of diapers) {
-    const d = dayMap.get(startOfDay(dp.time))
-    if (!d) continue
+  forEachDay(ds.diapers, dayMap, (dp) => dp.time, (d, dp) => {
     d.diaperCount++
     if (dp.type === 'wet' || dp.type === 'both') d.wetCount++
     if (dp.type === 'dirty' || dp.type === 'both') d.dirtyCount++
-  }
+  })
 
-  for (const sf of solidFoods) {
-    const d = dayMap.get(startOfDay(sf.time))
-    if (!d) continue
+  forEachDay(ds.solidFoods ?? [], dayMap, (sf) => sf.time, (d) => {
     d.solidFoodCount++
-  }
+  })
 
-  for (const m of medications) {
-    const d = dayMap.get(startOfDay(m.time))
-    if (!d) continue
+  forEachDay(ds.medications ?? [], dayMap, (m) => m.time, (d) => {
     d.medicationCount++
-  }
+  })
 
   // 体温：每天聚合次数与均值
-  for (const tmp of temperatures) {
-    const d = dayMap.get(startOfDay(tmp.time))
-    if (!d) continue
+  forEachDay(ds.temperatures ?? [], dayMap, (tmp) => tmp.time, (d, tmp) => {
     d.temperatureCount++
     d.temperatureAvg += tmp.value
-  }
+  })
   for (const d of days) {
     if (d.temperatureCount > 0) d.temperatureAvg = d.temperatureAvg / d.temperatureCount
   }
@@ -195,69 +209,39 @@ export function buildDailySeries(
   return days
 }
 
-/** 区间汇总（用于对比面板） */
-export function aggregateRange(
-  feedings: Feeding[],
-  diapers: DiaperChange[],
-  pumpings: Pumping[],
-  sleeps: Sleep[],
-  start: number,
-  end: number,
-  solidFoods: SolidFood[] = [],
-  medications: Medication[] = [],
-  temperatures: Temperature[] = [],
-  now: number = Date.now(),
-): RangeAggregate {
-  const days = buildDailySeries(
-    feedings,
-    diapers,
-    pumpings,
-    sleeps,
-    start,
-    end,
-    solidFoods,
-    medications,
-    temperatures,
-    now,
-  )
-  const agg: RangeAggregate = {
-    dayCount: days.length,
-    totalMilkAmount: 0,
-    breastMilkAmount: 0,
-    formulaAmount: 0,
-    feedCount: 0,
-    breastCount: 0,
-    bottleCount: 0,
-    sleepMs: 0,
-    diaperCount: 0,
-    wetCount: 0,
-    dirtyCount: 0,
-    pumpAmount: 0,
-    pumpCount: 0,
-    pumpMs: 0,
-    solidFoodCount: 0,
-    medicationCount: 0,
-    temperatureCount: 0,
-  }
+/** 「全部」时间范围的起点：数据集内全部记录的最早时间戳所在日（无记录返回 null） */
+export function earliestRecordStart(ds: RecordDatasets, extraStamps: number[] = []): number | null {
+  const stamps = [
+    ...ds.feedings.map((f) => f.startTime),
+    ...ds.diapers.map((d) => d.time),
+    ...ds.pumpings.map((p) => p.startTime),
+    ...ds.sleeps.map((s) => s.startTime),
+    ...(ds.solidFoods ?? []).map((sf) => sf.time),
+    ...(ds.medications ?? []).map((m) => m.time),
+    ...(ds.temperatures ?? []).map((t) => t.time),
+    ...extraStamps,
+  ].filter((ts) => Number.isFinite(ts) && ts > 0)
+  if (stamps.length === 0) return null
+  return startOfDay(Math.min(...stamps))
+}
+
+/** 将每日序列汇总为区间聚合（可复用已有 days，避免二次分桶） */
+export function sumDays(days: DayAggregate[]): RangeAggregate {
+  const agg: RangeAggregate = { dayCount: days.length, ...emptyMetrics() }
   for (const d of days) {
-    agg.totalMilkAmount += d.totalMilkAmount
-    agg.breastMilkAmount += d.breastMilkAmount
-    agg.formulaAmount += d.formulaAmount
-    agg.feedCount += d.feedCount
-    agg.breastCount += d.breastCount
-    agg.bottleCount += d.bottleCount
-    agg.sleepMs += d.sleepMs
-    agg.diaperCount += d.diaperCount
-    agg.wetCount += d.wetCount
-    agg.dirtyCount += d.dirtyCount
-    agg.pumpAmount += d.pumpAmount
-    agg.pumpCount += d.pumpCount
-    agg.pumpMs += d.pumpMs
-    agg.solidFoodCount += d.solidFoodCount
-    agg.medicationCount += d.medicationCount
-    agg.temperatureCount += d.temperatureCount
+    for (const k of RANGE_METRIC_KEYS) agg[k] += d[k]
   }
   return agg
+}
+
+/** 区间汇总（用于对比面板） */
+export function aggregateRange(
+  ds: RecordDatasets,
+  start: number,
+  end: number,
+  now: number = Date.now(),
+): RangeAggregate {
+  return sumDays(buildDailySeries(ds, start, end, now))
 }
 
 /** 区间比较结果：当前 vs 上一周期 */
@@ -272,80 +256,34 @@ export interface ComparisonResult {
   dailyAvg: number
 }
 
+/** 对比指标注册表（key 对应 RangeAggregate 字段，label 为 i18n key） */
+const COMPARE_METRICS = [
+  { key: 'totalMilkAmount', label: 'stats.compare.totalMilk' },
+  { key: 'breastMilkAmount', label: 'stats.compare.bottleMilk' },
+  { key: 'formulaAmount', label: 'stats.compare.formula' },
+  { key: 'feedCount', label: 'stats.compare.feedCount' },
+  { key: 'breastCount', label: 'stats.compare.breastCount' },
+  { key: 'sleepMs', label: 'stats.compare.sleepMs' },
+  { key: 'diaperCount', label: 'stats.compare.diaperCount' },
+  { key: 'pumpAmount', label: 'stats.compare.pumpAmount' },
+  { key: 'pumpCount', label: 'stats.compare.pumpCount' },
+  { key: 'solidFoodCount', label: 'stats.compare.solidFoodCount' },
+  { key: 'medicationCount', label: 'stats.compare.medicationCount' },
+  { key: 'temperatureCount', label: 'stats.compare.temperatureCount' },
+] as const satisfies readonly { key: keyof RangeAggregate; label: string }[]
+
 /** 比较两个区间各指标（label 为 i18n key） */
 export function compareRanges(current: RangeAggregate, previous: RangeAggregate): ComparisonResult[] {
-  const items: { key: string; label: string; current: number; previous: number }[] = [
-    {
-      key: 'totalMilkAmount',
-      label: 'stats.compare.totalMilk',
-      current: current.totalMilkAmount,
-      previous: previous.totalMilkAmount,
-    },
-    {
-      key: 'breastMilkAmount',
-      label: 'stats.compare.bottleMilk',
-      current: current.breastMilkAmount,
-      previous: previous.breastMilkAmount,
-    },
-    {
-      key: 'formulaAmount',
-      label: 'stats.compare.formula',
-      current: current.formulaAmount,
-      previous: previous.formulaAmount,
-    },
-    { key: 'feedCount', label: 'stats.compare.feedCount', current: current.feedCount, previous: previous.feedCount },
-    {
-      key: 'breastCount',
-      label: 'stats.compare.breastCount',
-      current: current.breastCount,
-      previous: previous.breastCount,
-    },
-    { key: 'sleepMs', label: 'stats.compare.sleepMs', current: current.sleepMs, previous: previous.sleepMs },
-    {
-      key: 'diaperCount',
-      label: 'stats.compare.diaperCount',
-      current: current.diaperCount,
-      previous: previous.diaperCount,
-    },
-    {
-      key: 'pumpAmount',
-      label: 'stats.compare.pumpAmount',
-      current: current.pumpAmount,
-      previous: previous.pumpAmount,
-    },
-    { key: 'pumpCount', label: 'stats.compare.pumpCount', current: current.pumpCount, previous: previous.pumpCount },
-    {
-      key: 'solidFoodCount',
-      label: 'stats.compare.solidFoodCount',
-      current: current.solidFoodCount,
-      previous: previous.solidFoodCount,
-    },
-    {
-      key: 'medicationCount',
-      label: 'stats.compare.medicationCount',
-      current: current.medicationCount,
-      previous: previous.medicationCount,
-    },
-    {
-      key: 'temperatureCount',
-      label: 'stats.compare.temperatureCount',
-      current: current.temperatureCount,
-      previous: previous.temperatureCount,
-    },
-  ]
-
-  return items.map((item) => {
-    // previous 为 0 时无法计算百分比变化
-    const change =
-      item.previous === 0 ? null : ((item.current - item.previous) / item.previous) * 100
-    const dailyAvg = current.dayCount > 0 ? item.current / current.dayCount : 0
+  return COMPARE_METRICS.map(({ key, label }) => {
+    const cur = current[key]
+    const prev = previous[key]
     return {
-      key: item.key,
-      label: item.label,
-      current: item.current,
-      previous: item.previous,
-      change,
-      dailyAvg,
+      key,
+      label,
+      current: cur,
+      previous: prev,
+      change: prev === 0 ? null : ((cur - prev) / prev) * 100,
+      dailyAvg: current.dayCount > 0 ? cur / current.dayCount : 0,
     }
   })
 }
@@ -358,6 +296,18 @@ export interface RangePreset {
   getRange: (now: number) => [number, number]
 }
 
+/** 最近 n 天（含今天）预设 */
+function daysPreset(n: number, label: string): RangePreset {
+  return {
+    key: `${n}d`,
+    label,
+    getRange: (now) => {
+      const todayStart = startOfDay(now)
+      return [todayStart - (n - 1) * MS_PER_DAY, todayStart + MS_PER_DAY]
+    },
+  }
+}
+
 export const RANGE_PRESETS: RangePreset[] = [
   {
     key: 'today',
@@ -367,44 +317,18 @@ export const RANGE_PRESETS: RangePreset[] = [
       return [s, s + MS_PER_DAY]
     },
   },
-  {
-    key: '7d',
-    label: 'stats.periods.week7',
-    getRange: (now) => {
-      const s = startOfDay(now) - 6 * MS_PER_DAY
-      return [s, startOfDay(now) + MS_PER_DAY]
-    },
-  },
-  {
-    key: '14d',
-    label: 'stats.periods.week14',
-    getRange: (now) => {
-      const s = startOfDay(now) - 13 * MS_PER_DAY
-      return [s, startOfDay(now) + MS_PER_DAY]
-    },
-  },
-  {
-    key: '30d',
-    label: 'stats.periods.week30',
-    getRange: (now) => {
-      const s = startOfDay(now) - 29 * MS_PER_DAY
-      return [s, startOfDay(now) + MS_PER_DAY]
-    },
-  },
+  daysPreset(7, 'stats.periods.week7'),
+  daysPreset(14, 'stats.periods.week14'),
+  daysPreset(30, 'stats.periods.week30'),
   {
     key: 'month',
     label: 'stats.periods.month',
-    getRange: (now) => {
-      const d = new Date(now)
-      const s = new Date(d.getFullYear(), d.getMonth(), 1).getTime()
-      const e = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
-      return [s, e]
-    },
+    getRange: (now) => [startOfMonth(now), endOfMonth(now)],
   },
-    {
-      key: 'all',
-      label: 'stats.periods.all',
-      // 用有限上界：MAX_SAFE_INTEGER 会使 startOfDay 得到 NaN，日序列直接变空
-      getRange: (now) => [0, startOfDay(now) + MS_PER_DAY],
-    },
+  {
+    key: 'all',
+    label: 'stats.periods.all',
+    // 实际起点由视图按数据集最早记录钳制（earliestRecordStart），此处仅为占位
+    getRange: (now) => [0, startOfDay(now) + MS_PER_DAY],
+  },
 ]

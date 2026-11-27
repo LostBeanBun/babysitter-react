@@ -1,5 +1,5 @@
 /** 通用工具函数 */
-import i18n from '@/i18n'
+import { serviceT } from '@/i18n/service'
 
 /** 补零 */
 export function pad2(n: number): string {
@@ -30,9 +30,48 @@ export function startOfDay(ts: number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
 }
 
+/** 当月 1 日 0 点时间戳 */
+export function startOfMonth(ts: number): number {
+  const d = new Date(ts)
+  return new Date(d.getFullYear(), d.getMonth(), 1).getTime()
+}
+
+/** 下月 1 日 0 点时间戳（当月末的下一刻） */
+export function endOfMonth(ts: number): number {
+  const d = new Date(ts)
+  return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
+}
+
+/** 解析 "YYYY-MM-DD" 为当天 0 点时间戳（无效返回 undefined） */
+export function parseDateOnly(value: string): number | undefined {
+  if (!value) return undefined
+  const ts = new Date(value + 'T00:00:00').getTime()
+  return isNaN(ts) ? undefined : ts
+}
+
+/** 月加减：目标月的同一天（溢出钳制到月末，如 1/31 + 1 月 → 2/28） */
+export function addMonths(ts: number, months: number): number {
+  const d = new Date(ts)
+  const m = d.getMonth() + months
+  const y = d.getFullYear() + Math.floor(m / 12)
+  const mm = ((m % 12) + 12) % 12
+  const day = Math.min(d.getDate(), new Date(y, mm + 1, 0).getDate())
+  return new Date(y, mm, day).getTime()
+}
+
+/** 时长拆分为 时/分/秒 */
+export function durationParts(ms: number): { hours: number; minutes: number; seconds: number } {
+  const totalSec = Math.max(0, Math.floor(ms / 1000))
+  return {
+    hours: Math.floor(totalSec / 3600),
+    minutes: Math.floor((totalSec % 3600) / 60),
+    seconds: totalSec % 60,
+  }
+}
+
 /** 格式化时长：秒/分钟 → "X小时Y分" / "Y分钟"（跟随当前界面语言） */
 export function formatDuration(ms: number): string {
-  const t = (key: string): string => String(i18n.t(key))
+  const t = serviceT
   if (!ms || ms < 0) return t('duration.zero')
   const totalMin = Math.floor(ms / 60000)
   if (totalMin < 1) return `${Math.max(1, Math.floor(ms / 1000))}${t('duration.second')}`

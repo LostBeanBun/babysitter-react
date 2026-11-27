@@ -8,28 +8,15 @@
  * 只做描述性统计，不做健康判断。
  */
 import type { Baby, GrowthRecord } from '@/types'
-import { aggregateRange, type RangeAggregate } from './stats'
-import type { RecordDatasets } from './insights'
+import {
+  aggregateRange,
+  type RangeAggregate,
+  type RecordDatasets,
+} from './stats'
 import { MS_PER_DAY } from '@/constants'
 import { estimatePercentile } from '@/utils/growthPercentile'
 import { whoData, type WhoField } from '@/constants/whoGrowth'
 import { ageInMonths } from '@/utils/age'
-
-/** React 版 stats 使用位置参数，这里统一成数据集对象调用（与 Vue 版行为一致） */
-function aggregate(ds: RecordDatasets, start: number, end: number, now: number): RangeAggregate {
-  return aggregateRange(
-    ds.feedings,
-    ds.diapers,
-    ds.pumpings,
-    ds.sleeps,
-    start,
-    end,
-    ds.solidFoods,
-    ds.medications,
-    ds.temperatures,
-    now,
-  )
-}
 
 /** 自然月范围：end 为下月 1 日 0 点（不含） */
 export interface MonthRange {
@@ -86,9 +73,9 @@ export function buildMonthlyReport(
   range: MonthRange,
   now: number,
 ): MonthlyReport {
-  const current = aggregate(ds, range.start, range.end, now)
+  const current = aggregateRange(ds, range.start, range.end, now)
   const previousRange = monthRange(range.start, -1)
-  const previous = aggregate(ds, previousRange.start, previousRange.end, now)
+  const previous = aggregateRange(ds, previousRange.start, previousRange.end, now)
   const growthCount = growths.filter((g) => g.date >= range.start && g.date < range.end).length
 
   const rows = MONTHLY_METRICS.map(({ key, label }) => {
@@ -167,7 +154,7 @@ export function buildCareInsights(
   end: number,
   now: number,
 ): CareInsights {
-  const agg = aggregate(ds, start, end, now)
+  const agg = aggregateRange(ds, start, end, now)
   const days = Math.max(1, agg.dayCount)
   const inRange = (t: number) => t >= start && t < end
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildTimelineEntries, KIND_COLORS } from '@/services/timeline'
-import type { TimelineData, TimelineTranslate } from '@/services/timeline'
+import type { TimelineData } from '@/services/timeline'
 import type {
   Feeding,
   DiaperChange,
@@ -13,11 +13,10 @@ import type {
   Temperature,
   Milestone,
 } from '@/types'
-import i18n from '@/i18n'
+import { serviceT as t } from '@/i18n/service'
+import { KIND_META } from '@/constants'
 import { formatAmount, formatDuration, formatDate, formatTime } from '@/utils/format'
 
-/** 与组件内一致：注入 i18n 的 t */
-const t: TimelineTranslate = (key, options) => String(i18n.t(key, options as never))
 const T0 = 1_700_000_000_000
 
 const feed = (p: Partial<Feeding>): Feeding => ({
@@ -127,115 +126,117 @@ const empty: TimelineData = {
 
 describe('buildTimelineEntries', () => {
   it('空数据返回空数组', () => {
-    expect(buildTimelineEntries(empty, t)).toEqual([])
+    expect(buildTimelineEntries(empty)).toEqual([])
   })
 
   it('合并所有表并按时间倒序，raw 保持引用', () => {
     const f1 = feed({ id: 11, startTime: T0 - 3600_000 })
     const f2 = feed({ id: 12, startTime: T0 + 3600_000 })
     const d1 = diaper({ id: 13, time: T0 })
-    const entries = buildTimelineEntries({ ...empty, feedings: [f1, f2], diapers: [d1] }, t)
+    const entries = buildTimelineEntries({ ...empty, feedings: [f1, f2], diapers: [d1] })
     expect(entries.map((e) => e.id)).toEqual([12, 13, 11])
     expect(entries.find((e) => e.id === 12)!.raw).toBe(f2)
     expect(entries).toHaveLength(3)
   })
 
-  it('kindColor 取自 KIND_COLORS，10 种记录类型均有颜色', () => {
-    const entries = buildTimelineEntries(
-      {
-        ...empty,
-        feedings: [feed({})],
-        diapers: [diaper({})],
-        pumpings: [pumping({})],
-        sleeps: [sleep({})],
-        growths: [growth({})],
-        solidFoods: [solidFood({})],
-        medications: [medication({})],
-        vaccinations: [vaccination({})],
-        temperatures: [temperature({})],
-        milestones: [milestone({})],
-      },
-      t,
-    )
+  it('kindColor 源自 KIND_META，全部 kind 均有颜色', () => {
+    const entries = buildTimelineEntries({
+      ...empty,
+      feedings: [feed({})],
+      diapers: [diaper({})],
+      pumpings: [pumping({})],
+      sleeps: [sleep({})],
+      growths: [growth({})],
+      solidFoods: [solidFood({})],
+      medications: [medication({})],
+      vaccinations: [vaccination({})],
+      temperatures: [temperature({})],
+      milestones: [milestone({})],
+    })
     expect(entries).toHaveLength(10)
-    expect(Object.keys(KIND_COLORS)).toHaveLength(10)
     for (const e of entries) {
-      expect(e.kindColor).toBe(KIND_COLORS[e.kind])
+      expect(e.kindColor).toBe(KIND_META[e.kind].color)
       expect(e.color).toBeTruthy()
     }
-    // 与 Vue 端 KIND_META 同值，避免两端时间轴节点颜色漂移
-    expect(KIND_COLORS.feeding).toBe('#E8906C')
-    expect(KIND_COLORS.diaper).toBe('#9A8FC8')
+    expect(KIND_COLORS.feeding).toBe(KIND_META.feeding.color)
   })
 
   it('feeding：图标/奶量/时长/亲喂侧别', () => {
-    const [entry] = buildTimelineEntries(
-      {
-        ...empty,
-        feedings: [feed({ type: 'breast', side: 'left', amount: undefined, duration: 10 * 60_000 })],
-      },
-      t,
-    )
+    const [entry] = buildTimelineEntries({
+      ...empty,
+      feedings: [
+        feed({ type: 'breast', side: 'left', amount: undefined, duration: 10 * 60_000 }),
+      ],
+    })
     expect(entry.kind).toBe('feeding')
     expect(entry.icon).toBe('🤱')
-    expect(entry.title).toBe(`${t('feed.types.breast')} (${t('feed.sides.left')})`)
+    expect(entry.title).toBe(
+      `${t('feed.types.breast')} (${t('feed.sides.left')})`,
+    )
     expect(entry.detail).toBe(formatDuration(10 * 60_000))
     expect(entry.duration).toBe(10 * 60_000)
 
-    const [bottle] = buildTimelineEntries(
-      { ...empty, feedings: [feed({ type: 'bottle_formula', amount: 120, duration: undefined })] },
-      t,
-    )
+    const [bottle] = buildTimelineEntries({
+      ...empty,
+      feedings: [feed({ type: 'bottle_formula', amount: 120, duration: undefined })],
+    })
     expect(bottle.icon).toBe('🍼')
     expect(bottle.detail).toBe(formatAmount(120))
   })
 
   it('feeding 无数据时 detail 为 common.recorded', () => {
-    const [entry] = buildTimelineEntries(
-      { ...empty, feedings: [feed({ amount: undefined, duration: undefined })] },
-      t,
-    )
+    const [entry] = buildTimelineEntries({
+      ...empty,
+      feedings: [feed({ amount: undefined, duration: undefined })],
+    })
     expect(entry.detail).toBe(t('common.recorded'))
   })
 
   it('diaper：图标与附加颜色/量', () => {
-    const [entry] = buildTimelineEntries(
-      { ...empty, diapers: [diaper({ type: 'both', color: 'green', amount: 'large' })] },
-      t,
-    )
+    const [entry] = buildTimelineEntries({
+      ...empty,
+      diapers: [diaper({ type: 'both', color: 'green', amount: 'large' })],
+    })
     expect(entry.icon).toBe('🧷')
-    expect(entry.detail).toBe([t('diaper.colors.green'), t('diaper.amounts.large')].join(' · '))
+    expect(entry.detail).toBe(
+      [t('diaper.colors.green'), t('diaper.amounts.large')].join(' · '),
+    )
   })
 
   it('pumping：标题含侧别，detail 含量与时长', () => {
-    const [entry] = buildTimelineEntries(
-      { ...empty, pumpings: [pumping({ side: 'right', amount: 90, duration: 20 * 60_000 })] },
-      t,
-    )
+    const [entry] = buildTimelineEntries({
+      ...empty,
+      pumpings: [pumping({ side: 'right', amount: 90, duration: 20 * 60_000 })],
+    })
     expect(entry.title).toBe(t('timeline.pumpTitle', { side: t('pump.sides.right') }))
-    expect(entry.detail).toBe([formatAmount(90), formatDuration(20 * 60_000)].join(' · '))
+    expect(entry.detail).toBe(
+      [formatAmount(90), formatDuration(20 * 60_000)].join(' · '),
+    )
   })
 
-  it('sleep：统一图标与标题、时间区间、无时长时不带时长段', () => {
+  it('sleep：统一图标与标题（历史 night 记录同样按「睡眠」展示）、时间区间、无时长时不带时长段', () => {
     const start = T0
     const end = T0 + 2 * 3600_000
-    const [entry] = buildTimelineEntries(
-      { ...empty, sleeps: [sleep({ type: 'night', startTime: start, endTime: end })] },
-      t,
-    )
+    const [entry] = buildTimelineEntries({
+      ...empty,
+      sleeps: [sleep({ type: 'night', startTime: start, endTime: end })],
+    })
     expect(entry.title).toBe(t('timeline.sleepTitle'))
     expect(entry.icon).toBe('😴')
     expect(entry.detail).toBe(
       `${formatTime(start)} - ${formatTime(end)} · ${formatDuration(2 * 3600_000)}`,
     )
 
-    const [running] = buildTimelineEntries({ ...empty, sleeps: [sleep({ endTime: undefined })] }, t)
+    const [running] = buildTimelineEntries({
+      ...empty,
+      sleeps: [sleep({ endTime: undefined })],
+    })
     expect(running.duration).toBe(0)
     expect(running.detail).not.toContain(formatDuration(0))
   })
 
   it('growth：detail 含三项数据，timeLabel 为日期', () => {
-    const [entry] = buildTimelineEntries({ ...empty, growths: [growth({})] }, t)
+    const [entry] = buildTimelineEntries({ ...empty, growths: [growth({})] })
     expect(entry.detail).toBe(
       [
         t('timeline.weight', { value: 6.5 }),
@@ -247,29 +248,29 @@ describe('buildTimelineEntries', () => {
   })
 
   it('vaccination：done/planned 文案与时间色区分，timeLabel 为日期', () => {
-    const [done] = buildTimelineEntries(
-      { ...empty, vaccinations: [vaccination({ status: 'done', name: '卡介苗' })] },
-      t,
-    )
+    const [done] = buildTimelineEntries({
+      ...empty,
+      vaccinations: [vaccination({ status: 'done', name: '卡介苗' })],
+    })
     expect(done.detail).toContain(t('timeline.vaccinationDone'))
     expect(done.timeLabel).toBe(formatDate(T0))
 
-    const [planned] = buildTimelineEntries(
-      { ...empty, vaccinations: [vaccination({ id: 20, status: 'planned' })] },
-      t,
-    )
+    const [planned] = buildTimelineEntries({
+      ...empty,
+      vaccinations: [vaccination({ id: 20, status: 'planned' })],
+    })
     expect(planned.detail).toContain(t('timeline.vaccinationPlanned'))
     expect(planned.color).not.toBe(done.color)
   })
 
   it('milestone：detail 用备注或 common.recorded', () => {
-    const [withNotes] = buildTimelineEntries(
-      { ...empty, milestones: [milestone({ notes: '第一次微笑' })] },
-      t,
-    )
+    const [withNotes] = buildTimelineEntries({
+      ...empty,
+      milestones: [milestone({ notes: '第一次微笑' })],
+    })
     expect(withNotes.detail).toBe('第一次微笑')
 
-    const [noNotes] = buildTimelineEntries({ ...empty, milestones: [milestone({})] }, t)
+    const [noNotes] = buildTimelineEntries({ ...empty, milestones: [milestone({})] })
     expect(noNotes.detail).toBe(t('common.recorded'))
   })
 })

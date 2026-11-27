@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { csvEscape, toCsv, buildBabyCsvRows, buildBabyInfoRow, exportBabyCsvs, exportAllBabiesCsv, parseCsv, importAllCsv, type BabyCsvData } from '@/services/export'
 import type { Feeding, Baby } from '@/types'
-import i18n from '@/i18n'
 
-const { mockDb, downloadSpy } = vi.hoisted(() => {
+const { mockDb, downloadSpy, locale } = vi.hoisted(() => {
   const makeTable = () => ({
     toArray: vi.fn<() => Promise<unknown[]>>(async () => []),
     where: vi.fn<(table: string) => { equals: (id: number) => { sortBy: (key: string) => Promise<unknown[]> } }>(() => ({
@@ -31,18 +30,13 @@ const { mockDb, downloadSpy } = vi.hoisted(() => {
     }),
   }
   const downloadSpy = vi.fn()
-  return { mockDb, downloadSpy }
+  return { mockDb, downloadSpy, locale: { value: 'zh-CN' } }
 })
 
 vi.mock('@/db', () => ({ db: mockDb, DB_VERSION: 4 }))
-vi.mock('@/i18n', () => ({
-  default: {
-    t: (key: string) => key,
-    language: 'zh-CN',
-    changeLanguage: async () => {},
-    on: () => {},
-    off: () => {},
-  },
+vi.mock('@/i18n/service', () => ({
+  serviceT: (key: string) => key,
+  serviceLocale: () => locale.value,
 }))
 vi.mock('@/utils/format', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/format')>()
@@ -153,6 +147,11 @@ describe('buildBabyCsvRows', () => {
     expect(rows[0]).toHaveLength(13)
     const anonymous = buildBabyCsvRows(data)
     expect(anonymous[0]).toHaveLength(12)
+  })
+
+  it('amount 为 0 时也导出（不视为缺失）', () => {
+    const rows = buildBabyCsvRows({ ...data, feedings: [makeFeeding({ amount: 0 })] })
+    expect(rows[0][6]).toBe('0 ml')
   })
 })
 
@@ -494,6 +493,18 @@ describe('importAllCsv', () => {
     expect(added.endTime - added.startTime).toBe(2 * 3600_000)
   })
 
+  it('睡眠仅有时长无有效结束时间时按时长还原结束时间', async () => {
+    const csv =
+      `${HEADER_12}\n` +
+      'sleep,2026-01-01,08:00:00,2026-01-01,08:00:00,小睡,,90,,,,,'
+    const result = await importAllCsv(new File([csv], 'sleep.csv', { type: 'text/csv' }))
+    expect(result).toMatchObject({ sleeps: 1 })
+    const [items] = mockDb.sleeps.bulkAdd.mock.calls[0] as [Array<Record<string, unknown>>]
+    const start = items[0].startTime as number
+    const end = items[0].endTime as number
+    expect(end - start).toBe(90 * 60000)
+  })
+
   it('旧文件里的「夜间睡眠」/night 导入后统一为小睡', async () => {
     const headers =
       'exportCsv.recordType,exportCsv.date,exportCsv.time,exportCsv.endDate,exportCsv.endTime,exportCsv.item,exportCsv.value,exportCsv.duration,exportCsv.status,exportCsv.notes'
@@ -636,7 +647,7 @@ describe('importAllCsv', () => {
   })
 
   it('英文标签同样反查为内部键值（en-US locale）', async () => {
-    i18n.language = 'en-US'
+    locale.value = 'en-US'
     try {
       const t0 = new Date(2026, 0, 1, 7, 5, 9).getTime()
       const data: BabyCsvData = {
@@ -659,7 +670,7 @@ describe('importAllCsv', () => {
       const [items] = mockDb.feedings.bulkAdd.mock.calls[0] as [Array<Record<string, unknown>>]
       expect(items[0]).toMatchObject({ type: 'breast', side: 'both', startTime: t0, babyId: 1 })
     } finally {
-      i18n.language = 'zh-CN'
+      locale.value = 'zh-CN'
     }
   })
 
@@ -697,6 +708,15 @@ describe('importAllCsv', () => {
     await expect(importAllCsv(file)).rejects.toThrow('exportCsv.invalidFile')
     expect(mockDb.feedings.clear).not.toHaveBeenCalled()
     expect(mockDb.babies.add).not.toHaveBeenCalled()
+  })
+
+  it('喂养 amount 为 0 往返后仍为 0', async () => {
+    const csv =
+      `${HEADER_12}\r\n` +
+      toCsv([buildBabyCsvRows({ ...emptyData(), feedings: [makeFeeding({ amount: 0 })] })[0]])
+    await importAllCsv(new File([csv], 'zero.csv', { type: 'text/csv' }))
+    const [items] = mockDb.feedings.bulkAdd.mock.calls[0] as [Array<Record<string, unknown>>]
+    expect(items[0].amount).toBe(0)
   })
 
   it('增量导入：不清空现有数据，按宝宝+时间戳去重只补缺失记录', async () => {

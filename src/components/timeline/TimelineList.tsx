@@ -74,22 +74,19 @@ export default function TimelineList(props: TimelineListProps) {
 
   const entries = useMemo<TimelineEntry[]>(
     () =>
-      buildTimelineEntries(
-        {
-          feedings,
-          diapers,
-          pumpings,
-          sleeps,
-          growths,
-          solidFoods,
-          medications,
-          vaccinations,
-          temperatures,
-          milestones,
-        },
-        t,
-      ),
-    [feedings, diapers, pumpings, sleeps, growths, solidFoods, medications, vaccinations, temperatures, milestones, t],
+      buildTimelineEntries({
+        feedings,
+        diapers,
+        pumpings,
+        sleeps,
+        growths,
+        solidFoods,
+        medications,
+        vaccinations,
+        temperatures,
+        milestones,
+      }),
+    [feedings, diapers, pumpings, sleeps, growths, solidFoods, medications, vaccinations, temperatures, milestones],
   )
 
   /** 按天分组 */

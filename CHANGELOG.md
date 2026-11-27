@@ -3,6 +3,16 @@
 版本号唯一来源为 `package.json`（两端仓库保持同值），每次改动都必须升版并在此登记。
 规则：`major` 不兼容变更 · `minor` 新功能 · `patch` 修复与内部调整。
 
+## [1.16.4] - 2026-11-27
+
+### 变更
+
+- 双端共享层收敛（P0.2）：新增 `@/i18n/service`（`serviceT` / `serviceLocale`）统一 vue-i18n 与 i18next 访问，services / utils 不再各自适配框架 API
+- `stats` 统一为对象参数签名（`RecordDatasets` + `sumDays` + `earliestRecordStart`）；React 端「全部」区间改用服务层钳制，与 Vue 端行为一致
+- `timeline` / `csvLabels` / `exportCsv` / `importCsv` / `backup` / `utils/format` / `db` 两端逐字节一致；React 端补齐 `startOfMonth` / `endOfMonth` / `parseDateOnly` / `addMonths` / `durationParts` 与 `KIND_META` / `RECORD_KINDS`
+- 合并两端导出测试：保留 React 端的往返 / 解析用例，补回 Vue 端 amount=0 用例
+- `services-parity` 清单扩至 45 个共享文件，`allowed` 清零
+
 ## [1.16.3] - 2026-11-26
 
 ### 新增

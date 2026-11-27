@@ -2,15 +2,16 @@
  * CSV 导入：增量合并（不清空现有数据），按宝宝名匹配、记录按「宝宝 + 时间戳
  * （含附加区分字段）」去重，只补充缺失记录；兼容新旧格式与双语标签。
  */
-import { db, type BabySitterDB } from '@/db'
-import i18n from '@/i18n'
+import { db } from '@/db'
+import { RECORD_TABLES, type RecordTableName } from '@/db/tables'
+import { serviceT as t } from '@/i18n/service'
 import type { Baby } from '@/types'
 import { parseDate, startOfDay } from '@/utils/format'
 import { AVATAR_COLORS } from '@/constants'
 import { HEADER_ALIASES, headerCell, toInternal } from './csvLabels'
 
-const t = (key: string, options?: Record<string, unknown>): string => String(i18n.t(key, options as never))
 
+/** 解析 CSV 文本（支持 BOM、引号转义、字段内逗号/换行） */
 export function parseCsv(text: string): string[][] {
   const content = text.replace(/^\ufeff/, '')
   const rows: string[][] = []
@@ -65,19 +66,8 @@ export function parseCsv(text: string): string[][] {
   return rows
 }
 
-/** 导入用：CSV 表头键名（内部键值）与内部类型映射（复数，对应 recordBuckets 键） */
-const RECORD_TYPE_KEY_MAP: Record<string, string> = {
-  feeding: 'feedings',
-  diaper: 'diapers',
-  pumping: 'pumpings',
-  sleep: 'sleeps',
-  growth: 'growths',
-  solidFood: 'solidFoods',
-  medication: 'medications',
-  vaccination: 'vaccinations',
-  temperature: 'temperatures',
-  milestone: 'milestones',
-}
+/** 导入用：记录种类 → 表名（复数）映射 */
+const RECORD_TYPE_KEY_MAP: Record<string, string> = Object.fromEntries(RECORD_TABLES.map((r) => [r.kind, r.name]))
 
 /** 宝宝信息行解析结果（导入用） */
 interface BabyInfoMeta {
@@ -110,6 +100,20 @@ function parseBabyInfoRow(obj: Record<string, string>): BabyInfoMeta | null {
   }
 }
 
+/** 解析 "date time" → 时间戳（date 为空返回 0） */
+function parseDateTime(date: string, time: string): number {
+  if (!date) return 0
+  const d = parseDate(`${date} ${time || '00:00'}`)
+  return d ?? new Date(`${date}T${time || '00:00'}`).getTime()
+}
+
+/** 兼容旧格式：breast_left 等下划线写法 */
+const OLD_FEED_TYPE_MAP: Record<string, { type: string; side?: string }> = {
+  breast_left: { type: 'breast', side: 'left' },
+  breast_right: { type: 'breast', side: 'right' },
+  breast_both: { type: 'breast', side: 'both' },
+}
+
 /** 将 CSV 行映射为具体记录对象（列值为本地化标签或内部键值，统一经 toInternal 反查） */
 function mapCsvRowToRecord(
   row: string[],
@@ -137,12 +141,6 @@ function mapCsvRowToRecord(
   const status = headerCell(obj, 'status')
   const notes = headerCell(obj, 'notes')
 
-  const parseDateTime = (date: string, time: string): number => {
-    if (!date) return 0
-    const d = parseDate(`${date} ${time || '00:00'}`)
-    return d ?? new Date(`${date}T${time || '00:00'}`).getTime()
-  }
-
   const startTime = parseDateTime(dateStr, timeStr)
   const endTime = parseDateTime(endDateStr, endTimeStr)
 
@@ -153,15 +151,10 @@ function mapCsvRowToRecord(
   switch (kind) {
     case 'feedings': {
       // 兼容新旧格式：item 可能是 "breast·left" 或旧的 "breast_left" 等
-      const OLD_TYPE_MAP: Record<string, { type: string; side?: string }> = {
-        breast_left: { type: 'breast', side: 'left' },
-        breast_right: { type: 'breast', side: 'right' },
-        breast_both: { type: 'breast', side: 'both' },
-      }
       let feedType: string
       let feedSide: string | undefined
-      if (item in OLD_TYPE_MAP) {
-        const mapped = OLD_TYPE_MAP[item]
+      if (item in OLD_FEED_TYPE_MAP) {
+        const mapped = OLD_FEED_TYPE_MAP[item]
         feedType = mapped.type
         feedSide = mapped.side
       } else if (item.includes('·')) {
@@ -216,6 +209,12 @@ function mapCsvRowToRecord(
       }
     }
     case 'sleeps': {
+      // 结束时间缺失或不晚于开始时间时，优先用时长列还原真实结束时间（旧文件回退 1 小时）
+      const durMin = duration ? parseInt(duration, 10) : 0
+      let sleepEnd = endTime
+      if (!sleepEnd || sleepEnd <= startTime) {
+        sleepEnd = durMin > 0 ? startTime + durMin * 60000 : startTime + 60 * 60000
+      }
       return {
         kind,
         data: {
@@ -223,7 +222,7 @@ function mapCsvRowToRecord(
           // 睡眠类型已统一为「小睡」：旧文件里的「夜间睡眠」也按小睡导入
           type: 'nap',
           startTime,
-          endTime: endTime || startTime + 60 * 60000,
+          endTime: sleepEnd,
           notes: notes || undefined,
         },
       }
@@ -309,49 +308,29 @@ function mapCsvRowToRecord(
   return null
 }
 
-/** 记录表 → 时间字段（与 db 内 Dexie 复合索引保持一致） */
-const TABLE_TIME_FIELDS: Record<string, string> = {
-  feedings: 'startTime',
-  diapers: 'time',
-  pumpings: 'startTime',
-  sleeps: 'startTime',
-  growths: 'date',
-  solidFoods: 'time',
-  medications: 'time',
-  vaccinations: 'date',
-  temperatures: 'time',
-  milestones: 'time',
-}
+/** 导入结果计数：per-table 为新增条数，skipped 为去重跳过条数 */
+export type ImportCsvResult = { babies: number; skipped: number } & Record<RecordTableName, number>
 
 /** 各表判定重复记录时的附加区分字段（与宝宝、时间字段共同构成去重键） */
-const DEDUPE_EXTRA_FIELDS: Record<string, string[]> = {
+const DEDUPE_EXTRA_FIELDS: Partial<Record<RecordTableName, string[]>> = {
   medications: ['name'],
   vaccinations: ['name', 'dose'],
   milestones: ['type'],
 }
 
 /** 记录去重键：宝宝 + 时间 + 附加区分字段 */
-function recordDedupeKey(rec: Record<string, unknown>, timeField: string, extra: string[] | undefined): string {
+function recordDedupeKey(
+  rec: Record<string, unknown>,
+  timeField: string,
+  extra: string[] | undefined,
+): string {
   const parts = [String(rec.babyId), String(rec[timeField])]
   for (const field of extra ?? []) parts.push(String(rec[field] ?? ''))
   return parts.join('|')
 }
 
 /** 导入 CSV 备份（增量合并：不清空现有数据，按宝宝和时间戳去重，只补充缺失记录） */
-export async function importAllCsv(file: File): Promise<{
-  babies: number
-  skipped: number
-  feedings: number
-  diapers: number
-  pumpings: number
-  sleeps: number
-  growths: number
-  solidFoods: number
-  medications: number
-  vaccinations: number
-  temperatures: number
-  milestones: number
-}> {
+export async function importAllCsv(file: File): Promise<ImportCsvResult> {
   const text = await file.text()
   const rows = parseCsv(text)
   if (rows.length < 2) throw new Error(t('exportCsv.invalidFile'))
@@ -360,18 +339,7 @@ export async function importAllCsv(file: File): Promise<{
   const hasBabyNameCol = [t('exportCsv.babyName'), ...HEADER_ALIASES.babyName].includes(headers[0])
 
   const babiesMap = new Map<string, BabyInfoMeta & { id: number }>()
-  const recordBuckets: Record<string, unknown[]> = {
-    feedings: [],
-    diapers: [],
-    pumpings: [],
-    sleeps: [],
-    growths: [],
-    solidFoods: [],
-    medications: [],
-    vaccinations: [],
-    temperatures: [],
-    milestones: [],
-  }
+  const recordBuckets = Object.fromEntries(RECORD_TABLES.map((r) => [r.name, [] as unknown[]]))
 
   const now = Date.now()
   let mappedCount = 0
@@ -436,23 +404,13 @@ export async function importAllCsv(file: File): Promise<{
   if (babyNames.length === 0) throw new Error(t('exportCsv.noBaby'))
 
   let skipped = 0
-  const perTableAdded: Record<string, number> = {}
+  const perTableAdded = Object.fromEntries(
+    RECORD_TABLES.map((r) => [r.name, 0]),
+  ) as Record<RecordTableName, number>
 
   await db.transaction(
     'rw',
-    [
-      db.babies,
-      db.feedings,
-      db.diapers,
-      db.pumpings,
-      db.sleeps,
-      db.growths,
-      db.solidFoods,
-      db.medications,
-      db.vaccinations,
-      db.temperatures,
-      db.milestones,
-    ],
+    [db.babies, ...RECORD_TABLES.map((r) => db[r.name])],
     async () => {
       // 宝宝按名字增量合并：已存在则复用（回填 CSV 提供而现有缺失的资料），不存在才新增
       const existingBabies = await db.babies.toArray()
@@ -465,8 +423,10 @@ export async function importAllCsv(file: File): Promise<{
           const updates: Partial<Baby> = {}
           if (entry.gender != null && existed.gender == null) updates.gender = entry.gender
           if (entry.birthDate && !existed.birthDate) updates.birthDate = entry.birthDate
-          if (entry.birthWeight != null && existed.birthWeight == null) updates.birthWeight = entry.birthWeight
-          if (entry.birthHeight != null && existed.birthHeight == null) updates.birthHeight = entry.birthHeight
+          if (entry.birthWeight != null && existed.birthWeight == null)
+            updates.birthWeight = entry.birthWeight
+          if (entry.birthHeight != null && existed.birthHeight == null)
+            updates.birthHeight = entry.birthHeight
           if (entry.avatar && !existed.avatar) updates.avatar = entry.avatar
           if (entry.avatarColor && !existed.avatarColor) updates.avatarColor = entry.avatarColor
           if (Object.keys(updates).length > 0) await db.babies.update(existedId, updates)
@@ -486,17 +446,17 @@ export async function importAllCsv(file: File): Promise<{
       }
 
       // 记录增量合并：按宝宝 + 时间戳（含附加区分字段）去重，只添加现有库没有的记录
-      for (const [kind, records] of Object.entries(recordBuckets)) {
-        perTableAdded[kind] = 0
+      for (const r of RECORD_TABLES) {
+        const records = recordBuckets[r.name]
         if (records.length === 0) continue
-        const table = db[kind as keyof BabySitterDB] as unknown as {
+        const table = db[r.name] as unknown as {
           toArray: () => Promise<unknown[]>
           bulkAdd: (items: Record<string, unknown>[]) => Promise<unknown>
         }
         const existing = await table.toArray()
         const seen = new Set(
           existing.map((e) =>
-            recordDedupeKey(e as Record<string, unknown>, TABLE_TIME_FIELDS[kind], DEDUPE_EXTRA_FIELDS[kind]),
+            recordDedupeKey(e as Record<string, unknown>, r.timeField, DEDUPE_EXTRA_FIELDS[r.name]),
           ),
         )
         const fresh: Record<string, unknown>[] = []
@@ -506,7 +466,7 @@ export async function importAllCsv(file: File): Promise<{
             ...rec,
             babyId: babyIdMap.get(rec.babyId as number) ?? babyIdMap.values().next().value!,
           }
-          const key = recordDedupeKey(withRealId, TABLE_TIME_FIELDS[kind], DEDUPE_EXTRA_FIELDS[kind])
+          const key = recordDedupeKey(withRealId, r.timeField, DEDUPE_EXTRA_FIELDS[r.name])
           if (seen.has(key)) {
             skipped++
             continue
@@ -516,7 +476,7 @@ export async function importAllCsv(file: File): Promise<{
         }
         if (fresh.length === 0) continue
         await table.bulkAdd(fresh)
-        perTableAdded[kind] = fresh.length
+        perTableAdded[r.name] = fresh.length
       }
     },
   )
@@ -524,15 +484,6 @@ export async function importAllCsv(file: File): Promise<{
   return {
     babies: babyNames.length,
     skipped,
-    feedings: perTableAdded.feedings,
-    diapers: perTableAdded.diapers,
-    pumpings: perTableAdded.pumpings,
-    sleeps: perTableAdded.sleeps,
-    growths: perTableAdded.growths,
-    solidFoods: perTableAdded.solidFoods,
-    medications: perTableAdded.medications,
-    vaccinations: perTableAdded.vaccinations,
-    temperatures: perTableAdded.temperatures,
-    milestones: perTableAdded.milestones,
-  }
+    ...perTableAdded,
+  } as ImportCsvResult
 }

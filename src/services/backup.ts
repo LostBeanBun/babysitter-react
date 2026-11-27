@@ -8,7 +8,8 @@
  * - 提醒：超过 7 天未备份时首页提示（关闭后静默 1 天，设置页可永久关闭）
  */
 import { db, DB_VERSION } from '@/db'
-import { downloadBlob, formatDate } from '@/utils/format'
+import { RECORD_TABLES } from '@/db/tables'
+import { formatDate } from '@/utils/format'
 import type { Baby, ExportFile } from '@/types'
 
 const LAST_BACKUP_KEY = 'babysitter.lastBackupAt'
@@ -147,11 +148,23 @@ export async function buildBackup(now = Date.now()): Promise<ExportFile> {
   }
 }
 
+function downloadJson(text: string, filename: string): void {
+  const blob = new Blob([text], { type: 'application/json;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 /** 导出 JSON 全量备份并记录备份时间 */
 export async function exportJsonBackup(now = Date.now()): Promise<void> {
   const data = await buildBackup(now)
   const filename = `babysitter-backup-${formatDate(now)}.json`
-  downloadBlob(JSON.stringify(data, null, 2), filename, 'application/json;charset=utf-8')
+  downloadJson(JSON.stringify(data, null, 2), filename)
   markBackedUp(now)
 }
 
@@ -199,21 +212,8 @@ export function parseBackup(text: string): ExportFile {
   }
 }
 
-const RECORD_KEYS = [
-  'feedings',
-  'diapers',
-  'pumpings',
-  'sleeps',
-  'growths',
-  'solidFoods',
-  'medications',
-  'vaccinations',
-  'temperatures',
-  'milestones',
-] as const
-
 /** 导入结果计数（与记录表名一致） */
-export type ImportJsonResult = { babies: number } & Record<(typeof RECORD_KEYS)[number], number>
+export type ImportJsonResult = { babies: number } & Record<(typeof RECORD_TABLES)[number]['name'], number>
 
 /**
  * 从 JSON 备份恢复数据。
@@ -226,30 +226,18 @@ export async function importJsonBackup(file: File, now = Date.now()): Promise<Im
   // 覆盖前自动留一份当前数据的备份（用户可在下载目录找回）
   await exportJsonBackup(now)
 
-  const tables = [
-    db.babies,
-    db.feedings,
-    db.diapers,
-    db.pumpings,
-    db.sleeps,
-    db.growths,
-    db.solidFoods,
-    db.medications,
-    db.vaccinations,
-    db.temperatures,
-    db.milestones,
-  ]
+  const tables = RECORD_TABLES.map((r) => db[r.name])
   const babyIds = new Set(data.babies.map((b) => b.id).filter((id): id is number => typeof id === 'number'))
 
-  await db.transaction('rw', tables, async () => {
-    await Promise.all(tables.map((t) => t.clear()))
+  await db.transaction('rw', [db.babies, ...tables], async () => {
+    await Promise.all([db.babies.clear(), ...tables.map((tb) => tb.clear())])
     if (data.babies.length) await db.babies.bulkAdd(data.babies)
-    for (const key of RECORD_KEYS) {
-      const rows = (data[key] ?? []).filter((row) => {
+    for (const r of RECORD_TABLES) {
+      const rows = (data[r.name] ?? []).filter((row) => {
         const babyId = (row as { babyId?: number }).babyId
         return babyId == null || babyIds.size === 0 || babyIds.has(babyId)
       })
-      if (rows.length) await db.table(key).bulkAdd(rows)
+      if (rows.length) await (db[r.name] as { bulkAdd: (items: unknown[]) => Promise<unknown> }).bulkAdd(rows)
     }
   })
 
@@ -257,7 +245,7 @@ export async function importJsonBackup(file: File, now = Date.now()): Promise<Im
 
   return {
     babies: data.babies.length,
-    ...Object.fromEntries(RECORD_KEYS.map((key) => [key, (data[key] ?? []).length])),
+    ...Object.fromEntries(RECORD_TABLES.map((r) => [r.name, (data[r.name] ?? []).length])),
   } as ImportJsonResult
 }
 

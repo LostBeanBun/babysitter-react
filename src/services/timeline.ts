@@ -1,3 +1,4 @@
+import { serviceT as t } from '@/i18n/service'
 import type {
   Feeding,
   DiaperChange,
@@ -20,30 +21,17 @@ import {
   TEMP_METHOD_LABELS,
   MILESTONE_TYPE_LABELS,
   MILESTONE_TYPE_LIST,
+  KIND_META,
+  RECORD_KINDS,
 } from '@/constants'
 import { formatTime, formatDuration, formatAmount, formatDate } from '@/utils/format'
 
-/** 翻译函数（组件注入 useTranslation 的 t，单测注入 i18n.t） */
-export type TimelineTranslate = (key: string, options?: Record<string, unknown>) => string
-
 export type TimelineKind = RecordKind
 
-/**
- * 各记录类型的统一主色（时间轴节点 / 图标标识）。
- * 取值与 Vue 端 constants/index.ts 的 KIND_META.color 保持一致。
- */
-export const KIND_COLORS: Record<TimelineKind, string> = {
-  feeding: '#E8906C',
-  diaper: '#9A8FC8',
-  pumping: '#D8A8C8',
-  sleep: '#8FAED8',
-  growth: '#8FBF9F',
-  solidFood: '#D8905A',
-  medication: '#D86A8A',
-  vaccination: '#6AB0D8',
-  temperature: '#E8A45A',
-  milestone: '#E8B86A',
-}
+/** 各记录类型的统一主色（时间轴/图标标识），源自 KIND_META */
+export const KIND_COLORS = Object.fromEntries(
+  RECORD_KINDS.map((k) => [k, KIND_META[k].color]),
+) as Record<TimelineKind, string>
 
 export type TimelineRaw =
   | Feeding
@@ -88,7 +76,7 @@ export interface TimelineData {
 }
 
 /** 将各表记录合并为时间轴条目，按时间倒序返回 */
-export function buildTimelineEntries(data: TimelineData, t: TimelineTranslate): TimelineEntry[] {
+export function buildTimelineEntries(data: TimelineData): TimelineEntry[] {
   const list: TimelineEntry[] = []
 
   for (const f of data.feedings) {

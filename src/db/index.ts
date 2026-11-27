@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie'
+import { RECORD_TABLES, type RecordTableName } from '@/db/tables'
 import type {
   Baby,
   Feeding,
@@ -59,119 +60,32 @@ db.version(4).stores({
   milestones: '++id, babyId, [babyId+time], time',
 })
 
+/** 全部记录表（不含 babies），供清理/计数复用 */
+function recordTables(): Table<unknown, unknown>[] {
+  return RECORD_TABLES.map((r) => db[r.name] as Table<unknown, unknown>)
+}
+
 /** 清理某宝宝的全部数据 */
 export async function clearBabyData(babyId: number): Promise<void> {
-  await db.transaction(
-    'rw',
-    [
-      db.feedings,
-      db.diapers,
-      db.pumpings,
-      db.sleeps,
-      db.growths,
-      db.solidFoods,
-      db.medications,
-      db.vaccinations,
-      db.temperatures,
-      db.milestones,
-    ],
-    async () => {
-      await db.feedings.where('babyId').equals(babyId).delete()
-      await db.diapers.where('babyId').equals(babyId).delete()
-      await db.pumpings.where('babyId').equals(babyId).delete()
-      await db.sleeps.where('babyId').equals(babyId).delete()
-      await db.growths.where('babyId').equals(babyId).delete()
-      await db.solidFoods.where('babyId').equals(babyId).delete()
-      await db.medications.where('babyId').equals(babyId).delete()
-      await db.vaccinations.where('babyId').equals(babyId).delete()
-      await db.temperatures.where('babyId').equals(babyId).delete()
-      await db.milestones.where('babyId').equals(babyId).delete()
-    },
-  )
+  const tables = recordTables()
+  await db.transaction('rw', tables, async () => {
+    await Promise.all(tables.map((tb) => tb.where('babyId').equals(babyId).delete()))
+  })
 }
 
 /** 清空数据库全部数据（导入前调用） */
 export async function clearAllData(): Promise<void> {
-  await db.transaction(
-    'rw',
-    [
-      db.babies,
-      db.feedings,
-      db.diapers,
-      db.pumpings,
-      db.sleeps,
-      db.growths,
-      db.solidFoods,
-      db.medications,
-      db.vaccinations,
-      db.temperatures,
-      db.milestones,
-    ],
-    async () => {
-      await Promise.all([
-        db.babies.clear(),
-        db.feedings.clear(),
-        db.diapers.clear(),
-        db.pumpings.clear(),
-        db.sleeps.clear(),
-        db.growths.clear(),
-        db.solidFoods.clear(),
-        db.medications.clear(),
-        db.vaccinations.clear(),
-        db.temperatures.clear(),
-        db.milestones.clear(),
-      ])
-    },
-  )
+  const tables: Table<unknown, unknown>[] = [db.babies as Table<unknown, unknown>, ...recordTables()]
+  await db.transaction('rw', tables, async () => {
+    await Promise.all(tables.map((tb) => tb.clear()))
+  })
 }
+
+/** 记录计数（键为表名） */
+export type RecordCounts = Record<RecordTableName, number>
 
 /** 统计记录总数（设置页展示） */
-export async function countAllRecords(): Promise<{
-  feedings: number
-  diapers: number
-  pumpings: number
-  sleeps: number
-  growths: number
-  solidFoods: number
-  medications: number
-  vaccinations: number
-  temperatures: number
-  milestones: number
-}> {
-  const [feedings, diapers, pumpings, sleeps, growths, solidFoods, medications, vaccinations, temperatures, milestones] =
-    await Promise.all([
-      db.feedings.count(),
-      db.diapers.count(),
-      db.pumpings.count(),
-      db.sleeps.count(),
-      db.growths.count(),
-      db.solidFoods.count(),
-      db.medications.count(),
-      db.vaccinations.count(),
-      db.temperatures.count(),
-      db.milestones.count(),
-    ])
-  return {
-    feedings,
-    diapers,
-    pumpings,
-    sleeps,
-    growths,
-    solidFoods,
-    medications,
-    vaccinations,
-    temperatures,
-    milestones,
-  }
-}
-
-/** 便捷：按宝宝 + 时间范围查询（半开区间 [start, end)） */
-export function queryByRange<T>(
-  table: Table<T, unknown>,
-  babyId: number,
-  field: 'startTime' | 'time',
-  start: number,
-  end: number,
-) {
-  return table.where(`[babyId+${field}]`).between([babyId, start], [babyId, end], true, false).toArray() as Promise<T[]>
+export async function countAllRecords(): Promise<RecordCounts> {
+  const entries = await Promise.all(RECORD_TABLES.map(async (r) => [r.name, await db[r.name].count()] as const))
+  return Object.fromEntries(entries) as RecordCounts
 }

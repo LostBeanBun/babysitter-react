@@ -4,9 +4,6 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRecordsLive } from '@/hooks/useRecordsLive'
 import PageHeader from '@/components/common/PageHeader'
-
-/** y 轴刻度缩写（纯函数，组件外定义避免每次渲染产生新引用） */
-const yFormatter = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))
 import CountUp from '@/components/common/CountUp'
 import ChartCard from '@/components/charts/ChartCard'
 import GrowthCurveCharts from '@/components/charts/GrowthCurveCharts'
@@ -15,9 +12,12 @@ import {
   buildDailySeries,
   aggregateRange,
   compareRanges,
+  earliestRecordStart,
+  sumDays,
   RANGE_PRESETS,
   type DayAggregate,
   type ComparisonResult,
+  type RecordDatasets,
 } from '@/services/stats'
 import { MS_PER_DAY } from '@/constants'
 import {
@@ -61,6 +61,9 @@ import type {
   Temperature,
 } from '@/types'
 import s from './StatsView.module.css'
+
+/** y 轴刻度缩写（纯函数，组件外定义避免每次渲染产生新引用） */
+const yFormatter = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v))
 
 /** 分享能力不会在运行中变化：订阅函数保持稳定空实现 */
 const subscribeShareSupport = () => () => {}
@@ -119,22 +122,17 @@ export default function StatsView() {
   const temperaturesResult = useRecordsLive('temperatures', activeBabyId)
   const temperatures = useMemo(() => temperaturesResult ?? [], [temperaturesResult])
 
-  // “全部”按实际最早记录收窄，避免从 1970 起逐日建桶导致日均失真
-  const allDataStart = useMemo(() => {
-    if (rangeKey !== 'all') return null
-    const stamps = [
-      ...feedings.map((f) => f.startTime),
-      ...diapers.map((d) => d.time),
-      ...pumpings.map((p) => p.startTime),
-      ...sleeps.map((s) => s.startTime),
-      ...growths.map((g) => g.date),
-      ...solidFoods.map((sf) => sf.time),
-      ...medications.map((m) => m.time),
-      ...temperatures.map((tp) => tp.time),
-    ].filter((ts) => Number.isFinite(ts) && ts > 0)
-    if (stamps.length === 0) return startOfDay(now) - 30 * MS_PER_DAY
-    return startOfDay(Math.min(...stamps))
-  }, [rangeKey, feedings, diapers, pumpings, sleeps, growths, solidFoods, medications, temperatures, now])
+  // 统计用记录数据集（与 Vue 端共享同一份 stats 签名）
+  const datasets = useMemo<RecordDatasets>(
+    () => ({ feedings, diapers, pumpings, sleeps, solidFoods, medications, temperatures }),
+    [feedings, diapers, pumpings, sleeps, solidFoods, medications, temperatures],
+  )
+
+  // “全部”按实际最早记录收窄（服务层 earliestRecordStart 钳制），避免从 1970 起逐日建桶导致日均失真
+  const allDataStart = useMemo(
+    () => (rangeKey === 'all' ? earliestRecordStart(datasets, growths.map((g) => g.date)) : null),
+    [rangeKey, datasets, growths],
+  )
 
   const rangeStart = useMemo(() => {
     if (rangeKey === 'all') return allDataStart ?? startOfDay(now) - 30 * MS_PER_DAY
@@ -148,55 +146,16 @@ export default function StatsView() {
 
   // 每日序列（趋势图数据）
   const days = useMemo<DayAggregate[]>(
-    () =>
-      buildDailySeries(
-        feedings,
-        diapers,
-        pumpings,
-        sleeps,
-        rangeStart,
-        rangeEnd,
-        solidFoods,
-        medications,
-        temperatures,
-        now,
-      ),
-    [feedings, diapers, pumpings, sleeps, rangeStart, rangeEnd, solidFoods, medications, temperatures, now],
+    () => buildDailySeries(datasets, rangeStart, rangeEnd, now),
+    [datasets, rangeStart, rangeEnd, now],
   )
 
   // 当前区间 vs 上一等长区间（对比）
   const previousStart = useMemo(() => rangeStart - (rangeEnd - rangeStart), [rangeStart, rangeEnd])
-  const currentAgg = useMemo(
-    () =>
-      aggregateRange(
-        feedings,
-        diapers,
-        pumpings,
-        sleeps,
-        rangeStart,
-        rangeEnd,
-        solidFoods,
-        medications,
-        temperatures,
-        now,
-      ),
-    [feedings, diapers, pumpings, sleeps, rangeStart, rangeEnd, solidFoods, medications, temperatures, now],
-  )
+  const currentAgg = useMemo(() => sumDays(days), [days])
   const previousAgg = useMemo(
-    () =>
-      aggregateRange(
-        feedings,
-        diapers,
-        pumpings,
-        sleeps,
-        previousStart,
-        rangeStart,
-        solidFoods,
-        medications,
-        temperatures,
-        now,
-      ),
-    [feedings, diapers, pumpings, sleeps, previousStart, rangeStart, solidFoods, medications, temperatures, now],
+    () => aggregateRange(datasets, previousStart, rangeStart, now),
+    [datasets, previousStart, rangeStart, now],
   )
   const comparisons = useMemo<ComparisonResult[]>(() => compareRanges(currentAgg, previousAgg), [currentAgg, previousAgg])
 
@@ -260,11 +219,6 @@ export default function StatsView() {
   const summaryDays = Math.max(1, currentAgg.dayCount)
   const rangeGrowthCount = growths.filter((g) => g.date >= rangeStart && g.date < rangeEnd).length
 
-  // —— 区间小结（跟随所选时间范围）——
-  const datasets = useMemo(
-    () => ({ feedings, diapers, pumpings, sleeps, solidFoods, medications, temperatures }),
-    [feedings, diapers, pumpings, sleeps, solidFoods, medications, temperatures],
-  )
   // —— 区间小结：跟随所选时间范围（「全部」没有可比的上期，不展示）——
   const insight = useMemo(
     () => (rangeKey === 'all' ? null : buildRangeInsight(datasets, rangeStart, rangeEnd, now)),

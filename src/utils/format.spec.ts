@@ -12,7 +12,7 @@ import {
   toDateTimeLocal,
   parseDate,
 } from '@/utils/format'
-import i18n from '@/i18n'
+import { serviceT } from '@/i18n/service'
 
 describe('format utils', () => {
   it('pad2 补零', () => {
@@ -102,14 +102,14 @@ describe('format utils', () => {
 
 describe('formatDuration', () => {
   const cases: [number, (s: string) => boolean, string][] = [
-    [0, (s) => s === i18n.t('duration.zero'), 'zero'],
-    [-100, (s) => s === i18n.t('duration.zero'), 'negative→zero'],
-    [30_000, (s) => s.endsWith(i18n.t('duration.second')) && s.startsWith('30'), '30s'],
-    [90_000, (s) => s === `1${i18n.t('duration.minute')}`, '90s→1min'],
-    [59 * 60_000, (s) => s === `59${i18n.t('duration.minute')}`, '59min'],
-    [60 * 60_000, (s) => s === `1${i18n.t('duration.hour')}`, '60min→1h'],
-    [90 * 60_000, (s) => s === `1${i18n.t('duration.hour')}30${i18n.t('duration.minShort')}`, '90min'],
-    [2 * 3600_000, (s) => s === `2${i18n.t('duration.hour')}`, '2h'],
+    [0, (s) => s === serviceT('duration.zero'), 'zero'],
+    [-100, (s) => s === serviceT('duration.zero'), 'negative→zero'],
+    [30_000, (s) => s.endsWith(serviceT('duration.second')) && s.startsWith('30'), '30s'],
+    [90_000, (s) => s === `1${serviceT('duration.minute')}`, '90s→1min'],
+    [59 * 60_000, (s) => s === `59${serviceT('duration.minute')}`, '59min'],
+    [60 * 60_000, (s) => s === `1${serviceT('duration.hour')}`, '60min→1h'],
+    [90 * 60_000, (s) => s === `1${serviceT('duration.hour')}30${serviceT('duration.minShort')}`, '90min'],
+    [2 * 3600_000, (s) => s === `2${serviceT('duration.hour')}`, '2h'],
   ]
 
   for (const [ms, check, name] of cases) {
